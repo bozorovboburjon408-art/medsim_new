@@ -21,8 +21,8 @@ class Mannequin(Base):
     name = Column(String(100), nullable=False)
     age_range = Column(String(20))
     character_description = Column(Text)
-    voice_config = Column(JSONB)  # {"pitch": 0.7, "speed": 0.8, "voice_id": "...", "enabled": true}
-    ip_address = Column(INET, nullable=False)
+    voice_config = Column(JSONB)
+    ip_address = Column(String(50), default="192.168.1.10")
     esp32_port = Column(Integer, default=80)
     allowed_topics = Column(ARRAY(Text))
     forbidden_topics = Column(ARRAY(Text))

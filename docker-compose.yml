@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16
+    container_name: medsim_db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-medsim}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medsim123}
+      POSTGRES_DB: ${POSTGRES_DB:-medsim_db}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d
+    networks:
+      - medsim-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: medsim_backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-medsim}:${POSTGRES_PASSWORD:-medsim123}@db:5432/${POSTGRES_DB:-medsim_db}
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+    networks:
+      - medsim-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: medsim_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - medsim-network
+
+volumes:
+  db_data:
+
+networks:
+  medsim-network:
+    driver: bridge

@@ -30,17 +30,12 @@ async def lifespan(app: FastAPI):
     os.makedirs(settings.AUDIO_PRESETS_DIR, exist_ok=True)
     logger.info(f"📂 Audio presets: {settings.AUDIO_PRESETS_DIR}")
 
-    # DB jadvallarni yaratish (dev rejimda)
-    if settings.DEBUG:
-        try:
-            from app.db.database import engine, Base
-            # ORM modellarni import qilish (jadvallar ro'yxatxat olish uchun)
-            from app.db import models  # noqa: F401
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            logger.info("✅ DB jadvallar tayyor")
-        except Exception as e:
-            logger.warning(f"⚠️ DB ulanish xatosi (PostgreSQL ishlamayotgan bo'lishi mumkin): {e}")
+    # DB jadvallarni va boshlang'ich ma'lumotlarni yuklash
+    try:
+        from app.db.init_db import init_database
+        await init_database()
+    except Exception as e:
+        logger.warning(f"⚠️ DB ulanish/init xatosi: {e}")
 
     logger.info("✅ MedSim Backend tayyor!")
     yield

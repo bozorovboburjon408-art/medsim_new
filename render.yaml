@@ -12,7 +12,6 @@ services:
   # ===== Backend (FastAPI) =====
   - type: web
     name: medsim-backend
-    plan: free
     runtime: python
     buildCommand: |
       cd backend && pip install -r requirements.txt
@@ -24,7 +23,7 @@ services:
           name: medsim-db
           property: connectionString
       - key: OPENAI_API_KEY
-        sync: false  # Render dashboard'da qo'lda kiritiladi
+        sync: false
       - key: STT_API_URL
         value: ""
       - key: TTS_API_URL
@@ -39,7 +38,6 @@ services:
   # ===== Frontend (React — Static Site) =====
   - type: web
     name: medsim-frontend
-    plan: free
     runtime: static
     buildCommand: |
       cd frontend && npm install && npm run build

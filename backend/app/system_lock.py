@@ -1,11 +1,11 @@
 """
 Tizim Xavfsizlik va Litsenziya Boshqaruvi Moduli (System Lock & License Guard)
 ===========================================================================
-Ushbu modul to'lov amalga oshirilmagunicha butun tizimni (veb-sahifalar, API va WebSockets)
+Ushbu modul obuna muddati tugaganida butun tizimni (veb-sahifalar, API va WebSockets)
 to'liq va chetlab o'tib bo'lmaydigan qilib qulflash uchun xizmat qiladi.
 
 Qulflashni o'chirish / yoqish:
-- SYSTEM_LOCKED = True   -> Tizim to'liq bloklangan ("Avval dasturni pulini to'lang!!!")
+- SYSTEM_LOCKED = True   -> Tizim to'liq bloklangan ("Obuna muddati tugadi, dasturchiga murojaat qiling")
 - SYSTEM_LOCKED = False  -> Tizim normal, ochiq holatda ishlaydi
 
 Dasturchi maxfiy master kaliti: "21082007Bb"
@@ -22,7 +22,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 # ==============================================================================
 SYSTEM_LOCKED = True  # True = Qulflangan, False = Ochiq
 MASTER_UNLOCK_KEY = "21082007Bb"  # Dasturchi maxfiy master kaliti
-LOCK_MESSAGE = "Avval dasturni pulini to'lang!!!"
+LOCK_MESSAGE = "Obuna muddati tugadi, dasturchiga murojaat qiling"
 
 # ==============================================================================
 # QULF HOLATINI TEKSHIRISH
@@ -56,7 +56,7 @@ def is_system_locked_simple() -> bool:
 
 # ==============================================================================
 # MUTLAQO CHETLAB O'TIB BO'LMAYDIGAN QULF EKRANI (HTML + CSS + JS)
-# Katta, qat'iy "Avval dasturni pulini to'lang!!!" ogohlantirishi bilan
+# Kirish cheklandi — Obuna muddati tugadi
 # ==============================================================================
 LOCK_SCREEN_HTML = """<!DOCTYPE html>
 <html lang="uz">
@@ -66,12 +66,12 @@ LOCK_SCREEN_HTML = """<!DOCTYPE html>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>KIRISH CHEKLANGAN — Avval dasturni pulini to'lang!!!</title>
+    <title>Xizmat to'xtatilgan — Kirish cheklandi</title>
     <link rel="icon" href="/static/logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
         
         * {
             -webkit-touch-callout: none;
@@ -83,7 +83,7 @@ LOCK_SCREEN_HTML = """<!DOCTYPE html>
 
         body {
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: #05070e;
+            background-color: #060913;
             color: #f8fafc;
             min-height: 100vh;
             margin: 0;
@@ -93,9 +93,9 @@ LOCK_SCREEN_HTML = """<!DOCTYPE html>
             justify-content: center;
             overflow: hidden;
             background-image: 
-                radial-gradient(circle at 50% 25%, rgba(239, 68, 68, 0.25) 0%, transparent 60%),
-                radial-gradient(circle at 80% 80%, rgba(220, 38, 38, 0.12) 0%, transparent 45%),
-                radial-gradient(circle at 20% 80%, rgba(239, 68, 68, 0.12) 0%, transparent 45%);
+                radial-gradient(circle at 50% 20%, rgba(220, 38, 38, 0.18) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(245, 158, 11, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 20% 80%, rgba(220, 38, 38, 0.08) 0%, transparent 40%);
         }
 
         .mono {
@@ -106,153 +106,134 @@ LOCK_SCREEN_HTML = """<!DOCTYPE html>
         @keyframes lockPulse {
             0%, 100% {
                 transform: scale(1);
-                box-shadow: 0 0 45px rgba(239, 68, 68, 0.5), inset 0 0 25px rgba(239, 68, 68, 0.3);
+                box-shadow: 0 0 35px rgba(239, 68, 68, 0.4), inset 0 0 20px rgba(239, 68, 68, 0.2);
             }
             50% {
-                transform: scale(1.06);
-                box-shadow: 0 0 75px rgba(239, 68, 68, 0.85), inset 0 0 35px rgba(239, 68, 68, 0.5);
+                transform: scale(1.05);
+                box-shadow: 0 0 60px rgba(239, 68, 68, 0.7), inset 0 0 30px rgba(239, 68, 68, 0.4);
             }
         }
 
         @keyframes ringWave {
-            0% { transform: scale(0.9); opacity: 0.9; }
-            100% { transform: scale(1.5); opacity: 0; }
-        }
-
-        @keyframes glowText {
-            0%, 100% {
-                text-shadow: 0 0 15px rgba(239, 68, 68, 0.8), 0 0 30px rgba(239, 68, 68, 0.5);
-            }
-            50% {
-                text-shadow: 0 0 30px rgba(239, 68, 68, 1), 0 0 50px rgba(239, 68, 68, 0.8), 0 0 70px rgba(255, 0, 0, 0.6);
-            }
-        }
-
-        .glow-title {
-            animation: glowText 2s infinite ease-in-out;
+            0% { transform: scale(0.9); opacity: 0.8; }
+            100% { transform: scale(1.45); opacity: 0; }
         }
 
         .lock-icon-container {
             position: relative;
-            width: 104px;
-            height: 104px;
+            width: 96px;
+            height: 96px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #271015 0%, #0f0a12 100%);
-            border: 3px solid #ef4444;
+            background: linear-gradient(135deg, #1e1b2e 0%, #0f172a 100%);
+            border: 2px solid #ef4444;
             display: flex;
             align-items: center;
             justify-content: center;
-            animation: lockPulse 2.5s infinite ease-in-out;
+            animation: lockPulse 2.8s infinite ease-in-out;
             pointer-events: none;
         }
 
         .lock-ring {
             position: absolute;
-            inset: -10px;
+            inset: -8px;
             border-radius: 50%;
-            border: 2px solid rgba(239, 68, 68, 0.6);
-            animation: ringWave 2.5s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
+            border: 2px solid rgba(239, 68, 68, 0.5);
+            animation: ringWave 2.8s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
             pointer-events: none;
         }
 
         /* Glassmorphism Card */
         .glass-card {
-            background: rgba(15, 18, 30, 0.92);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
-            border: 2px solid rgba(239, 68, 68, 0.45);
-            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.95), 0 0 50px -10px rgba(239, 68, 68, 0.35);
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9), 0 0 40px -10px rgba(220, 38, 38, 0.25);
         }
 
         .glass-inset {
-            background: rgba(8, 10, 18, 0.85);
-            border: 1px solid rgba(239, 68, 68, 0.25);
+            background: rgba(8, 12, 22, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         /* Scanline effect */
         .scanlines {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
             background-size: 100% 4px;
             z-index: 1;
             pointer-events: none;
-            opacity: 0.4;
+            opacity: 0.35;
         }
     </style>
 </head>
 <body oncontextmenu="return false;">
     <div class="scanlines"></div>
 
-    <main class="relative z-10 w-full max-w-3xl px-4 py-8 mx-auto">
-        <div class="glass-card rounded-3xl p-6 sm:p-12 text-center relative overflow-hidden">
+    <main class="relative z-10 w-full max-w-2xl px-4 py-8 mx-auto">
+        <div class="glass-card rounded-3xl p-6 sm:p-10 text-center relative overflow-hidden">
             
-            <!-- Top Bold Animated Gradient Bar -->
-            <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-red-600 via-rose-500 to-red-600"></div>
+            <!-- Top Gradient Bar -->
+            <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-red-600 via-amber-500 to-red-600"></div>
 
             <!-- Organization Badge -->
-            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-950/80 border border-red-500/40 text-red-300 text-xs sm:text-sm font-bold mb-6 uppercase tracking-wider">
-                <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
-                <span>TIZIM TO'LIQ QULFLANGAN</span>
+            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-950/70 border border-red-500/30 text-red-400 text-xs sm:text-sm font-semibold mb-6 uppercase tracking-wider">
+                <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                <span>RO'TFMXMO va UIM Navoiy filiali</span>
             </div>
 
-            <!-- Glowing Lock Icon -->
+            <!-- Glowing Lock Icon (No clicks allowed) -->
             <div class="flex justify-center mb-6">
                 <div class="lock-icon-container">
                     <div class="lock-ring"></div>
-                    <i class="fa-solid fa-lock text-5xl text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.9)]"></i>
+                    <i class="fa-solid fa-lock text-4xl text-red-500 drop-shadow-[0_0_12px_rgba(239,68,68,0.8)]"></i>
                 </div>
             </div>
 
-            <!-- Main Big & Strict Notice -->
-            <h1 class="text-3xl sm:text-4xl md:text-5xl font-black text-red-500 tracking-tight leading-tight mb-5 glow-title uppercase">
-                Avval dasturni pulini to'lang!!!
+            <!-- Main Notice -->
+            <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight mb-4">
+                Obuna muddati tugadi, dasturchiga murojaat qiling
             </h1>
 
-            <p class="text-slate-200 text-base sm:text-lg leading-relaxed max-w-xl mx-auto mb-8 font-medium">
-                Dasturiy ta'minot, AI klinik bemor moduli va telemetriya monitoring tizimidan foydalanish to'xtatildi. Dasturdan foydalanish uchun dasturchi bilan to'lov hisob-kitobini to'liq bajaring!
+            <p class="text-slate-300 text-sm sm:text-base leading-relaxed max-w-lg mx-auto mb-8 font-normal">
+                Ushbu tibbiy simulyator va monitoring tizimidan foydalanish litsenziyasi muddati yakunlangan. Barcha interaktiv klinik modullar, AI bemor va telemetriya vaqtincha to'xtatildi.
             </p>
 
             <!-- Information Details Inset -->
-            <div class="glass-inset rounded-2xl p-5 sm:p-6 text-left mb-6 space-y-3.5">
-                <div class="flex items-center justify-between text-xs sm:text-sm py-1.5 border-b border-slate-800">
+            <div class="glass-inset rounded-2xl p-4 sm:p-5 text-left mb-6 space-y-3">
+                <div class="flex items-center justify-between text-xs sm:text-sm py-1 border-b border-slate-800/80">
                     <span class="text-slate-400 flex items-center gap-2">
-                        <i class="fa-solid fa-triangle-exclamation text-red-400"></i> Xavfsizlik talabi:
+                        <i class="fa-solid fa-shield-halved text-red-400"></i> Xavfsizlik holati:
                     </span>
-                    <span class="font-extrabold text-red-400 uppercase tracking-wide">To'lov qilinmagan</span>
+                    <span class="font-bold text-red-400 uppercase tracking-wide">Kirish cheklandi</span>
                 </div>
-                <div class="flex items-center justify-between text-xs sm:text-sm py-1.5 border-b border-slate-800">
-                    <span class="text-slate-400 flex items-center gap-2">
-                        <i class="fa-solid fa-ban text-red-400"></i> Tizim holati:
-                    </span>
-                    <span class="font-bold text-red-300">Bloklangan (403 Forbidden)</span>
-                </div>
-                <div class="flex items-center justify-between text-xs sm:text-sm py-1.5 border-b border-slate-800">
+                <div class="flex items-center justify-between text-xs sm:text-sm py-1 border-b border-slate-800/80">
                     <span class="text-slate-400 flex items-center gap-2">
                         <i class="fa-solid fa-fingerprint text-slate-400"></i> Tizim ID:
                     </span>
-                    <span class="mono font-bold text-slate-200">MED-SIM-UZ-7704</span>
+                    <span class="mono font-semibold text-slate-200">MED-SIM-UZ-7704</span>
                 </div>
-                <div class="flex items-center justify-between text-xs sm:text-sm py-1.5">
+                <div class="flex items-center justify-between text-xs sm:text-sm py-1">
                     <span class="text-slate-400 flex items-center gap-2">
-                        <i class="fa-solid fa-user-shield text-emerald-400"></i> Bog'lanish:
+                        <i class="fa-solid fa-headset text-emerald-400"></i> Qayta faollashtirish:
                     </span>
-                    <span class="font-bold text-emerald-400">Dasturchi / CAIL Lab</span>
+                    <span class="font-semibold text-emerald-400">Dasturchi / CAIL Lab</span>
                 </div>
             </div>
 
-            <!-- Footer -->
-            <div class="flex items-center justify-center text-xs text-slate-500 pt-4 border-t border-slate-800/80">
-                <div class="flex items-center gap-2 font-medium">
-                    <i class="fa-solid fa-shield-halved text-red-500"></i>
-                    <span>Mualliflik huquqi va dasturiy ta'minot litsenziyasi bilan himoyalangan &copy; 2026</span>
+            <!-- Footer (Clean & Protected) -->
+            <div class="flex items-center justify-center text-xs text-slate-500 pt-4 border-t border-slate-800/60">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-microchip text-slate-600"></i>
+                    <span>NDKTU CAIL Laboratoriyasi &copy; 2026</span>
                 </div>
             </div>
         </div>
     </main>
 
     <script>
-        // O'ng tugma va ishlab chiquvchi tugmalari bloklangan
+        // Mutlaq himoya: O'ng tugma va barcha ishlab chiquvchi tugmalari bloklangan
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('keydown', e => {
             if (
@@ -287,7 +268,7 @@ def apply_system_lock_middleware(app):
                     status_code=403,
                     content={
                         "status": "error",
-                        "code": "PAYMENT_REQUIRED",
+                        "code": "SUBSCRIPTION_EXPIRED",
                         "message": LOCK_MESSAGE,
                         "locked": True
                     }

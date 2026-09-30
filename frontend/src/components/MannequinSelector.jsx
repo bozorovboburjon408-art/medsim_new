@@ -23,10 +23,10 @@ const MANNEQUINS = [
   },
   {
     slug: 'homilador',
-    name: 'Homilador ayol',
-    age: '25-35 yosh',
+    name: 'Gulnora opa (Homilador)',
+    age: '32 hafta (28 yosh)',
     emoji: '🤰',
-    description: 'Xavotirli, hissiy, savollari ko\'p',
+    description: 'Piyelonefrit xuruji, anemiya, bel og\'rig\'i, holsizlik',
     color: {
       border: 'border-pink-400',
       bg: 'bg-pink-50',

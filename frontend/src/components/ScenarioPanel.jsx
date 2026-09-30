@@ -27,17 +27,16 @@ const MOCK_SCENARIOS = {
   homilador: [
     {
       id: 3,
-      title: "Erta tug'ruq xavfi",
-      desc: "Homiladorlikning 32-haftasi, qornning pastki qismida kuchli sanchish og'riqlari.",
+      title: "Homilador ayol patronaji (Piyelonefrit va Anemiya)",
+      desc: "Homiladorlik III (32 hafta). Surunkali piyelonefrit qo'zishi va o'rta og'ir darajali anemiya (Hb 80 g/l). Shikoyatlar: bel og'rig'i, harorat 37.5°C, to'q siydik, holsizlik.",
       duration: 20,
-      actions: ["Anamnez yig'ish", "Puls o'lchash", "Qorin tekshiruvi", "Shifokor chaqirish"]
-    },
-    {
-      id: 6,
-      title: "Toxikoz",
-      desc: "Ertalabki ko'ngil aynish va qusish. Bemor suvdan ham ko'ngli aynayapti.",
-      duration: 12,
-      actions: ["Simptomlarni aniqlash", "Suyuqlik berish", "Tinchlantirish"]
+      actions: [
+        "1-BOSQICH: Salomlashish, shikoyatlar va anamnezni surishtirish (bel og'rig'i, to'q siydik, 37.5°C)",
+        "2-BOSQICH: Shoshilinch shifokorga xabar berish va statsionarga (patologiya bo'limiga) yo'llanma berish",
+        "3-BOSQICH: 'Xavfli belgilar' (harorat 38°C+, qon ketishi, homila harakatsizligi) bo'yicha yo'riqnoma berish",
+        "4-BOSQICH: Parhez (tuzsiz, temirga boy), na'matak damlamasi va tizza-tirsak pozitsion terapiyasi",
+        "5-BOSQICH: Doppler-UTT va KTG skriningining hayotiy zarurligini tushuntirish"
+      ]
     }
   ],
   bola: [

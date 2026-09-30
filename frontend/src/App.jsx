@@ -65,10 +65,14 @@ function App() {
           "Oyoqlarim shishib ketdi, bolam, nima qilsam bo'ladi?"
         ],
         homilador: [
-          "Opa, qornimning pasti sanchib og'riyapti... Bolamga zarar bo'lmaydimi?",
-          "Kechadan beri bel og'rig'im qo'ymayapti, juda xavotirdaman.",
-          "Bolam tepinyaptimi yoki og'riqmi, tushunmayapman...",
-          "Iltimos, shifokorni chaqiring, menga yomon bo'lyapti!"
+          "Vaalaykum assalom, hamshira opa. Yaxshi deb bo'lmaydi... Oxirgi ikki kunda o'zimni juda holsiz his qilyapman. Boshim aylanib, tez charchab qolayapman. Belim ham simillab og'riyapti.",
+          "Ha, oxirgi 2 kunda siydigimning rangi to'q bo'lib qoldi, biroz tez-tez siygim kelyapti.",
+          "Ha, o'zim ham sezdim, tana haroratim 37,5°C ga chiqib, biroz qiziyapman. Boshim ham aylanib turibdi.",
+          "Belimning orqa tomoni, ayniqsa o'ng tomoni simillab og'riyapti. Bolaligimdan surunkali piyelonefritim bor edi.",
+          "Mayli hamshira opa, bolam va o'zimning sog'lig'im uchun shifoxonaga yotishga tayyorman. Hozir kiyimlarimni yig'ishtiraman.",
+          "Xudoga shukur, bolam harakatlanyapti, lekin unga biror ziyon yetmaydimi deb juda xavotirdaman, hamshira opa.",
+          "Yo'q, xudoga shukur, qonli ajralma yoki suv ketishi bo'lmadi.",
+          "Aytganingizdek qilaman: tuzli taomlarni cheklab, na'matak damlamasi ichaman va kuniga 3-4 mahal tizza-tirsak holatida turaman."
         ],
         bola: [
           "Oyim qani? Oyimni chaqiring!",

@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import StatusBar from './components/StatusBar';
+import VitalSignsMonitor from './components/VitalSignsMonitor';
 import MannequinSelector from './components/MannequinSelector';
 import ConversationPanel from './components/ConversationPanel';
 import VoiceRecorder from './components/VoiceRecorder';
@@ -11,14 +12,16 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [conversation, setConversation] = useState([]);
   const [sessionId, setSessionId] = useState(null);
+  const [completedActions, setCompletedActions] = useState([]);
 
   const handleSelectMannequin = async (mannequin) => {
     setActiveMannequin(mannequin);
     setConversation([]);
+    setCompletedActions([]);
     try {
       await focusMannequin(mannequin.slug);
     } catch (e) {
-      console.warn("Backend ulanganda API ishlaydi, hozir mock rejimda", e);
+      console.warn("Backend API ulanmagan, lokal rejimda ishlayapti", e);
     }
   };
 
@@ -26,22 +29,22 @@ function App() {
     if (!activeMannequin) return;
     setIsProcessing(true);
 
-    // Hamshira xabarini qo'shish
+    // Hamshiraning yuborilgan ovozli xabari
     setConversation(prev => [...prev, {
       speaker: 'nurse',
-      text: '🎤 Ovozli xabar yuborildi...',
+      text: '🎤 [Ovozli so\'rov uzatildi...]',
       timestamp: new Date().toISOString()
     }]);
 
     try {
-      // Backend ga ovoz yuborish
+      // Backend FastAPI ga yuborish
       const result = await sendSpeech(audioBlob, activeMannequin.slug, sessionId);
 
       setConversation(prev => {
         const updated = [...prev];
         updated[updated.length - 1] = {
           ...updated[updated.length - 1],
-          text: result.user_text || '[Ovozli xabar yuborildi]'
+          text: result.user_text || '[Ovozli patronaj savoli]'
         };
         return [
           ...updated,
@@ -53,16 +56,25 @@ function App() {
           }
         ];
       });
-    } catch (error) {
-      console.warn("Backend javob bermadi, mock rejim:", error);
 
-      // Mock javoblar (backend ishlamayotganda test uchun)
+      // Avtomatik cheklist progressini yangilash
+      setCompletedActions(prev => {
+        const nextIdx = prev.length;
+        if (nextIdx < 5 && !prev.includes(nextIdx)) {
+          return [...prev, nextIdx];
+        }
+        return prev;
+      });
+
+    } catch (error) {
+      console.warn("Backend aloqasi yo'q, lokal klinik dialog ishga tushdi:", error);
+
+      // Klinik replikalar (offline fallback)
       const mockResponses = {
         bobo: [
-          "Ha, qizim, tinglayapman. Bugun qon bosimim yana ko'tarildi shekilli...",
-          "Rahmat bolam, biroz boshim aylanib, yuragim tez uryapti.",
-          "Dori ichdim ertalab, lekin foydasi bo'lmadi shekilli.",
-          "Oyoqlarim shishib ketdi, bolam, nima qilsam bo'ladi?"
+          "Rahmat qizim, biroz boshim aylanib, yuragim tez uryapti.",
+          "Ha, ertalab o'zimning dorilarimni ichgan edim, lekin foydasi bo'lmadi.",
+          "Boshim qattiq og'riyapti, qon bosimimni o'lchab bering bolam."
         ],
         homilador: [
           "Vaalaykum assalom, hamshira opa. Yaxshi deb bo'lmaydi... Oxirgi ikki kunda o'zimni juda holsiz his qilyapman. Boshim aylanib, tez charchab qolayapman. Belim ham simillab og'riyapti.",
@@ -71,19 +83,17 @@ function App() {
           "Belimning orqa tomoni, ayniqsa o'ng tomoni simillab og'riyapti. Bolaligimdan surunkali piyelonefritim bor edi.",
           "Mayli hamshira opa, bolam va o'zimning sog'lig'im uchun shifoxonaga yotishga tayyorman. Hozir kiyimlarimni yig'ishtiraman.",
           "Xudoga shukur, bolam harakatlanyapti, lekin unga biror ziyon yetmaydimi deb juda xavotirdaman, hamshira opa.",
-          "Yo'q, xudoga shukur, qonli ajralma yoki suv ketishi bo'lmadi.",
           "Aytganingizdek qilaman: tuzli taomlarni cheklab, na'matak damlamasi ichaman va kuniga 3-4 mahal tizza-tirsak holatida turaman."
         ],
         bola: [
-          "Oyim qani? Oyimni chaqiring!",
-          "Ukol qilmang! Qo'rqaman!",
-          "Qornim og'riyapti... Uyga ketgim kelyapti.",
-          "Siz menga nima qilasiz? Qo'rqaman..."
+          "Rostdanmi? Ukol qilmaysizmi? Oyim qachon keladilar?",
+          "Oyim qani? Qornim og'riyapti, uyga ketaman!",
+          "Menga dori bermang, qo'rqaman!"
         ],
         chaqaloq: [
-          "👶 *yig'lash ovozi*",
-          "👶 *kulish ovozi*",
-          "👶 *uhh... uhh...*"
+          "👶 *qattiq yig'lash ovozi*",
+          "👶 *xursand bo'lib kulish ovozi*",
+          "👶 *yengil yo'tal va injiqlik ovozi*"
         ]
       };
 
@@ -101,17 +111,25 @@ function App() {
         const updated = [...prev];
         updated[updated.length - 1] = {
           ...updated[updated.length - 1],
-          text: '[Ovozli xabar yuborildi]'
+          text: '[Hamshira patronaj savoli uzatildi]'
         };
         return [
           ...updated,
           {
             speaker: 'mannequin',
             text: resText,
-            emotion: emotions[activeMannequin.slug] || null,
+            emotion: emotions[activeMannequin.slug] || 'oddiy',
             timestamp: new Date().toISOString()
           }
         ];
+      });
+
+      setCompletedActions(prev => {
+        const nextIdx = prev.length;
+        if (nextIdx < 5 && !prev.includes(nextIdx)) {
+          return [...prev, nextIdx];
+        }
+        return prev;
       });
     } finally {
       setIsProcessing(false);
@@ -119,11 +137,12 @@ function App() {
   }, [activeMannequin, sessionId]);
 
   const handleStartSession = useCallback((data) => {
-    const newId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    const newId = 'SES-' + Math.random().toString(36).substr(2, 6).toUpperCase();
     setSessionId(newId);
+    setCompletedActions([0]);
     setConversation([{
       speaker: 'system',
-      text: `📋 Seans boshlandi — ${data.scenarioTitle || 'Umumiy mashg\'ulot'}`,
+      text: `🏥 Klinik patronaj seansi boshlandi — ${data.scenarioTitle || 'Standart Ssenariy'}`,
       timestamp: new Date().toISOString()
     }]);
   }, []);
@@ -131,18 +150,24 @@ function App() {
   const handleEndSession = useCallback(() => {
     setConversation(prev => [...prev, {
       speaker: 'system',
-      text: '✅ Seans yakunlandi.',
+      text: '🏁 Patronaj seansi yakunlandi. Protokol baholashga yuborildi.',
       timestamp: new Date().toISOString()
     }]);
     setSessionId(null);
   }, []);
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-slate-50 overflow-hidden">
+    <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden font-sans select-none antialiased">
+      {/* Yuqori Tizim Paneli */}
       <StatusBar activeMannequin={activeMannequin} sessionId={sessionId} />
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Chap panel — Manikenlar */}
+      {/* Real-Vaqtli Vital Signs & EKG Monitori */}
+      <VitalSignsMonitor activeMannequin={activeMannequin} />
+
+      {/* Asosiy 3 Ustunli Ishchi Maydon */}
+      <div className="flex flex-1 overflow-hidden bg-slate-900">
+        
+        {/* Chap Panel (25%): Triaj va Bemorlar */}
         <div className="w-1/4 h-full shrink-0">
           <MannequinSelector
             activeMannequin={activeMannequin}
@@ -150,8 +175,8 @@ function App() {
           />
         </div>
 
-        {/* Markaziy panel — Suhbat + Mikrofon */}
-        <div className="w-1/2 h-full flex flex-col shadow-[0_0_15px_rgba(0,0,0,0.05)] z-10 shrink-0 bg-white">
+        {/* Markaziy Panel (50%): Transkript Jurnali + Ovoz Konsoli */}
+        <div className="w-1/2 h-full flex flex-col shrink-0 bg-slate-900 border-x border-slate-800 shadow-2xl relative z-10">
           <ConversationPanel
             conversation={conversation}
             activeMannequin={activeMannequin}
@@ -163,12 +188,13 @@ function App() {
           />
         </div>
 
-        {/* O'ng panel — Ssenariy */}
+        {/* O'ng Panel (25%): Klinik Protokol, Cheklist va Baholash */}
         <ScenarioPanel
           activeMannequin={activeMannequin}
           sessionId={sessionId}
           onStartSession={handleStartSession}
           onEndSession={handleEndSession}
+          completedActions={completedActions}
         />
       </div>
     </div>

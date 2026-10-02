@@ -18,6 +18,11 @@ object Api {
     private val http = OkHttpClient.Builder()
         .readTimeout(60, TimeUnit.SECONDS).build()
 
+    private fun normalize(u: String): String {
+        val t = u.trim().trimEnd('/')
+        return if (t.startsWith("http://") || t.startsWith("https://")) t else "http://$t"
+    }
+
     suspend fun chat(baseUrl: String, patientId: String, history: List<Turn>): Reply =
         withContext(Dispatchers.IO) {
             val body = JSONObject()
@@ -26,7 +31,7 @@ object Api {
                     JSONObject().put("role", it.role).put("content", it.content)
                 }))
             val req = Request.Builder()
-                .url(baseUrl.trimEnd('/') + "/chat")
+                .url(normalize(baseUrl) + "/chat")
                 .post(body.toString().toRequestBody("application/json".toMediaType()))
                 .build()
             http.newCall(req).execute().use { r ->

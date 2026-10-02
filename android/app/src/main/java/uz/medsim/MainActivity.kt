@@ -11,6 +11,8 @@ import android.speech.RecognitionListener
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -43,7 +45,7 @@ class MainActivity : ComponentActivity() {
 fun App() {
     val ctx = LocalContext.current
     val prefs = remember { ctx.getSharedPreferences("medsim", Context.MODE_PRIVATE) }
-    var server by remember { mutableStateOf(prefs.getString("server", "https://") ?: "https://") }
+    var server by remember { mutableStateOf(prefs.getString("server", "") ?: "") }
     var current by remember { mutableStateOf<PatientInfo?>(null) }
     // manikenga biriktirilgan kalonka: patient.id -> AudioDeviceInfo.id
     val speakers = remember { mutableStateMapOf<String, Int>() }
@@ -51,13 +53,16 @@ fun App() {
     Column(Modifier.fillMaxSize().padding(24.dp)) {
         val p = current
         if (p == null) {
+          Column(Modifier.verticalScroll(rememberScrollState())) {
             Text("MedSim — bemorni tanlang", style = MaterialTheme.typography.headlineMedium)
             OutlinedTextField(server, { server = it; prefs.edit().putString("server", it).apply() },
-                label = { Text("Server manzili") }, modifier = Modifier.fillMaxWidth())
+                label = { Text("Server manzili") }, placeholder = { Text("http://192.168.1.5:8000") },
+                singleLine = true, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(12.dp))
             PATIENTS.forEach {
                 Button({ current = it }, Modifier.fillMaxWidth().padding(vertical = 4.dp)) { Text(it.title) }
             }
+          }
         } else {
             TextButton({ Speaker.stop(); current = null }) { Text("← Orqaga") }
             Text(p.title, style = MaterialTheme.typography.headlineSmall)
@@ -106,6 +111,7 @@ fun ChatScreen(p: PatientInfo, server: String, deviceId: Int?) {
     var busy by remember { mutableStateOf(false) }
 
     fun send(text: String) {
+        if (server.isBlank()) { status = "Avval bosh sahifada server manzilini kiriting"; return }
         history.add(Turn("user", text)); busy = true; status = "Bemor javob tayyorlayapti…"
         scope.launch {
             try {

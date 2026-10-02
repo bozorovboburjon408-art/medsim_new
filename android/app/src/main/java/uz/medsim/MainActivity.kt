@@ -109,13 +109,17 @@ fun ChatScreen(p: PatientInfo, server: String, deviceId: Int?) {
     val history = remember(p.id) { mutableStateListOf<Turn>() }
     var status by remember { mutableStateOf("Mikrofon tugmasini bosib gapiring") }
     var busy by remember { mutableStateOf(false) }
+    var timing by remember { mutableStateOf("") }
 
     fun send(text: String) {
         if (server.isBlank()) { status = "Avval bosh sahifada server manzilini kiriting"; return }
         history.add(Turn("user", text)); busy = true; status = "Bemor javob tayyorlayapti…"
         scope.launch {
             try {
+                val t0 = System.currentTimeMillis()
                 val r = Api.chat(server, p.id, history.toList())
+                val total = (System.currentTimeMillis() - t0) / 1000.0
+                timing = "Jami %.1f s (AI %.1f s, ovoz %.1f s, qolgani tarmoq/server uyg'onishi)".format(total, r.llmMs / 1000.0, r.ttsMs / 1000.0)
                 history.add(Turn("assistant", r.text))
                 val f = File(ctx.cacheDir, "reply.mp3").also { it.writeBytes(r.mp3) }
                 status = "Bemor gapirmoqda…"
@@ -160,6 +164,7 @@ fun ChatScreen(p: PatientInfo, server: String, deviceId: Int?) {
             }
         }
         Text(status)
+        if (timing.isNotEmpty()) Text(timing)
         Button(::listen, enabled = !busy, modifier = Modifier.fillMaxWidth().height(64.dp)) { Text("🎤 Gapirish") }
     }
 }

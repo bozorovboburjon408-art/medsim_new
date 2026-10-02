@@ -12,7 +12,7 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 data class Turn(val role: String, val content: String) // "user" = hamshira, "assistant" = bemor
-data class Reply(val text: String, val mp3: ByteArray)
+data class Reply(val text: String, val mp3: ByteArray, val llmMs: Int = 0, val ttsMs: Int = 0)
 
 object Api {
     private val http = OkHttpClient.Builder()
@@ -38,7 +38,8 @@ object Api {
                 val raw = r.body!!.string()
                 check(r.isSuccessful) { "Server xatosi ${r.code}: " + (runCatching { JSONObject(raw).getString("detail") }.getOrDefault(raw)).take(300) }
                 val j = JSONObject(raw)
-                Reply(j.getString("text"), Base64.decode(j.getString("audio_b64"), Base64.DEFAULT))
+                Reply(j.getString("text"), Base64.decode(j.getString("audio_b64"), Base64.DEFAULT),
+                    j.optInt("llm_ms"), j.optInt("tts_ms"))
             }
         }
 }

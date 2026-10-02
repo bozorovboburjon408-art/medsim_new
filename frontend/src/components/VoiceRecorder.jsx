@@ -66,15 +66,20 @@ export default function VoiceRecorder({ activeMannequin, isProcessing, onAudioRe
         ];
       case 'bobo':
         return [
-          "Assalomu alaykum bobo, sog'ligingiz qanday?",
-          "Qon bosimingizni tekshirib qo'yaylik",
-          "Ertalab dori ichganmidingiz?"
+          "Assalomu alaykum Salomat buvi, ahvolingiz qanday?",
+          "Qon bosimi va qand miqdorini o'lchaymiz",
+          "Chanqash va og'iz qurishi bormi?",
+          "Tovondagi yara qachondan bitmayapti?",
+          "Parhezga va metformin dorisiga rioya qiling",
+          "Tovonga spirt/yod surtmang, iliq suvda yuving"
         ];
       case 'bola':
         return [
-          "Qo'rqma bolajonim, ukol qilmaymiz",
-          "Qayering og'riyapti, qorningmi?",
-          "Haroratingni o'lchab beraymi?"
+          "Assalomu alaykum Nilufar opa, Jasurbek qanday?",
+          "Tunda qichishish va tish g'ijirlatish bormi?",
+          "Kindik atrofida og'riq bormi?",
+          "Barcha oila a'zolari bir vaqtda dori ichishi shart",
+          "Tirnoqlarini kalta oling, kiyimlarni qaynoq dazmollang"
         ];
       default:
         return ["Ahvolingiz qanday?"];

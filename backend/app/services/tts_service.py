@@ -26,17 +26,20 @@ class TTSService:
         rate = "+0%"
 
         if mannequin_slug == "bobo":
-            voice = "uz-UZ-SardorNeural"
-            pitch = "-10Hz"
-            rate = "-12%"
+            # Salomat buvi (75 yoshli onaxon)
+            voice = "uz-UZ-MadinaNeural"
+            pitch = "-6Hz"
+            rate = "-15%"
         elif mannequin_slug == "homilador":
+            # Gulnora opa (28 yoshli homilador ayol)
             voice = "uz-UZ-MadinaNeural"
             pitch = "+0Hz"
             rate = "-4%"
         elif mannequin_slug == "bola":
+            # Jasurbek (5 yosh) va onasi Nilufar opa
             voice = "uz-UZ-MadinaNeural"
-            pitch = "+35Hz"
-            rate = "+10%"
+            pitch = "+5Hz"
+            rate = "-2%"
         elif mannequin_slug == "chaqaloq":
             return b""
 

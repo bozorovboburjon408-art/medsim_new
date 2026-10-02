@@ -87,15 +87,29 @@ function App() {
           fallbackText = "Belimning o'ng tomoni simillab og'riyapti, bolaligimdan buyragimda piyelonefrit bor edi.";
         }
       } else if (activeMannequin.slug === 'bobo') {
-        if (lower.includes('salom') || lower.includes('ahvol')) {
-          fallbackText = "Rahmat qizim, biroz boshim aylanib, yuragim tez uryapti.";
-        } else if (lower.includes('dori')) {
-          fallbackText = "Ertalab o'zimning dorilarimni ichgan edim, lekin bosimim tushmadi.";
+        if (lower.includes('salom') || lower.includes('ahvol') || lower.includes('qanday')) {
+          fallbackText = "Vaalaykum assalom, qizim. Juda darmonim yo'q, doim og'zim qurib chanqayapman. Kechalari ham tinchim yo'q, 4-5 marta hojatga chiqyapman.";
+        } else if (lower.includes('bosim') || lower.includes('qand') || lower.includes('shakar') || lower.includes('o\'lcha')) {
+          fallbackText = "Qon bosimim 145/90 ekan, qandim 11.8 mmol/l chiqdi. Tahlil javobimda glikatsiyalangan gemoglobin 9.2% chiqqan ekan.";
+        } else if (lower.includes('oyoq') || lower.includes('tovon') || lower.includes('yara')) {
+          fallbackText = "Oyoqlarim uvishib, muzlab, sanchadi. O'ng tovonimda kichik yara bor, ikki haftadan beri bitmayapti, og'riqni deyarli sezmayapman.";
+        } else if (lower.includes('parhez') || lower.includes('dori') || lower.includes('metformin') || lower.includes('tavsiya')) {
+          fallbackText = "Tushundim bolam. Metforminni vaqtida ichaman, shirinlik va palovni cheklayman, tovonimga yod surtmasdan iliq suvda yuvaman.";
         } else {
-          fallbackText = "Qon bosimim 180 ga chiqib ketgan shekilli, qizim, bir tekshirib bering.";
+          fallbackText = "Og'zim qurib chanqayapman, oyoqlarimda sezuvchanlik pasaygan. Shifokor tavsiyalarini bajaryapman.";
         }
       } else if (activeMannequin.slug === 'bola') {
-        fallbackText = "Oyim qani? Ukol qilmang, qo'rqaman!";
+        if (lower.includes('salom') || lower.includes('ahvol') || lower.includes('jasur')) {
+          fallbackText = "Assalomu alaykum, hamshira opa. Jasurbek kechalari juda bezovta bo'lib orqa chiqaruv yo'lini qashiyapti, uyqusida tishini g'ijirlatyapti, ishtahasi ham yo'q.";
+        } else if (lower.includes('qorin') || lower.includes('kindik') || lower.includes('og\'riq')) {
+          fallbackText = "Onasi: Kindik atrofida tez-tez simillab og'riq bo'lyapti deydi. Jasurbek: Qornim achishyapti opa...";
+        } else if (lower.includes('dori') || lower.includes('oila') || lower.includes('davolash')) {
+          fallbackText = "Rahmat hamshira opa! Butun oilamiz bilan bir kunda dori ichamiz va 14-21 kundan so'ng albatta qaytaramiz.";
+        } else if (lower.includes('gigiyena') || lower.includes('tirnoq') || lower.includes('dazmol') || lower.includes('yuvish')) {
+          fallbackText = "Tushundim, tirnoqlarini doim kalta olaman, ichki kiyimlarini 60 darajadan yuqorida yuvib, ikki tomonini qaynoq dazmollayman.";
+        } else {
+          fallbackText = "Jasurbekning orqasi qichishyapti, axlatida oq mayda qurtchalar ko'rdim. Nima qilishimiz kerak?";
+        }
       } else if (activeMannequin.slug === 'chaqaloq') {
         fallbackText = "👶 *yig'lash ovozi*";
       }

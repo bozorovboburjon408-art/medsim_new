@@ -8,10 +8,10 @@ import { Wifi, Users } from 'lucide-react';
 const MANNEQUINS = [
   {
     slug: 'bobo',
-    name: 'Bobo',
-    age: '65-75 yosh',
-    emoji: '👴',
-    description: 'Qon bosimi ko\'tarilgan, yurak sanchishi va bosh aylanishi',
+    name: 'Salomat buvi (Qariya)',
+    age: '75 yosh',
+    emoji: '👵',
+    description: '2-tip qandli diabet, qand 11.8 mmol/l, tovon yarasi, chanqash va uyushish',
     color: {
       border: 'border-amber-400',
       activeBg: 'bg-amber-50',
@@ -25,7 +25,7 @@ const MANNEQUINS = [
     name: 'Gulnora opa (Homilador)',
     age: '32 hafta (28 yosh)',
     emoji: '🤰',
-    description: 'Bel og\'rig\'i, tana harorati 37.5°C, to\'q siydik va holsizlik',
+    description: 'Piyelonefrit qo\'zishi, 2-darajali anemiya, bel og\'rig\'i, 37.5°C harorat',
     color: {
       border: 'border-pink-400',
       activeBg: 'bg-pink-50',
@@ -36,10 +36,10 @@ const MANNEQUINS = [
   },
   {
     slug: 'bola',
-    name: 'Bola',
-    age: '5-6 yosh',
+    name: 'Jasurbek va onasi (Bola)',
+    age: '5 yosh',
     emoji: '👦',
-    description: 'Tana harorati 39.5°C, ukoldan qo\'rqadi, faqat onasini so\'raydi',
+    description: 'Aralash gel\'mintoz (enterobioz), tunda qichishish, kindik og\'rig\'i, anemiya',
     color: {
       border: 'border-blue-400',
       activeBg: 'bg-blue-50',
@@ -53,7 +53,7 @@ const MANNEQUINS = [
     name: 'Chaqaloq',
     age: '0-1 yosh',
     emoji: '👶',
-    description: 'Gapirmaydi, yig\'lash va kulish ovozlarini chiqaradi',
+    description: 'Gapirmaydi, yig\'lash va kulish tovushlarini chiqaradi',
     color: {
       border: 'border-emerald-400',
       activeBg: 'bg-emerald-50',

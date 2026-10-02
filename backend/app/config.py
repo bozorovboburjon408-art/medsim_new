@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     claude_model: str = "claude-sonnet-5-5"
     tts_provider: str = "edge"
     debug_token: str = ""  # /tts_test uchun; bo'sh bo'lsa sinov yo'li o'chiq
-    gemini_tts_models: str = "gemini-3.8-flash-lite-tts,gemini-3.8-flash-tts,gemini-3.1-flash-tts-preview,gemini-2.5-flash-preview-tts"
+    gemini_tts_models: str = "gemini-3.8-flash-lite-tts,gemini-3.8-flash-tts"
     azure_speech_key: str = ""
     azure_speech_region: str = ""
 

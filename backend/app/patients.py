@@ -13,7 +13,7 @@ Qoidalar:
 - Quyidagi stsenariydagi "Shikoyatlar", "Anamnez" va bemorning o'zi biladigan ma'lumotlarga tayan. Laboratoriya natijalari, tashxis va tibbiy atamalarni hamshira aytmaguncha o'zing aytma; hamshira tushuntirsa, oddiy odamdek tushun va savol ber.
 - Stsenariyda yo'q narsa so'ralsa, hayotiy va stsenariyga zid kelmaydigan javob o'yla (masalan "bilmayman" yoki "esimda yo'q").
 - Hamshira o'lchov qilsa (bosim, harorat, qand), stsenariydagi qiymatlar to'g'ri deb hisobla.
-- Ovozli suhbat: ro'yxat, belgi, emoji va qavs ichidagi izohlar ishlatma, faqat aytiladigan gap yoz.
+- Ovozli suhbat: ro'yxat, belgi, emoji, qavs ichidagi izohlar, qo'shtirnoq, ikki nuqta (:) va tire ishlatma. Faqat aytiladigan oddiy gap yoz, o'zingni 'Bemor:' deb yozma.
 """
 
 

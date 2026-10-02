@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import re
 import json
 import time
 from typing import AsyncIterator
@@ -16,11 +17,26 @@ from .patients import Patient
 
 log = logging.getLogger("uvicorn.error")
 
+
+def clean_for_tts(text: str) -> str:
+    """Ovozga berilmaydigan belgilarni olib tashlaydi. Ayniqsa ikki nuqta va qo'shtirnoq: Gemini TTS ularni
+    'spiker: gap' deb o'qib, boshqa ovozga o'tib ketishi mumkin. O'zbekcha tutuq belgilari (o', g', ʻ, ’) saqlanadi."""
+    t = re.sub(r"[*_#`~<>\[\](){}]", " ", text)
+    for q in ("«", "»", '"', "“", "”", "„"):
+        t = t.replace(q, " ")
+    t = re.sub(r"\s*[:;]\s*", ", ", t)
+    t = re.sub(r"\s[—–-]+\s", ", ", t)
+    t = re.sub(r"\.{2,}|…", ".", t)
+    t = re.sub(r"\s*,(\s*,)+", ",", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    return re.sub(r"\s+([.,!?])", r"\1", t)
+
 _tts_bad: dict[str, float] = {}  # sekin/xato TTS modellari vaqtincha oxiriga o'tkaziladi
 
 
 async def synthesize(text: str, p: Patient, provider: str | None = None) -> tuple[bytes, str, str]:
     """Matnni ovozga aylantiradi. Qaytaradi: (audio baytlari, format 'mp3'|'wav', ishlatilgan provayder)."""
+    text = clean_for_tts(text)
     prov = provider if provider in ("edge", "gemini", "azure") else settings.tts_provider
     if prov == "gemini":
         try:
@@ -171,6 +187,7 @@ async def benchmark(text: str) -> dict:
 
 async def gemini_stream(text: str, p: Patient) -> AsyncIterator[bytes]:
     """Gemini TTS oqimi: 24 kHz, 16-bit, mono PCM bo'laklari (juft uzunlikda) kelishi bilan qaytariladi."""
+    text = clean_for_tts(text)
     body = {
         "contents": [{"parts": [{"text": text}]}],
         "generationConfig": {

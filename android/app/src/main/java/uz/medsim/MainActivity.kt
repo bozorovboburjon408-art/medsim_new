@@ -146,12 +146,14 @@ fun ChatScreen(p: PatientInfo, server: String, deviceId: Int?) {
         })
     }
 
-    LazyColumn(Modifier.weight(1f)) {
-        items(history) {
-            Text((if (it.role == "user") "Hamshira: " else "Bemor: ") + it.content,
-                Modifier.padding(vertical = 4.dp))
+    Column(Modifier.fillMaxSize()) {
+        LazyColumn(Modifier.weight(1f)) {
+            items(history) {
+                Text((if (it.role == "user") "Hamshira: " else "Bemor: ") + it.content,
+                    Modifier.padding(vertical = 4.dp))
+            }
         }
+        Text(status)
+        Button(::listen, enabled = !busy, modifier = Modifier.fillMaxWidth().height(64.dp)) { Text("🎤 Gapirish") }
     }
-    Text(status)
-    Button(::listen, enabled = !busy, modifier = Modifier.fillMaxWidth().height(64.dp)) { Text("🎤 Gapirish") }
 }

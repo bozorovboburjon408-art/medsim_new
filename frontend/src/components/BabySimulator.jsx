@@ -123,6 +123,10 @@ export default function BabySimulator({ onLogMessage }) {
     setIsSoothed(false);
     setSoothingProgress(0);
     setMotionValue(0);
+    
+    const espIp = localStorage.getItem('esp32_ip') || '10.108.2.154';
+    fetch(`http://${espIp}/trigger_cry`).catch(() => {});
+
     await triggerBaby('start_crying');
     if (onLogMessage) {
       onLogMessage({
@@ -138,6 +142,10 @@ export default function BabySimulator({ onLogMessage }) {
     setIsSoothed(true);
     setSoothingProgress(100);
     stopBrowserSound();
+
+    const espIp = localStorage.getItem('esp32_ip') || '10.108.2.154';
+    fetch(`http://${espIp}/stop_cry`).catch(() => {});
+
     await triggerBaby('stop_crying');
     if (onLogMessage) {
       onLogMessage({

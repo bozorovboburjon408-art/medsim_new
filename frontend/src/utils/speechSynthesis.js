@@ -42,6 +42,16 @@ export function playAudioResponse(audioBase64, text, mannequinSlug = 'homilador'
           speakBrowserFallback(text, mannequinSlug);
         });
       }
+
+      // ESP32 Kalonkasiga ham to'g'ridan-to'g'ri yuborish (Brauzerdan)
+      const espIp = localStorage.getItem('esp32_ip') || '10.108.2.154';
+      if (espIp) {
+        fetch(`http://${espIp}/play`, {
+          method: 'POST',
+          body: audioBase64
+        }).catch(e => console.debug("ESP32 ga audio uzatish xatosi:", e));
+      }
+
       return;
     } catch (e) {
       console.warn("Audio yaratish xatosi:", e);

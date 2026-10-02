@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: medsim-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: TTS_PROVIDER
+        value: edge
+      - key: GEMINI_API_KEY
+        sync: false

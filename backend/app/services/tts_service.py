@@ -8,9 +8,13 @@ class TTSService:
     @staticmethod
     async def synthesize(text: str, voice_config: dict = None) -> bytes:
         """
-        Synthesize text into audio bytes using external TTS API.
+        Matnni ovozga aylantirish:
+        1. Tashqi O'zbek tili TTS API (agar sozlangan bo'lsa)
+        2. OpenAI TTS modeli (avtomatik fallback)
         """
         voice_config = voice_config or {}
+        
+        # 1. Maxsus O'zbek tili TTS API
         if settings.TTS_API_URL:
             try:
                 async with httpx.AsyncClient() as client:
@@ -24,8 +28,31 @@ class TTSService:
                     response.raise_for_status()
                     return response.content
             except Exception as e:
-                logger.error(f"TTS API failed: {e}")
+                logger.error(f"External TTS API failed: {e}")
                 
-        # Mock implementation returning empty bytes if real TTS is unavailable
-        logger.warning("TTS API not configured or failed, returning dummy bytes.")
+        # 2. OpenAI TTS Fallback
+        if settings.OPENAI_API_KEY and not settings.OPENAI_API_KEY.startswith("sk-place") and not settings.OPENAI_API_KEY.startswith("sk-test"):
+            try:
+                from openai import AsyncOpenAI
+                client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+                
+                # Qahramon yoshi va jinsiga qarab ovoz tanlash
+                pitch = voice_config.get("pitch", 1.0)
+                if pitch < 0.9:
+                    voice = "onyx"     # Bobo (og'ir erkak ovozi)
+                elif pitch > 1.2:
+                    voice = "nova"     # Bola (sho'x, ingichka ovoz)
+                else:
+                    voice = "shimmer"  # Homilador ayol (mayin ayol ovozi)
+                
+                response = await client.audio.speech.create(
+                    model="tts-1",
+                    voice=voice,
+                    input=text
+                )
+                return response.content
+            except Exception as e:
+                logger.error(f"OpenAI TTS fallback failed: {e}")
+
+        logger.warning("TTS API sozlanmagan, bo'sh audio qaytarildi.")
         return b""

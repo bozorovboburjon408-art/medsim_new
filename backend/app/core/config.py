@@ -1,7 +1,6 @@
 """
 MedSim Backend Configuration
-Environment variables dan o'qiladi (.env yoki Render dashboard).
-OpenAI, DeepSeek yoki istalgan OpenAI-mos API'larni qo'llab-quvvatlaydi.
+DeepSeek API to'liq integratsiya qilindi.
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -10,14 +9,14 @@ class Settings(BaseSettings):
     # PostgreSQL ulanish
     DATABASE_URL: str = "postgresql+asyncpg://medsim:medsim123@localhost:5432/medsim_db"
 
-    # AI API kaliti (OpenAI yoki DeepSeek)
-    OPENAI_API_KEY: str = "sk-placeholder"
+    # DeepSeek AI API kaliti
+    OPENAI_API_KEY: str = "sk-42874f7bcf1f44adb2988b9ae0bc39cc"
     
-    # AI API Base URL (DeepSeek uchun: https://api.deepseek.com)
-    OPENAI_BASE_URL: str = ""
+    # DeepSeek Server manzili
+    OPENAI_BASE_URL: str = "https://api.deepseek.com"
     
-    # Model nomi (masalan: deepseek-chat yoki gpt-4o-mini)
-    AI_MODEL: str = ""
+    # DeepSeek modeli
+    AI_MODEL: str = "deepseek-chat"
 
     # O'zbek tili STT/TTS API (ixtiyoriy)
     STT_API_URL: str = ""

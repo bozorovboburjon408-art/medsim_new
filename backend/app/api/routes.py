@@ -538,3 +538,35 @@ async def _get_preset_audio(
             logger.warning(f"Audio fayl topilmadi: {preset.file_path}")
 
     return None, None
+
+
+@router.get("/api/debug/deepseek")
+async def debug_deepseek():
+    """Debug DeepSeek direct connectivity"""
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                "https://api.deepseek.com/chat/completions",
+                headers={
+                    "Authorization": "Bearer sk-42874f7bcf1f44adb2988b9ae0bc39cc",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [
+                        {"role": "user", "content": "Salom, test"}
+                    ]
+                }
+            )
+            return {
+                "status_code": resp.status_code,
+                "response_json": resp.json() if resp.status_code == 200 else resp.text
+            }
+    except Exception as e:
+        import traceback
+        return {
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+

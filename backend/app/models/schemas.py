@@ -57,6 +57,7 @@ class SpeechResponse(BaseModel):
     text: str  # AI javob matni
     user_text: Optional[str] = None  # Hamshira nima dedi
     audio_url: Optional[str] = None  # Audio fayl URL (agar mavjud bo'lsa)
+    audio_base64: Optional[str] = None  # Sof o'zbek tili MP3 audio (Base64)
     status: str  # success, stt_failed, ai_error, no_audio
     emotion: Optional[str] = None  # oddiy, xavotirli, og'riqli, qo'rqqan
     matched_script_id: Optional[int] = None  # Mos kelgan skript ID'si

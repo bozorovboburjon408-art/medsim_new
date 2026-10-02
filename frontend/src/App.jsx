@@ -5,7 +5,7 @@ import ConversationPanel from './components/ConversationPanel';
 import VoiceRecorder from './components/VoiceRecorder';
 import ScenarioPanel from './components/ScenarioPanel';
 import { focusMannequin, sendChatMessage, sendSpeech } from './services/api';
-import { speakText } from './utils/speechSynthesis';
+import { playAudioResponse } from './utils/speechSynthesis';
 
 function App() {
   const [activeMannequin, setActiveMannequin] = useState(null);
@@ -64,8 +64,8 @@ function App() {
         }
       ]);
 
-      // 4. BEMORNING OVOZINI DINAMIKDAN CHIQARIB O'QISH
-      speakText(replyText, activeMannequin.slug);
+      // 4. BEMORNING OVOZINI DINAMIKDAN CHIQARIB O'QISH (Sof O'zbek tili)
+      playAudioResponse(result?.audio_base64, replyText, activeMannequin.slug);
 
     } catch (error) {
       console.warn("Backend API xatosi, aqlli lokal javob tizimi:", error);
@@ -111,7 +111,7 @@ function App() {
       ]);
 
       // Ovoz chiqarish
-      speakText(fallbackText, activeMannequin.slug);
+      playAudioResponse(null, fallbackText, activeMannequin.slug);
 
     } finally {
       setIsProcessing(false);

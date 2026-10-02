@@ -1,46 +1,83 @@
 /**
- * Browser Speech Synthesis Helper
- * Matnni planshet/telefon/kompyuter dinamikidan ovoz chiqarib o'qib beradi.
+ * Audio Player & Speech Synthesis Helper
+ * Serverdan kelgan yuqori sifatli sof O'zbek tili Neural MP3 ovozini yangratadi.
  */
 
-export function speakText(text, mannequinSlug = 'homilador') {
-  if (!window.speechSynthesis) {
-    console.warn("SpeechSynthesis brauzerda qo'llab-quvvatlanmaydi");
+let currentAudio = null;
+
+export function playAudioResponse(audioBase64, text, mannequinSlug = 'homilador') {
+  // Avvalgi audio/ovozni to'xtatish
+  if (currentAudio) {
+    try {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    } catch (e) {}
+    currentAudio = null;
+  }
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+
+  // Chaqaloq ovozi bo'lsa
+  if (mannequinSlug === 'chaqaloq') {
+    if (audioBase64) {
+      try {
+        const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
+        currentAudio = audio;
+        audio.play().catch(e => console.warn("Audio play xatosi:", e));
+      } catch (e) {}
+    }
     return;
   }
 
-  // To'xtatish (agar avvalgi ovoz gapirayotgan bo'lsa)
-  window.speechSynthesis.cancel();
+  // 1. Agar serverdan sof O'zbek tili Base64 MP3 kelgan bo'lsa (Eng mukammal ovoz)
+  if (audioBase64) {
+    try {
+      const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
+      currentAudio = audio;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.warn("Autoplay cheklovi, brauzer sinteziga o'tilmoqda:", error);
+          speakBrowserFallback(text, mannequinSlug);
+        });
+      }
+      return;
+    } catch (e) {
+      console.warn("Audio yaratish xatosi:", e);
+    }
+  }
 
-  // Matndagi belgilarni tozalash (masalan *kulish*, *yig'lash*)
-  const cleanText = text.replace(/\*[^*]+\*/g, '').trim();
+  // 2. Agar audioBase64 bo'lmasa -> Brauzer sintez fallback
+  speakBrowserFallback(text, mannequinSlug);
+}
+
+function speakBrowserFallback(text, mannequinSlug) {
+  if (!window.speechSynthesis) return;
+
+  const cleanText = (text || '').replace(/\*[^*]+\*/g, '').trim();
   if (!cleanText) return;
 
   const utterance = new SpeechSynthesisUtterance(cleanText);
 
-  // Qahramon ovozini sozlash
   switch (mannequinSlug) {
     case 'bobo':
-      utterance.pitch = 0.7; // Qariya, past tembr
-      utterance.rate = 0.85; // Sekin, og'ir gapirish
+      utterance.pitch = 0.7;
+      utterance.rate = 0.85;
       break;
     case 'homilador':
-      utterance.pitch = 1.1; // Ayol ovozi, mayin
+      utterance.pitch = 1.05;
       utterance.rate = 0.95;
       break;
     case 'bola':
-      utterance.pitch = 1.5; // Bola ovozi, ingichka
+      utterance.pitch = 1.45;
       utterance.rate = 1.1;
       break;
-    case 'chaqaloq':
-      // Chaqaloq faqat tovush chiqaradi, sintez shart emas
-      return;
     default:
       utterance.pitch = 1.0;
       utterance.rate = 1.0;
   }
 
-  // O'zbek yoki yaqin tillar (mavjud bo'lsa)
   const voices = window.speechSynthesis.getVoices();
   const uzVoice = voices.find(v => v.lang.startsWith('uz') || v.lang.startsWith('tr') || v.lang.startsWith('ru'));
   if (uzVoice) {
@@ -49,3 +86,7 @@ export function speakText(text, mannequinSlug = 'homilador') {
 
   window.speechSynthesis.speak(utterance);
 }
+
+// Eski importlar uchun backward compatibility
+export const speakText = (text, mannequinSlug) => playAudioResponse(null, text, mannequinSlug);
+

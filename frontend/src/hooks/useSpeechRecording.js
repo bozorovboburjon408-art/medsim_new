@@ -15,31 +15,44 @@ export function useSpeechRecording() {
   const transcriptRef = useRef('');
 
   // Web Speech Recognition ni sozlash
-  useEffect(() => {
+  const initRecognition = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'uz-UZ'; // O'zbek tili
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'uz-UZ'; // O'zbek tili
+        recognition.maxAlternatives = 1;
 
-      recognition.onresult = (event) => {
-        let currentText = '';
-        for (let i = 0; i < event.results.length; i++) {
-          currentText += event.results[i][0].transcript + ' ';
-        }
-        const trimmed = currentText.trim();
-        transcriptRef.current = trimmed;
-        setTranscript(trimmed);
-      };
+        recognition.onresult = (event) => {
+          let currentText = '';
+          for (let i = 0; i < event.results.length; i++) {
+            currentText += event.results[i][0].transcript + ' ';
+          }
+          const trimmed = currentText.trim();
+          if (trimmed) {
+            transcriptRef.current = trimmed;
+            setTranscript(trimmed);
+          }
+        };
 
-      recognition.onerror = (e) => {
-        console.warn("Speech recognition ogohlantirish:", e.error);
-      };
+        recognition.onerror = (e) => {
+          console.warn("Speech recognition holati:", e.error);
+        };
 
-      recognitionRef.current = recognition;
+        recognitionRef.current = recognition;
+        return recognition;
+      } catch (e) {
+        console.warn("Recognition init xatosi:", e);
+      }
     }
+    return null;
   }, []);
+
+  useEffect(() => {
+    initRecognition();
+  }, [initRecognition]);
 
   const startRecording = useCallback(async () => {
     setError(null);
@@ -49,11 +62,16 @@ export function useSpeechRecording() {
     chunksRef.current = [];
 
     // 1. Speech Recognition ni boshlash
-    if (recognitionRef.current) {
+    let rec = recognitionRef.current || initRecognition();
+    if (rec) {
       try {
-        recognitionRef.current.start();
+        rec.start();
       } catch (e) {
-        console.debug("Recognition allaqachon faol");
+        // Agar xato bersa qaytadan boshlash
+        try {
+          rec = initRecognition();
+          rec?.start();
+        } catch (err) {}
       }
     }
 
@@ -85,21 +103,23 @@ export function useSpeechRecording() {
       console.error("Mikrofon ruxsati xatosi:", err);
       setError("Mikrofonga ulanib bo'lmadi. Ruxsat berilganini tekshiring.");
     }
-  }, []);
+  }, [initRecognition]);
 
   const stopRecording = useCallback(() => {
-    // 1. Speech Recognition ni to'xtatish
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {}
-    }
+    // 1. Web Speech Recognition'ni biroz kechiktirib to'xtatish (oxirgi so'zlarni ushlab qolish uchun)
+    setTimeout(() => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+      }
+    }, 400);
 
     // 2. MediaRecorder ni to'xtatish
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
-      setIsRecording(false);
     }
+    setIsRecording(false);
   }, []);
 
   useEffect(() => {
@@ -113,5 +133,14 @@ export function useSpeechRecording() {
     };
   }, []);
 
-  return { isRecording, startRecording, stopRecording, audioBlob, transcript, error };
+  return { 
+    isRecording, 
+    startRecording, 
+    stopRecording, 
+    audioBlob, 
+    transcript: transcript || transcriptRef.current, 
+    getTranscript: () => transcriptRef.current,
+    error 
+  };
 }
+

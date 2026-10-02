@@ -11,3 +11,5 @@ pydantic-settings
 python-multipart
 websockets
 openai
+edge-tts
+

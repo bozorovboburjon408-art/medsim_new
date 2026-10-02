@@ -239,22 +239,43 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
         matched_scripts=matched_scripts
     )
 
-    # Chaqaloq audio presetlari
+    # Ovoz generatsiyasi (Sof O'zbek tili Edge Neural TTS)
     audio_url = None
+    audio_base64 = None
     if mannequin.use_preset_audio:
+        # Chaqaloq audio presetlari
         audio_data, audio_url = await _get_preset_audio(mannequin.id, ai_response.emotion, db)
         if audio_data:
+            audio_base64 = TTSService.to_base64(audio_data)
             import asyncio
             asyncio.create_task(
                 AudioRouter.send_to_mannequin(
                     str(mannequin.ip_address), mannequin.esp32_port, audio_data, "audio/mpeg"
                 )
             )
+    else:
+        # Homilador, Bobo, Bola uchun jonli sof o'zbekcha ovoz
+        try:
+            audio_bytes = await TTSService.synthesize(ai_response.text, mannequin.slug, mannequin.voice_config)
+            if audio_bytes:
+                audio_base64 = TTSService.to_base64(audio_bytes)
+                audio_url = f"/api/tts?slug={mannequin.slug}&text={user_text[:30]}"
+                # ESP32 ga yuborish (agar ulangan bo'lsa)
+                if mannequin.ip_address:
+                    import asyncio
+                    asyncio.create_task(
+                        AudioRouter.send_to_mannequin(
+                            str(mannequin.ip_address), mannequin.esp32_port, audio_bytes, "audio/mpeg"
+                        )
+                    )
+        except Exception as e:
+            logger.warning(f"TTS audio generatsiya xatosi: {e}")
 
     return SpeechResponse(
         text=ai_response.text,
         user_text=user_text,
         audio_url=audio_url,
+        audio_base64=audio_base64,
         status="success",
         emotion=ai_response.emotion,
         matched_script_id=ai_response.used_script_id
@@ -537,7 +558,15 @@ async def _get_preset_audio(
         except FileNotFoundError:
             logger.warning(f"Audio fayl topilmadi: {preset.file_path}")
 
-    return None, None
+@router.get("/api/tts")
+async def get_tts_audio(text: str, slug: str = "homilador"):
+    """Sof o'zbek tilida MP3 audio oqimi (Edge Neural TTS)"""
+    from fastapi.responses import Response
+    audio_bytes = await TTSService.synthesize(text, slug)
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Audio generatsiya qilib bo'lmadi")
+    return Response(content=audio_bytes, media_type="audio/mpeg")
+
 
 
 @router.get("/api/debug/deepseek")

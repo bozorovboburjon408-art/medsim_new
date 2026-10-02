@@ -1,58 +1,78 @@
-import httpx
 import logging
+import base64
+import edge_tts
+import httpx
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 class TTSService:
     @staticmethod
-    async def synthesize(text: str, voice_config: dict = None) -> bytes:
+    async def synthesize(text: str, mannequin_slug: str = "homilador", voice_config: dict = None) -> bytes:
         """
-        Matnni ovozga aylantirish:
-        1. Tashqi O'zbek tili TTS API (agar sozlangan bo'lsa)
-        2. OpenAI TTS modeli (avtomatik fallback)
+        Matnni tabiiy va sof O'zbek tili ovoziga aylantirish (Microsoft Edge Neural TTS):
+        - homilador (Gulnora opa): uz-UZ-MadinaNeural (mayin, muloyim ayol ovozi)
+        - bobo: uz-UZ-SardorNeural (vazmin qariya ovozi)
+        - bola: uz-UZ-MadinaNeural (baland tonli bola ovozi)
+        - chaqaloq: ovoz sintezi qilinmaydi (MP3 presetlar ishlatiladi)
         """
-        voice_config = voice_config or {}
-        
-        # 1. Maxsus O'zbek tili TTS API
+        clean_text = text.replace('*', '').strip()
+        if not clean_text:
+            return b""
+
+        # 1. Edge Neural TTS (Eng yuqori sifatli sof O'zbek tili ovozi)
+        voice = "uz-UZ-MadinaNeural"
+        pitch = "+0Hz"
+        rate = "+0%"
+
+        if mannequin_slug == "bobo":
+            voice = "uz-UZ-SardorNeural"
+            pitch = "-10Hz"
+            rate = "-12%"
+        elif mannequin_slug == "homilador":
+            voice = "uz-UZ-MadinaNeural"
+            pitch = "+0Hz"
+            rate = "-4%"
+        elif mannequin_slug == "bola":
+            voice = "uz-UZ-MadinaNeural"
+            pitch = "+35Hz"
+            rate = "+10%"
+        elif mannequin_slug == "chaqaloq":
+            return b""
+
+        try:
+            communicate = edge_tts.Communicate(clean_text, voice=voice, pitch=pitch, rate=rate)
+            audio_bytes = bytearray()
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    audio_bytes.extend(chunk["data"])
+            if audio_bytes:
+                return bytes(audio_bytes)
+        except Exception as e:
+            logger.warning(f"Edge TTS xatosi: {e}, tashqi TTS tekshirilmoqda")
+
+        # 2. Tashqi O'zbek tili TTS API (agar mavjud bo'lsa)
         if settings.TTS_API_URL:
             try:
                 async with httpx.AsyncClient() as client:
                     payload = {
-                        "text": text,
-                        "voice_id": voice_config.get("voice_id", "default"),
-                        "pitch": voice_config.get("pitch", 1.0),
-                        "speed": voice_config.get("speed", 1.0)
+                        "text": clean_text,
+                        "voice_id": (voice_config or {}).get("voice_id", "default"),
+                        "pitch": (voice_config or {}).get("pitch", 1.0),
+                        "speed": (voice_config or {}).get("speed", 1.0)
                     }
                     response = await client.post(settings.TTS_API_URL, json=payload, timeout=15.0)
-                    response.raise_for_status()
-                    return response.content
+                    if response.status_code == 200:
+                        return response.content
             except Exception as e:
-                logger.error(f"External TTS API failed: {e}")
-                
-        # 2. OpenAI TTS Fallback
-        if settings.OPENAI_API_KEY and not settings.OPENAI_API_KEY.startswith("sk-place") and not settings.OPENAI_API_KEY.startswith("sk-test"):
-            try:
-                from openai import AsyncOpenAI
-                client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-                
-                # Qahramon yoshi va jinsiga qarab ovoz tanlash
-                pitch = voice_config.get("pitch", 1.0)
-                if pitch < 0.9:
-                    voice = "onyx"     # Bobo (og'ir erkak ovozi)
-                elif pitch > 1.2:
-                    voice = "nova"     # Bola (sho'x, ingichka ovoz)
-                else:
-                    voice = "shimmer"  # Homilador ayol (mayin ayol ovozi)
-                
-                response = await client.audio.speech.create(
-                    model="tts-1",
-                    voice=voice,
-                    input=text
-                )
-                return response.content
-            except Exception as e:
-                logger.error(f"OpenAI TTS fallback failed: {e}")
+                logger.error(f"External TTS API xatosi: {e}")
 
-        logger.warning("TTS API sozlanmagan, bo'sh audio qaytarildi.")
         return b""
+
+    @staticmethod
+    def to_base64(audio_bytes: bytes) -> str:
+        """Audio baytlarni Base64 stringga o'tkazish"""
+        if not audio_bytes:
+            return ""
+        return base64.b64encode(audio_bytes).decode("utf-8")
+

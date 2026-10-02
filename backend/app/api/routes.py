@@ -24,6 +24,8 @@ from app.models.schemas import (
     SessionCreate,
     SessionResponse,
     SessionLogResponse,
+    BabyStatusResponse,
+    BabyTriggerRequest,
 )
 from app.services.stt_service import STTService
 from app.services.tts_service import TTSService
@@ -42,6 +44,19 @@ active_focus: dict = {
     "mannequin_slug": None,
     "mannequin_id": None,
     "session_id": None,
+}
+
+# =====================
+# Chaqaloq Simulyatsiyasi Holati (In-Memory)
+# =====================
+baby_state = {
+    "is_crying": False,
+    "is_soothed": False,
+    "soothing_progress": 0,
+    "crying_started_at": 0.0,
+    "soothing_started_at": 0.0,
+    "motion_intensity": 0.0,
+    "last_update": time.time()
 }
 
 
@@ -569,33 +584,136 @@ async def get_tts_audio(text: str, slug: str = "homilador"):
 
 
 
-@router.get("/api/debug/deepseek")
-async def debug_deepseek():
-    """Debug DeepSeek direct connectivity"""
-    import httpx
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                "https://api.deepseek.com/chat/completions",
-                headers={
-                    "Authorization": "Bearer sk-42874f7bcf1f44adb2988b9ae0bc39cc",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "deepseek-chat",
-                    "messages": [
-                        {"role": "user", "content": "Salom, test"}
-                    ]
-                }
+# =====================
+# BABY SIMULATION ENDPOINTS (A-USUL: Planshetdan yig'latish & MPU-6050 bilan ovuntirish)
+# =====================
+
+@router.post("/api/baby/trigger", response_model=BabyStatusResponse)
+async def trigger_baby(req: BabyTriggerRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Planshetdan chaqaloq holatini o'zgartirish:
+    - 'start_crying': Yig'lashni boshlash (planshet va ESP32 da ovoz yangraydi)
+    - 'stop_crying': Yig'lashni to'xtatish
+    - 'reset': Boshlang'ich tinch holatga qaytarish
+    """
+    now = time.time()
+    
+    if req.action == "start_crying":
+        baby_state["is_crying"] = True
+        baby_state["is_soothed"] = False
+        baby_state["soothing_progress"] = 0
+        baby_state["crying_started_at"] = now
+        baby_state["soothing_started_at"] = 0.0
+        baby_state["last_update"] = now
+        msg = "Chaqaloq yig'lay boshladi! Uni qo'lga olib mayin tebrating."
+        
+        # ESP32 ga Wi-Fi orqali buyruq yuborish
+        mannequin = _get_fallback_mannequin_by_slug("chaqaloq")
+        if mannequin and mannequin.ip_address:
+            import asyncio
+            asyncio.create_task(
+                AudioRouter.send_command_to_esp(str(mannequin.ip_address), mannequin.esp32_port, "/trigger_cry")
             )
-            return {
-                "status_code": resp.status_code,
-                "response_json": resp.json() if resp.status_code == 200 else resp.text
-            }
-    except Exception as e:
-        import traceback
-        return {
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }
+            
+    elif req.action == "stop_crying":
+        baby_state["is_crying"] = False
+        baby_state["is_soothed"] = True
+        baby_state["soothing_progress"] = 100
+        msg = "Chaqaloq tinchlandi."
+        
+    elif req.action == "reset":
+        baby_state["is_crying"] = False
+        baby_state["is_soothed"] = False
+        baby_state["soothing_progress"] = 0
+        baby_state["crying_started_at"] = 0.0
+        baby_state["soothing_started_at"] = 0.0
+        baby_state["motion_intensity"] = 0.0
+        msg = "Chaqaloq holati yangilandi (tinch)."
+        
+    else:
+        msg = "Noma'lum amal."
+
+    crying_sec = int(now - baby_state["crying_started_at"]) if baby_state["is_crying"] else 0
+
+    return BabyStatusResponse(
+        is_crying=baby_state["is_crying"],
+        is_soothed=baby_state["is_soothed"],
+        soothing_progress=baby_state["soothing_progress"],
+        motion_intensity=baby_state["motion_intensity"],
+        message=msg,
+        crying_seconds=crying_sec
+    )
+
+
+@router.get("/api/baby/status", response_model=BabyStatusResponse)
+async def get_baby_status():
+    """Chaqaloqning joriy holati va ovunish progressini olish"""
+    now = time.time()
+    crying_sec = int(now - baby_state["crying_started_at"]) if baby_state["is_crying"] else 0
+
+    msg = "Chaqaloq tinch yotibdi."
+    if baby_state["is_crying"]:
+        if baby_state["soothing_progress"] > 0:
+            msg = f"Hamshira chaqaloqni tebratyapti... ({baby_state['soothing_progress']}%)"
+        else:
+            msg = "Chaqaloq baland ovozda yig'lamoqda!"
+    elif baby_state["is_soothed"]:
+        msg = "Chaqaloq muvaffaqiyatli ovuntirildi va uxlamoqda."
+
+    return BabyStatusResponse(
+        is_crying=baby_state["is_crying"],
+        is_soothed=baby_state["is_soothed"],
+        soothing_progress=baby_state["soothing_progress"],
+        motion_intensity=baby_state["motion_intensity"],
+        message=msg,
+        crying_seconds=crying_sec
+    )
+
+
+@router.post("/api/baby/motion", response_model=BabyStatusResponse)
+async def update_baby_motion(req: BabyTriggerRequest):
+    """
+    ESP32 dagi MPU-6050 sensori harakat va tebranishni jo'natganda chaqaloq ovunishini hisoblash
+    """
+    now = time.time()
+    motion = req.motion_value or 0.0
+    baby_state["motion_intensity"] = motion
+    baby_state["last_update"] = now
+
+    if baby_state["is_crying"]:
+        # Agar tebranish ritmik bo'lsa (mayin ovuntirish: 15.0 - 150.0 oralig'ida)
+        if 15.0 <= motion <= 180.0:
+            if baby_state["soothing_started_at"] == 0.0:
+                baby_state["soothing_started_at"] = now
+            
+            elapsed = now - baby_state["soothing_started_at"]
+            # 3.5 soniya tebransa 100% ga yetadi
+            progress = min(100, int((elapsed / 3.5) * 100))
+            baby_state["soothing_progress"] = progress
+
+            if progress >= 100:
+                baby_state["is_crying"] = False
+                baby_state["is_soothed"] = True
+                msg = "Chaqaloq ovundi va uxlab qoldi!"
+            else:
+                msg = f"Chaqaloq ovuntirilmoqda... ({progress}%)"
+        else:
+            # Tebranish to'xtasa yoki haddan tashqari qattiq silkitilsa
+            baby_state["soothing_started_at"] = 0.0
+            baby_state["soothing_progress"] = max(0, baby_state["soothing_progress"] - 15)
+            msg = "Chaqaloq yig'lamoqda! Mayin tebrating."
+    else:
+        msg = "Chaqaloq tinch holatda."
+
+    crying_sec = int(now - baby_state["crying_started_at"]) if baby_state["is_crying"] else 0
+
+    return BabyStatusResponse(
+        is_crying=baby_state["is_crying"],
+        is_soothed=baby_state["is_soothed"],
+        soothing_progress=baby_state["soothing_progress"],
+        motion_intensity=baby_state["motion_intensity"],
+        message=msg,
+        crying_seconds=crying_sec
+    )
+
 

@@ -128,3 +128,22 @@ class ESP32HealthResponse(BaseModel):
     is_online: bool
     uptime: Optional[int] = None
     free_memory: Optional[int] = None
+
+
+# =====================
+# Baby Simulation Schemas
+# =====================
+class BabyTriggerRequest(BaseModel):
+    """Chaqaloq holatini boshqarish so'rovi"""
+    action: str  # 'start_crying', 'stop_crying', 'reset', 'update_motion'
+    motion_value: Optional[float] = 0.0
+
+
+class BabyStatusResponse(BaseModel):
+    """Chaqaloq simulyatsiyasi holati"""
+    is_crying: bool
+    is_soothed: bool
+    soothing_progress: int  # 0 - 100 %
+    motion_intensity: float
+    message: str
+    crying_seconds: int = 0

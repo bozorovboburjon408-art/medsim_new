@@ -7,6 +7,8 @@ import ScenarioPanel from './components/ScenarioPanel';
 import { focusMannequin, sendChatMessage, sendSpeech } from './services/api';
 import { playAudioResponse } from './utils/speechSynthesis';
 
+import BabySimulator from './components/BabySimulator';
+
 function App() {
   const [activeMannequin, setActiveMannequin] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -22,6 +24,13 @@ function App() {
       console.warn("Lokal rejimda ishlamoqda", e);
     }
   };
+
+  const handleLogBabyMessage = useCallback((msg) => {
+    setConversation(prev => [...prev, {
+      ...msg,
+      timestamp: new Date().toISOString()
+    }]);
+  }, []);
 
   // Savol yuborish (ham ovozdan aniqlangan matn, ham qo'lda yozilgan matn)
   const handleSendMessage = useCallback(async (userText, audioBlob = null) => {
@@ -174,18 +183,24 @@ function App() {
           />
         </div>
 
-        {/* Markaziy panel (50%): Muloqot jurnali + Mikrofon & Matn kiritish */}
+        {/* Markaziy panel (50%): Muloqot jurnali yoki Chaqaloq Simulyatori */}
         <div className="w-1/2 h-full flex flex-col shadow-[0_0_15px_rgba(0,0,0,0.03)] z-10 shrink-0 bg-white">
-          <ConversationPanel
-            conversation={conversation}
-            activeMannequin={activeMannequin}
-          />
-          <VoiceRecorder
-            activeMannequin={activeMannequin}
-            isProcessing={isProcessing}
-            onAudioReady={handleAudioReady}
-            onTextSubmit={handleTextSubmit}
-          />
+          {activeMannequin?.slug === 'chaqaloq' ? (
+            <BabySimulator onLogMessage={handleLogBabyMessage} />
+          ) : (
+            <>
+              <ConversationPanel
+                conversation={conversation}
+                activeMannequin={activeMannequin}
+              />
+              <VoiceRecorder
+                activeMannequin={activeMannequin}
+                isProcessing={isProcessing}
+                onAudioReady={handleAudioReady}
+                onTextSubmit={handleTextSubmit}
+              />
+            </>
+          )}
         </div>
 
         {/* O'ng panel (25%): Ssenariy */}

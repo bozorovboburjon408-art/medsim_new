@@ -62,3 +62,24 @@ export const getSessionLogs = async (id) => {
   const response = await api.get(`/sessions/${id}/logs`);
   return response.data;
 };
+
+// =====================
+// Chaqaloq Simulyatsiyasi API (A-usul)
+// =====================
+export const triggerBaby = async (action, motionValue = 0) => {
+  const response = await api.post('/baby/trigger', { action, motion_value: motionValue }).catch(() => ({
+    data: { is_crying: action === 'start_crying', is_soothed: action === 'stop_crying', soothing_progress: action === 'stop_crying' ? 100 : 0 }
+  }));
+  return response.data;
+};
+
+export const getBabyStatus = async () => {
+  const response = await api.get('/baby/status').catch(() => ({ data: null }));
+  return response.data;
+};
+
+export const sendBabyMotion = async (motionValue) => {
+  const response = await api.post('/baby/motion', { action: 'update_motion', motion_value: motionValue }).catch(() => ({ data: null }));
+  return response.data;
+};
+

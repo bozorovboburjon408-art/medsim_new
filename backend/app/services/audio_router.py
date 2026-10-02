@@ -63,19 +63,36 @@ class AudioRouter:
             return False
 
     @staticmethod
+    async def send_command_to_esp(ip_address: str, port: int, endpoint: str, params: dict = None) -> bool:
+        """
+        ESP32 moduliga to'g'ridan-to'g'ri buyruq yuborish (masalan, /trigger_cry, /stop_cry)
+        """
+        if not ip_address:
+            return False
+        url = f"http://{ip_address}:{port}{endpoint}"
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.get(url, params=params, timeout=2.0)
+                return res.status_code == 200
+        except Exception as e:
+            logger.debug(f"ESP32 command error: {e}")
+            return False
+
+    @staticmethod
     async def check_health(ip_address: str, port: int) -> bool:
         """
         ESP32 kalonka holatini tekshirish (/status yoki /health orqali)
         """
+        if not ip_address:
+            return False
         try:
             async with httpx.AsyncClient() as client:
-                # 1. ESP32_Audio_Speaker.ino /status endpointi
                 res = await client.get(f"http://{ip_address}:{port}/status", timeout=1.5)
                 if res.status_code == 200:
                     return True
-                
-                # 2. Fallback /health
                 res = await client.get(f"http://{ip_address}:{port}/health", timeout=1.5)
                 return res.status_code == 200
         except Exception:
             return False
+
+

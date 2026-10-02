@@ -9,14 +9,14 @@ const MOCK_SCENARIOS = {
   bobo: [
     {
       id: 1,
-      title: "Qon bosimi ko'tarilishi",
-      desc: "Bemor qon bosimi 180/100 ga ko'tarilib, bosh aylanishi va yurak sanchishi bilan murojaat qilgan.",
+      title: "2-tip qandli diabet va Diabetik tovon parvarishi",
+      desc: "Salomat buvi (75 yosh). 2-tip qandli diabet (dekompensatsiya), qand 11.8 mmol/l, bosim 145/90. O'ng tovon sohasida 2 haftadan beri bitmayotgan 1.5x1 sm yuzaki yara.",
       duration: 15,
       actions: [
-        "Bemor bilan salomlashish va ahvolini so'rash",
-        "Qon bosimini o'lchash",
-        "Tinchlantiruvchi suhbat o'tkazish",
-        "Dori berish va shifokor chaqirish"
+        "1-BOSQICH: Salomlashish, shikoyatlarni surishtirish, qon bosimi va qand miqdorini aniqlash",
+        "2-BOSQICH: Shifokor (GP va endokrinolog) bilan bog'lanish zarurligini tushuntirish",
+        "3-BOSQICH: Xavfli belgilar (gipoglikemiya <3.9, giperglikemiya >15-20, yara qorayishi) bo'yicha ko'rsatma",
+        "4-BOSQICH: Parhez (shakar/palov cheklash), metformin ichish, tovonga spirt/yod surtmaslik, iliq suvda yuvish va paypoq/poyabzal gigiyenasi"
       ]
     }
   ],
@@ -24,7 +24,7 @@ const MOCK_SCENARIOS = {
     {
       id: 3,
       title: "Homilador ayol patronaji (Piyelonefrit va Anemiya)",
-      desc: "32 haftalik homiladorlik. Surunkali piyelonefrit qo'zishi va 2-darajali anemiya. Shikoyatlar: bel og'rig'i, harorat 37.5°C, to'q siydik, holsizlik.",
+      desc: "Gulnora opa (28 yosh, 32 haftalik homiladorlik). Surunkali piyelonefrit qo'zishi va 2-darajali anemiya. Shikoyatlar: bel og'rig'i, harorat 37.5°C, to'q siydik, holsizlik.",
       duration: 20,
       actions: [
         "1-BOSQICH: Salomlashish, shikoyatlar va anamnezni surishtirish (bel og'rig'i, to'q siydik, 37.5°C)",
@@ -38,26 +38,29 @@ const MOCK_SCENARIOS = {
   bola: [
     {
       id: 4,
-      title: "Tana haroratining ko'tarilishi",
-      desc: "Tana harorati 39.5°C ga ko'tarilgan, bola injiqlik qilyapti va ukoldan qo'rqadi.",
+      title: "Gel'mintoz (Enterobioz va Askaridoz) parvarishi",
+      desc: "Jasurbek (5 yosh) va onasi Nilufar opa. Tunda perianal qichishish, tish g'ijirlatish, kindik atrofida og'riq, ishtahasizlik, axlatda oq qurtchalar. Vazni 16 kg, anemiya.",
       duration: 15,
       actions: [
-        "Bola bilan muloqot o'rnatish va tinchlantirish",
-        "Tana haroratini o'lchash",
-        "Dori ichirish va onasiga tushuntirish"
+        "1-BOSQICH: Onasi bilan muloqot, shikoyatlarni aniqlash (tungi qichishish, tish g'ijirlatish, kindik og'rig'i)",
+        "2-BOSQICH: Tahlillar (qon tahlilida eozinofiliya, perianal qirma) va pediatrga murojaat qilish",
+        "3-BOSQICH: Xavfli belgilar (o'tkir qorin og'rig'i, yo'tal/nafas qisishi, yuqori harorat)",
+        "4-BOSQICH: Butun oila bir kunda dori ichishi (14-21 kundan so'ng takrorlash), tirnoqlarni kalta olish, 60°C+ da yuvish va qaynoq dazmollash"
       ]
     }
   ],
   chaqaloq: [
     {
       id: 5,
-      title: "Nafas olishning qiyinlashishi",
-      desc: "Yangi tug'ilgan chaqaloqda asfiksiya belgilari. Teri rangida ko'karish kuzatilmoqda.",
+      title: "Chaqaloq yig'isini ovuntirish va taktil parvarish (A-usul)",
+      desc: "Yangi tug'ilgan chaqaloq to'xtovsiz baland ovozda yig'lamoqda. Hamshira chaqaloqni qo'liga olib, bag'riga bosgan holda mayin tebratib ovuntirishi lozim.",
       duration: 10,
       actions: [
-        "Nafas yo'llarini tekshirish",
-        "Oksigen berish va taktil stimulatsiya",
-        "Neonatolog shifokorni chaqirish"
+        "1-QADAM: Planshetdan 'Chaqaloqni yig'latish' tugmasi bosiladi (A-usul)",
+        "2-QADAM: Chaqaloqning bosh va bo'yin sohasini qo'l bilan suyab ehtiyotkorlik bilan ko'tarish",
+        "3-QADAM: Bag'riga bosgan holda ritmik mayin tebrating (MPU-6050 harakatni qayd etadi)",
+        "4-QADAM: 3-4 soniya davomida tebrangach, yig'i to'xtaydi va chaqaloq tinchlanadi",
+        "5-QADAM: Tana harorati, qorin tarangligi va taglik holatini tekshirish"
       ]
     }
   ]

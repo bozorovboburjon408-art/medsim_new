@@ -14,69 +14,44 @@ class AudioRouter:
     @staticmethod
     async def send_to_mannequin(ip_address: str, port: int, audio_data: bytes, content_type: str = 'audio/wav') -> bool:
         """
-        ESP32 manikenga Wi-Fi orqali audio yuborish.
+        ESP32 manikenga Wi-Fi yoki mDNS orqali to'g'ridan-to'g'ri audio yuborish (POST /play).
         """
-        url = f"http://{ip_address}:{port}/play"
+        hosts = [ip_address, "medsim-speaker.local"] if ip_address else ["medsim-speaker.local"]
         headers = {"Content-Type": content_type}
-        
-        for attempt in range(3):
+
+        for host in hosts:
+            if not host:
+                continue
+            url = f"http://{host}:{port}/play"
             try:
                 async with httpx.AsyncClient() as client:
-                    response = await client.post(url, content=audio_data, headers=headers, timeout=5.0)
+                    response = await client.post(url, content=audio_data, headers=headers, timeout=3.5)
                     if response.status_code == 200:
-                        logger.info(f"✅ Audio {ip_address}:{port} manikeniga muvaffaqiyatli uzatildi")
+                        logger.info(f"✅ Audio {host}:{port} ga muvaffaqiyatli yetkazildi")
                         return True
-                    else:
-                        logger.warning(f"Urinish {attempt+1}: Maniken kodi {response.status_code}")
-            except httpx.RequestError as e:
-                logger.debug(f"Urinish {attempt+1}: {ip_address}:{port} ga ulanish xatosi - {e}")
-                
+            except Exception as e:
+                logger.debug(f"Audio uzatish xatosi ({host}): {e}")
+
         return False
-
-    @staticmethod
-    async def trigger_stream_url(ip_address: str, port: int, stream_url: str) -> bool:
-        """
-        ESP32_Audio_Speaker.ino dagi GET /stream?url=... orqali audioni ishga tushirish
-        """
-        url = f"http://{ip_address}:{port}/stream"
-        params = {"url": stream_url}
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, params=params, timeout=3.0)
-                return response.status_code == 200
-        except Exception as e:
-            logger.debug(f"ESP32 stream trigger xatosi ({ip_address}): {e}")
-            return False
-
-    @staticmethod
-    async def set_volume(ip_address: str, port: int, vol: int = 80, bass: int = 0, treble: int = 0) -> bool:
-        """
-        ESP32 kalonkasi ovozini sozlash: GET /set?vol=80&bass=0&treble=0
-        """
-        url = f"http://{ip_address}:{port}/set"
-        params = {"vol": vol, "bass": bass, "treble": treble}
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, params=params, timeout=3.0)
-                return response.status_code == 200
-        except Exception:
-            return False
 
     @staticmethod
     async def send_command_to_esp(ip_address: str, port: int, endpoint: str, params: dict = None) -> bool:
         """
-        ESP32 moduliga to'g'ridan-to'g'ri buyruq yuborish (masalan, /trigger_cry, /stop_cry)
+        ESP32 moduliga to'g'ridan-to'g'ri buyruq yuborish (IP yoki mDNS orqali)
         """
-        if not ip_address:
-            return False
-        url = f"http://{ip_address}:{port}{endpoint}"
-        try:
-            async with httpx.AsyncClient() as client:
-                res = await client.get(url, params=params, timeout=2.0)
-                return res.status_code == 200
-        except Exception as e:
-            logger.debug(f"ESP32 command error: {e}")
-            return False
+        hosts = [ip_address, "medsim-speaker.local"] if ip_address else ["medsim-speaker.local"]
+        for host in hosts:
+            if not host:
+                continue
+            url = f"http://{host}:{port}{endpoint}"
+            try:
+                async with httpx.AsyncClient() as client:
+                    res = await client.get(url, params=params, timeout=2.0)
+                    if res.status_code == 200:
+                        return True
+            except Exception:
+                pass
+        return False
 
     @staticmethod
     async def check_health(ip_address: str, port: int) -> bool:

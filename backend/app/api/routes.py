@@ -49,24 +49,89 @@ active_focus: dict = {
 # MANNEQUIN ENDPOINTS
 # =====================
 
+def _get_fallback_mannequins() -> list[Mannequin]:
+    from app.db.init_db import INITIAL_MANNEQUINS
+    items = []
+    for idx, m in enumerate(INITIAL_MANNEQUINS, start=1):
+        items.append(
+            Mannequin(
+                id=idx,
+                slug=m["slug"],
+                name=m["name"],
+                age_range=m["age_range"],
+                character_description=m["character_description"],
+                voice_config=m["voice_config"],
+                ip_address=m["ip_address"],
+                esp32_port=m["esp32_port"],
+                allowed_topics=m["allowed_topics"],
+                forbidden_topics=m["forbidden_topics"],
+                system_prompt=m["system_prompt"],
+                use_preset_audio=m["use_preset_audio"],
+                is_active=True
+            )
+        )
+    return items
+
+def _get_fallback_mannequin_by_slug(slug: str) -> Optional[Mannequin]:
+    for m in _get_fallback_mannequins():
+        if m.slug == slug:
+            return m
+    return None
+
+def _get_fallback_scripts_for_mannequin(mannequin: Mannequin) -> list[ScriptQA]:
+    from app.db.init_db import INITIAL_SCRIPTS
+    scripts = []
+    for idx, s in enumerate(INITIAL_SCRIPTS, start=1):
+        if s.get("mannequin_slug") == mannequin.slug:
+            scripts.append(
+                ScriptQA(
+                    id=idx,
+                    mannequin_id=mannequin.id,
+                    trigger_keywords=s.get("trigger_keywords", []),
+                    trigger_pattern=s.get("trigger_pattern", ""),
+                    question_template=s.get("question_template", ""),
+                    answer_template=s.get("answer_template", ""),
+                    emotion=s.get("emotion", "oddiy"),
+                    priority=s.get("priority", 0)
+                )
+            )
+    return scripts
+
+
 @router.get("/api/mannequins", response_model=MannequinListResponse)
 async def list_mannequins(db: AsyncSession = Depends(get_db)):
     """Barcha faol manikenlar ro'yxati"""
-    result = await db.execute(
-        select(Mannequin).where(Mannequin.is_active == True).order_by(Mannequin.id)
-    )
-    items = result.scalars().all()
-    return MannequinListResponse(items=items, total=len(items))
+    if db is not None:
+        try:
+            result = await db.execute(
+                select(Mannequin).where(Mannequin.is_active == True).order_by(Mannequin.id)
+            )
+            items = result.scalars().all()
+            if items:
+                return MannequinListResponse(items=items, total=len(items))
+        except Exception as e:
+            logger.warning(f"DB dan manikenlarni olishda ogohlantirish: {e}")
+
+    fallback_items = _get_fallback_mannequins()
+    return MannequinListResponse(items=fallback_items, total=len(fallback_items))
 
 
 @router.get("/api/mannequins/{slug}", response_model=MannequinResponse)
 async def get_mannequin(slug: str, db: AsyncSession = Depends(get_db)):
     """Bitta manikenning to'liq ma'lumoti"""
-    result = await db.execute(select(Mannequin).where(Mannequin.slug == slug))
-    mannequin = result.scalar_one_or_none()
-    if not mannequin:
-        raise HTTPException(status_code=404, detail=f"'{slug}' nomli manikenni topib bo'lmadi")
-    return mannequin
+    if db is not None:
+        try:
+            result = await db.execute(select(Mannequin).where(Mannequin.slug == slug))
+            mannequin = result.scalar_one_or_none()
+            if mannequin:
+                return mannequin
+        except Exception as e:
+            logger.warning(f"DB mannequin select xatosi: {e}")
+
+    fallback_m = _get_fallback_mannequin_by_slug(slug)
+    if fallback_m:
+        return fallback_m
+    raise HTTPException(status_code=404, detail=f"'{slug}' nomli manikenni topib bo'lmadi")
 
 
 # =====================
@@ -76,8 +141,17 @@ async def get_mannequin(slug: str, db: AsyncSession = Depends(get_db)):
 @router.post("/api/focus")
 async def set_focus(req: FocusRequest, db: AsyncSession = Depends(get_db)):
     """Hamshira qaysi manikendga murojaat qilayotganini belgilash"""
-    result = await db.execute(select(Mannequin).where(Mannequin.slug == req.slug))
-    mannequin = result.scalar_one_or_none()
+    mannequin = None
+    if db is not None:
+        try:
+            result = await db.execute(select(Mannequin).where(Mannequin.slug == req.slug))
+            mannequin = result.scalar_one_or_none()
+        except Exception as e:
+            logger.warning(f"DB focus xatosi: {e}")
+
+    if not mannequin:
+        mannequin = _get_fallback_mannequin_by_slug(req.slug)
+
     if not mannequin:
         raise HTTPException(status_code=404, detail=f"'{req.slug}' nomli manikenni topib bo'lmadi")
 
@@ -110,30 +184,51 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     if not mannequin_slug:
         raise HTTPException(status_code=400, detail="Avval manikenni tanlang")
 
-    result = await db.execute(select(Mannequin).where(Mannequin.slug == mannequin_slug))
-    mannequin = result.scalar_one_or_none()
+    mannequin = None
+    if db is not None:
+        try:
+            result = await db.execute(select(Mannequin).where(Mannequin.slug == mannequin_slug))
+            mannequin = result.scalar_one_or_none()
+        except Exception as e:
+            logger.warning(f"DB chat mannequin query xatosi: {e}")
+
+    if not mannequin:
+        mannequin = _get_fallback_mannequin_by_slug(mannequin_slug)
+
     if not mannequin:
         raise HTTPException(status_code=404, detail="Tanlangan manikenni topib bo'lmadi")
 
     scenario = None
     session_id = request.session_id or active_focus.get("session_id")
-    if session_id:
-        session_result = await db.execute(
-            select(Session).where(Session.id == session_id)
-        )
-        session = session_result.scalar_one_or_none()
-        if session and session.scenario_id:
-            scenario_result = await db.execute(
-                select(Scenario).where(Scenario.id == session.scenario_id)
+    if session_id and db is not None:
+        try:
+            session_result = await db.execute(
+                select(Session).where(Session.id == session_id)
             )
-            scenario = scenario_result.scalar_one_or_none()
+            session = session_result.scalar_one_or_none()
+            if session and session.scenario_id:
+                scenario_result = await db.execute(
+                    select(Scenario).where(Scenario.id == session.scenario_id)
+                )
+                scenario = scenario_result.scalar_one_or_none()
+        except Exception as e:
+            logger.warning(f"DB scenario query xatosi: {e}")
 
-    scripts_result = await db.execute(
-        select(ScriptQA)
-        .where(ScriptQA.mannequin_id == mannequin.id)
-        .order_by(desc(ScriptQA.priority))
-    )
-    all_scripts = scripts_result.scalars().all()
+    all_scripts = []
+    if db is not None and mannequin.id:
+        try:
+            scripts_result = await db.execute(
+                select(ScriptQA)
+                .where(ScriptQA.mannequin_id == mannequin.id)
+                .order_by(desc(ScriptQA.priority))
+            )
+            all_scripts = scripts_result.scalars().all()
+        except Exception as e:
+            logger.warning(f"DB scripts query xatosi: {e}")
+
+    if not all_scripts:
+        all_scripts = _get_fallback_scripts_for_mannequin(mannequin)
+
     matched_scripts = _match_scripts(user_text, all_scripts)
 
     # DeepSeek / AI orqali javob generatsiya qilish

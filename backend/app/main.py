@@ -57,8 +57,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-from app.system_lock import apply_system_lock_middleware
-
 # CORS — frontend bilan bog'lanish uchun
 app.add_middleware(
     CORSMiddleware,
@@ -67,7 +65,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-apply_system_lock_middleware(app)
 
 # API routelarni qo'shish
 app.include_router(router)

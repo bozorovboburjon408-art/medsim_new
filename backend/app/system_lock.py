@@ -20,7 +20,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 # ==============================================================================
 # ASOSIY XAVFSIZLIK SOZLAMALARI
 # ==============================================================================
-SYSTEM_LOCKED = True  # True = Qulflangan, False = Ochiq
+SYSTEM_LOCKED = False  # True = Qulflangan, False = Ochiq
 MASTER_UNLOCK_KEY = "21082007Bb"  # Dasturchi maxfiy master kaliti
 LOCK_MESSAGE = "Obuna muddati tugadi, dasturchiga murojaat qiling"
 

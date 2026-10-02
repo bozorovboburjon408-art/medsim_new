@@ -41,6 +41,12 @@ async def chat(req: ChatRequest):
     return ChatResponse(text=text, audio_b64=base64.b64encode(audio).decode())
 
 
+@app.get("/models")
+async def models():
+    """Kalitingiz bilan ishlaydigan Gemini model ID'lari (GEMINI_MODELS uchun)."""
+    return await llm.list_gemini_models()
+
+
 @app.get("/health")
 def health():
     return {"ok": True}

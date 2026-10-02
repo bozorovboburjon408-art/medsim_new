@@ -1,5 +1,7 @@
 import asyncio
 import base64
+import json
+import time
 import io
 import logging
 import wave
@@ -95,3 +97,71 @@ async def _azure(text: str, p: Patient) -> bytes:
             "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3"})
         r.raise_for_status()
     return r.content
+
+
+async def benchmark(text: str) -> dict:
+    """Gemini TTS modellarini oddiy va oqimli usulda, Edge'ni esa solishtirish uchun o'lchaydi."""
+    body = {
+        "contents": [{"parts": [{"text": text}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": "Kore"}}},
+        },
+    }
+    hdr = {"x-goog-api-key": settings.gemini_api_key}
+    models = [m.strip() for m in settings.gemini_tts_models.split(",") if m.strip()]
+    base = "https://generativelanguage.googleapis.com/v1beta/models/"
+    tmo = httpx.Timeout(connect=5, read=60, write=5, pool=5)
+
+    async def plain(model: str) -> dict:
+        t0 = time.perf_counter()
+        try:
+            async with httpx.AsyncClient(timeout=tmo) as c:
+                r = await c.post(f"{base}{model}:generateContent", json=body, headers=hdr)
+            out = {"status": r.status_code, "sec": round(time.perf_counter() - t0, 2)}
+            if r.status_code == 200:
+                d = r.json()["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+                out["audio_sec"] = round(len(base64.b64decode(d)) / 48000, 1)
+            else:
+                out["error"] = r.text[:200]
+            return out
+        except Exception as e:
+            return {"error": f"{type(e).__name__}: {e}", "sec": round(time.perf_counter() - t0, 2)}
+
+    async def stream(model: str) -> dict:
+        t0 = time.perf_counter(); first = None; chunks = 0; pcm = 0
+        try:
+            async with httpx.AsyncClient(timeout=tmo) as c:
+                async with c.stream("POST", f"{base}{model}:streamGenerateContent?alt=sse", json=body, headers=hdr) as r:
+                    if r.status_code != 200:
+                        return {"status": r.status_code, "error": (await r.aread()).decode()[:200]}
+                    async for line in r.aiter_lines():
+                        if not line.startswith("data:"):
+                            continue
+                        try:
+                            d = json.loads(line[5:])["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+                        except (KeyError, IndexError, ValueError):
+                            continue
+                        chunks += 1; pcm += len(base64.b64decode(d))
+                        if first is None:
+                            first = round(time.perf_counter() - t0, 2)
+            return {"first_chunk_sec": first, "total_sec": round(time.perf_counter() - t0, 2),
+                    "chunks": chunks, "audio_sec": round(pcm / 48000, 1)}
+        except Exception as e:
+            return {"error": f"{type(e).__name__}: {e}", "sec": round(time.perf_counter() - t0, 2)}
+
+    async def edge() -> dict:
+        t0 = time.perf_counter()
+        try:
+            from .patients import PATIENTS
+            a = await _edge(text, PATIENTS["buvi"])
+            return {"sec": round(time.perf_counter() - t0, 2), "bytes": len(a)}
+        except Exception as e:
+            return {"error": f"{type(e).__name__}: {e}"}
+
+    jobs = [edge()] + [f(m) for m in models for f in (plain, stream)]
+    res = await asyncio.gather(*jobs)
+    out = {"text_chars": len(text), "edge": res[0]}
+    for i, m in enumerate(models):
+        out[m] = {"plain": res[1 + 2 * i], "stream": res[2 + 2 * i]}
+    return out

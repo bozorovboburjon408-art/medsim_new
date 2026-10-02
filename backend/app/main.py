@@ -126,6 +126,14 @@ async def chat_stream(req: ChatRequest):
     return StreamingResponse(gen(), media_type="application/x-ndjson")
 
 
+@app.get("/tts_test")
+async def tts_test(token: str = "", text: str = "Assalomu alaykum, qizim. Kelganing yaxshi bo'ldi, oxirgi paytlarda juda holsizlanib qolayapman."):
+    """Ovoz tezligini o'lchash (faqat DEBUG_TOKEN sozlangan bo'lsa)."""
+    if not settings.debug_token or token != settings.debug_token:
+        raise HTTPException(403, "Ruxsat yo'q")
+    return await tts.benchmark(text[:300])
+
+
 @app.get("/models")
 async def models():
     """Kalitingiz bilan ishlaydigan Gemini model ID'lari (GEMINI_MODELS uchun)."""

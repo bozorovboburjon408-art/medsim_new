@@ -1,3 +1,7 @@
+import json
+import re
+from typing import AsyncIterator
+
 import httpx
 
 from .config import settings
@@ -62,3 +66,66 @@ async def _claude(system: str, history: list[dict]) -> str:
             headers={"x-api-key": settings.anthropic_api_key, "anthropic-version": "2023-06-01"})
         r.raise_for_status()
     return r.json()["content"][0]["text"].strip()
+
+
+_SENT = re.compile(r"(.+?[.!?…]+)(?:\s+|$)", re.S)
+
+
+def _split(buf: str) -> tuple[list[str], str]:
+    """Tugagan gaplarni ajratadi; tugallanmagan qoldiqni qaytaradi."""
+    out, pos = [], 0
+    for m in _SENT.finditer(buf):
+        if m.end() == len(buf) and not buf[-1].isspace() and m.group(0) == m.group(1):
+            break  # oxirgi belgi: keyingi chunk "5." ni "5.5" ga aylantirishi mumkin
+        out.append(m.group(1).strip()); pos = m.end()
+    return out, buf[pos:]
+
+
+async def stream_sentences(system: str, history: list[dict]) -> AsyncIterator[str]:
+    """Javobni tayyor bo'lgan gaplar bo'yicha qaytaradi (birinchi gap tez keladi)."""
+    if settings.llm_provider == "claude":
+        text = await _claude(system, history)
+        sents, rest = _split(text + " ")
+        for s in sents + ([rest.strip()] if rest.strip() else []):
+            yield s
+        return
+    body = {
+        "systemInstruction": {"parts": [{"text": system}]},
+        "contents": [
+            {"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]}
+            for m in history
+        ],
+        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1024},
+    }
+    models = [m.strip() for m in settings.gemini_models.split(",") if m.strip()]
+    last = "model ro'yxati bo'sh"
+    async with httpx.AsyncClient(timeout=TIMEOUT) as c:
+        for model in models:
+            url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+                   f"{model}:streamGenerateContent?alt=sse")
+            async with c.stream("POST", url, json=body,
+                                headers={"x-goog-api-key": settings.gemini_api_key}) as r:
+                if r.status_code >= 400:
+                    last = f"{model}: {r.status_code} {(await r.aread()).decode()[:200]}"
+                    continue
+                buf, got = "", False
+                async for line in r.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    try:
+                        parts = json.loads(line[5:])["candidates"][0]["content"]["parts"]
+                    except (KeyError, IndexError, ValueError):
+                        continue
+                    buf += "".join(p.get("text", "") for p in parts if not p.get("thought"))
+                    sents, buf = _split(buf)
+                    for s in sents:
+                        if s:
+                            got = True
+                            yield s
+                if buf.strip():
+                    got = True
+                    yield buf.strip()
+                if got:
+                    return
+                last = f"{model}: bo'sh javob"
+    raise RuntimeError(f"Hamma Gemini modellari muvaffaqiyatsiz. Oxirgisi: {last}")

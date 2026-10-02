@@ -17,6 +17,7 @@ object Speaker {
     private var player: MediaPlayer? = null
 
     fun stop() {
+        queue.clear(); playing = false; expectMore = false
         player?.release(); player = null
     }
 
@@ -45,5 +46,49 @@ object Speaker {
         p.setOnCompletionListener { onDone() }
         p.prepare(); p.start()
         player = p
+    }
+
+    // ---- Gap-gap oqim ijrosi: kelgan mp3 bo'laklari ketma-ket chalinadi ----
+    private val queue = ArrayDeque<File>()
+    private var playing = false
+    private var expectMore = false
+    private var seq = 0
+    private var idleCb: () -> Unit = {}
+    private var dev: Int? = null
+
+    fun beginStream(deviceId: Int?, onIdle: () -> Unit) {
+        stop(); expectMore = true; dev = deviceId; idleCb = onIdle
+    }
+
+    fun enqueue(ctx: Context, bytes: ByteArray) {
+        val f = File(ctx.cacheDir, "seg_${seq++}.mp3").also { it.writeBytes(bytes) }
+        queue.addLast(f)
+        if (!playing) playNext(ctx)
+    }
+
+    fun endStream() {
+        expectMore = false
+        if (!playing && queue.isEmpty()) idleCb()
+    }
+
+    private fun playNext(ctx: Context) {
+        val f = queue.removeFirstOrNull()
+        if (f == null) {
+            playing = false
+            if (!expectMore) idleCb()
+            return
+        }
+        playing = true
+        val p = MediaPlayer()
+        try {
+            p.setDataSource(f.absolutePath)
+            dev?.let { id -> bluetoothDevices(ctx).firstOrNull { it.id == id }?.let { p.setPreferredDevice(it) } }
+            p.setOnCompletionListener { it.release(); f.delete(); playNext(ctx) }
+            p.setOnErrorListener { mp, _, _ -> mp.release(); f.delete(); playNext(ctx); true }
+            p.prepare(); p.start()
+            player = p
+        } catch (e: Exception) {
+            p.release(); playNext(ctx)
+        }
     }
 }

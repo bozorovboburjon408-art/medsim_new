@@ -1,7 +1,10 @@
+import asyncio
 import base64
+import json
 import time
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from . import llm, tts
@@ -54,6 +57,51 @@ async def chat(req: ChatRequest):
         raise HTTPException(502, f"Ovoz bo'sh chiqdi (TTS) | javob: {text}"[:400])
     return ChatResponse(text=text, audio_b64=base64.b64encode(audio).decode(),
                         llm_ms=int((t1 - t0) * 1000), tts_ms=int((t2 - t1) * 1000))
+
+
+@app.post("/chat_stream")
+async def chat_stream(req: ChatRequest):
+    """NDJSON oqimi: har qator = bitta gap {"text","audio_b64","ms"} yoki {"error"}."""
+    p = PATIENTS.get(req.patient_id)
+    if not p:
+        raise HTTPException(404, "Bemor topilmadi")
+    if not req.history or req.history[-1].role != "user":
+        raise HTTPException(400, "Oxirgi xabar hamshiradan bo'lishi kerak")
+    history = [t.model_dump() for t in req.history]
+
+    async def gen():
+        t0 = time.perf_counter()
+        q: asyncio.Queue = asyncio.Queue()
+
+        async def synth(s: str):
+            return s, await tts.synthesize(s, p)
+
+        async def producer():
+            try:
+                async for s in llm.stream_sentences(p.system_prompt(), history):
+                    await q.put(asyncio.create_task(synth(s)))  # TTS parallel boshlanadi
+            except Exception as e:
+                await q.put(RuntimeError(f"AI xatosi: {e}"))
+            await q.put(None)
+
+        prod = asyncio.create_task(producer())
+        try:
+            while (item := await q.get()) is not None:
+                try:
+                    if isinstance(item, Exception):
+                        raise item
+                    s, audio = await item
+                    if not audio:
+                        raise RuntimeError(f"Ovoz bo'sh chiqdi | javob: {s}")
+                except Exception as e:
+                    yield json.dumps({"error": str(e)[:400]}) + "\n"
+                    break
+                yield json.dumps({"text": s, "audio_b64": base64.b64encode(audio).decode(),
+                                  "ms": int((time.perf_counter() - t0) * 1000)}) + "\n"
+        finally:
+            prod.cancel()
+
+    return StreamingResponse(gen(), media_type="application/x-ndjson")
 
 
 @app.get("/models")

@@ -114,17 +114,24 @@ fun ChatScreen(p: PatientInfo, server: String, deviceId: Int?) {
     fun send(text: String) {
         if (server.isBlank()) { status = "Avval bosh sahifada server manzilini kiriting"; return }
         history.add(Turn("user", text)); busy = true; status = "Bemor javob tayyorlayapti…"
+        timing = ""
+        val t0 = System.currentTimeMillis()
         scope.launch {
+            val parts = mutableListOf<String>()
             try {
-                val t0 = System.currentTimeMillis()
-                val r = Api.chat(server, p.id, history.toList())
-                val total = (System.currentTimeMillis() - t0) / 1000.0
-                timing = "Jami %.1f s (AI %.1f s, ovoz %.1f s, qolgani tarmoq/server uyg'onishi)".format(total, r.llmMs / 1000.0, r.ttsMs / 1000.0)
-                history.add(Turn("assistant", r.text))
-                val f = File(ctx.cacheDir, "reply.mp3").also { it.writeBytes(r.mp3) }
-                status = "Bemor gapirmoqda…"
-                Speaker.playFile(ctx, f, deviceId) { status = "Mikrofon tugmasini bosib gapiring" }
+                Speaker.beginStream(deviceId) { status = "Mikrofon tugmasini bosib gapiring" }
+                Api.chatStream(server, p.id, history.toList()) { seg ->
+                    if (parts.isEmpty()) {
+                        timing = "Birinchi ovozgacha: %.1f s".format((System.currentTimeMillis() - t0) / 1000.0)
+                        status = "Bemor gapirmoqda…"
+                    }
+                    parts.add(seg.text)
+                    Speaker.enqueue(ctx, seg.mp3)
+                }
+                if (parts.isNotEmpty()) history.add(Turn("assistant", parts.joinToString(" ")))
+                Speaker.endStream()
             } catch (e: Exception) {
+                Speaker.stop()
                 status = "Xato: ${e.message}"
             } finally { busy = false }
         }

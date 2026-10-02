@@ -3,22 +3,22 @@
 #include <Preferences.h>
 #include "AudioOutputInternalDAC.h"
 
-// ==========================================
+// ==============================================================================
 // 1. WI-FI VA STREAM SOZLAMALARI
-// ==========================================
+// ==============================================================================
 const char* default_ssid     = "A56";
 const char* default_password = "21082007";
 
-// Smartfoningiz jonli oqim manzili
-String audioServerUrl = "http://192.168.118.207:5901/stream/swyh.wav";
+// Smartfon jonli oqim manzili (Boshlang'ich qiymat)
+String audioServerUrl = "";
 
 Preferences prefs;
 WebServer server(80);
 WiFiClient streamClient;
 
-// ==========================================
+// ==============================================================================
 // 2. EQUALIZER VA DSP (BLOKLI DMA QAYTA ISHLASH)
-// ==========================================
+// ==============================================================================
 class EqualizerDAC : public AudioOutputInternalDAC {
 public:
     float volume = 0.8f;      // 0.0 - 1.0
@@ -35,7 +35,7 @@ public:
         trebleGain = powf(10.0f, constrain(trebleDb, -10, 10) / 20.0f);
     }
 
-    // Blok bo'yicha yuqori tezlikda DSP va DMA uzatish (CPU va Wi-Fi yukini 95% kamaytiradi)
+    // Blok bo'yicha yuqori tezlikda DSP va DMA uzatish
     void processAndOutput(int16_t* samples, int sampleCount) {
         for (int i = 0; i < sampleCount; i += 2) {
             float inL = (float)samples[i];
@@ -67,6 +67,21 @@ public:
         ConsumeSamples(samples, sampleCount);
     }
 
+    void playBeep(int freq = 440, int durationMs = 250) {
+        int totalSamples = (48000 * durationMs) / 1000;
+        int16_t buf[128];
+        for (int s = 0; s < totalSamples; s += 64) {
+            for (int i = 0; i < 128; i += 2) {
+                float t = (float)(s + i / 2) / 48000.0f;
+                int16_t sample = (int16_t)(sinf(2.0f * 3.14159f * freq * t) * 16000.0f * volume);
+                buf[i] = sample;
+                buf[i + 1] = sample;
+            }
+            ConsumeSamples(buf, 128);
+            vTaskDelay(pdMS_TO_TICKS(1));
+        }
+    }
+
 private:
     inline float softLimit(float x) {
         if (x > 1.0f) return 1.0f;
@@ -77,9 +92,9 @@ private:
 
 EqualizerDAC* dacOut = nullptr;
 
-// ==========================================
+// ==============================================================================
 // 3. ULTRA-PAST KECHIKISHLI RING BUFFER (~60ms)
-// ==========================================
+// ==============================================================================
 class AudioRingBuffer {
 private:
     uint8_t* buffer;
@@ -137,7 +152,6 @@ public:
         return bytesRead;
     }
 
-    // Kechikish to'planmasligi uchun eski baytlarni o'tkazib yuborish
     void skip(size_t len) {
         portENTER_CRITICAL(&mux);
         size_t avail = (head >= tail) ? (head - tail) : (capacity - (tail - head));
@@ -154,10 +168,10 @@ public:
     }
 };
 
-AudioRingBuffer ringBuf(12288); // 12 KB bufer (~64 ms maksimal zahira - nol kechikish)
+AudioRingBuffer ringBuf(12288); // 12 KB bufer
 
 volatile bool shouldReconnect = false;
-int currentVol = 80;
+int currentVol = 85;
 int currentBass = 0;
 int currentTreble = 0;
 unsigned long lastDataTime = 0;
@@ -193,12 +207,17 @@ void parseUrl(const String& url, String& host, int& port, String& path) {
     }
 }
 
-// ==========================================
+// ==============================================================================
 // 4. STREAM ULANISH VA QABUL QILISH
-// ==========================================
+// ==============================================================================
 void connectToStream() {
     streamClient.stop();
     ringBuf.clear();
+
+    if (audioServerUrl.length() < 7) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        return;
+    }
 
     String host;
     int port;
@@ -206,21 +225,17 @@ void connectToStream() {
     parseUrl(audioServerUrl, host, port, path);
 
     Serial.printf("\nStream serverga ulanmoqda: %s:%d%s\n", host.c_str(), port, path.c_str());
-    if (!streamClient.connect(host.c_str(), port, 3000)) {
-        Serial.println("❌ Serverga ulanib bo'lmadi! Smartfonda ilova yoqilganini tekshiring.");
-        vTaskDelay(pdMS_TO_TICKS(1500));
+    if (!streamClient.connect(host.c_str(), port, 2500)) {
+        Serial.println("❌ Ulanib bo'lmadi! Brauzerdan yoki ilovadan manzilni tekshiring.");
+        vTaskDelay(pdMS_TO_TICKS(2000));
         shouldReconnect = true;
         return;
     }
 
-    // Kechikishni yo'qotish uchun TCP No Delay yoqish
     streamClient.setNoDelay(true);
-
-    // HTTP GET so'rovi
     streamClient.printf("GET %s HTTP/1.0\r\nHost: %s:%d\r\nConnection: keep-alive\r\n\r\n",
                         path.c_str(), host.c_str(), port);
 
-    // HTTP sarlavhalarini o'tkazib yuborish
     unsigned long start = millis();
     bool inHeader = true;
     String line = "";
@@ -248,7 +263,7 @@ void connectToStream() {
         return;
     }
 
-    // WAV 44-bayt sarlavhasini tekshirish va o'tkazib yuborish
+    // WAV sarlavhasi
     uint8_t wavHeader[44];
     size_t hdrRead = 0;
     start = millis();
@@ -261,20 +276,19 @@ void connectToStream() {
     }
 
     if (hdrRead >= 4 && wavHeader[0] == 'R' && wavHeader[1] == 'I' && wavHeader[2] == 'F' && wavHeader[3] == 'F') {
-        Serial.println("✅ WAV sarlavhasi aniqlandi (44-bayt o'tkazib yuborildi)!");
+        Serial.println("✅ WAV sarlavhasi aniqlandi!");
     } else {
         ringBuf.write(wavHeader, hdrRead);
     }
 
     lastDataTime = millis();
-    Serial.println("✅ Jonli audio oqim ishga tushdi (ultra-past kechikish bilan)!");
+    Serial.println("✅ Jonli audio oqim ishga tushdi!");
 }
 
-// Tarmoq oqimi vazifasi (Core 0 - Wi-Fi bilan birga)
 void streamTask(void* parameter) {
     uint8_t tempBuf[512];
     while (true) {
-        if (shouldReconnect || !streamClient.connected()) {
+        if (shouldReconnect || (!streamClient.connected() && audioServerUrl.length() > 6)) {
             shouldReconnect = false;
             connectToStream();
         }
@@ -295,7 +309,6 @@ void streamTask(void* parameter) {
             } else {
                 vTaskDelay(pdMS_TO_TICKS(1));
                 if (millis() - lastDataTime > 5000 && !streamClient.connected()) {
-                    Serial.println("Oqim uzildi, qayta ulanmoqda...");
                     shouldReconnect = true;
                 }
             }
@@ -305,15 +318,13 @@ void streamTask(void* parameter) {
     }
 }
 
-// Audio DAC ijro vazifasi (Core 1)
 void audioTask(void* parameter) {
-    const int BLOCK_SAMPLES = 128; // 64 stereo namuna (128 ta int16 qiymat)
-    const int BLOCK_BYTES = BLOCK_SAMPLES * sizeof(int16_t); // 256 bayt = ~1.33 ms
+    const int BLOCK_SAMPLES = 128;
+    const int BLOCK_BYTES = BLOCK_SAMPLES * sizeof(int16_t);
     int16_t block[BLOCK_SAMPLES];
     bool prebuffering = true;
 
     while (true) {
-        // Pre-buffering: faqat 2048 bayt (~10ms) zahira to'planishini kutadi (bir zumda boshlanadi!)
         if (prebuffering) {
             if (ringBuf.available() >= 2048) {
                 prebuffering = false;
@@ -323,8 +334,6 @@ void audioTask(void* parameter) {
             }
         }
 
-        // Kechikishni avtomatik yo'qotish (Latency sync):
-        // Agar buferda 6144 baytdan (~32ms) ko'proq audio yig'ilsa, eskisini tashlab jonli efirga yetib oladi
         if (ringBuf.available() > 6144) {
             ringBuf.skip(BLOCK_BYTES);
         }
@@ -332,7 +341,6 @@ void audioTask(void* parameter) {
         if (ringBuf.read((uint8_t*)block, BLOCK_BYTES) == BLOCK_BYTES) {
             dacOut->processAndOutput(block, BLOCK_SAMPLES);
         } else {
-            // Tarmoqda vaqtinchalik uzulish bo'lsa sukunat beradi (aloqani uzmaydi!)
             memset(block, 0, BLOCK_BYTES);
             dacOut->ConsumeSamples(block, BLOCK_SAMPLES);
             if (ringBuf.available() < 1024) {
@@ -343,11 +351,11 @@ void audioTask(void* parameter) {
     }
 }
 
-// ==========================================
-// 5. SMARTFON VA WEB API
-// ==========================================
+// ==============================================================================
+// 5. SMARTFON VA BRAUZER WEB BOSHQARUV PANELI (2-VARIANT)
+// ==============================================================================
 void setupWebServer() {
-    // 1. Ekvalayzer va Ovoz sozlash
+    // 1. Ekvalayzer va ovoz
     server.on("/set", HTTP_GET, []() {
         if (server.hasArg("vol")) currentVol = server.arg("vol").toInt();
         if (server.hasArg("bass")) currentBass = server.arg("bass").toInt();
@@ -361,41 +369,103 @@ void setupWebServer() {
         server.send(200, "text/plain", "OK");
     });
 
-    // 2. Dinamik oqim manzilini almashtirish
+    // 2. Stream URL o'rnatish
     server.on("/stream", HTTP_GET, []() {
         if (server.hasArg("url")) {
             audioServerUrl = server.arg("url");
             prefs.putString("url", audioServerUrl);
             shouldReconnect = true;
-            server.send(200, "text/plain", "OK");
+            server.send(200, "text/plain", "OK: " + audioServerUrl);
             Serial.println("Yangi URL o'rnatildi: " + audioServerUrl);
         } else {
             server.send(400, "text/plain", "URL yo'q");
         }
     });
 
-    // 3. Status
+    // 3. Test ovozi
+    server.on("/test", HTTP_GET, []() {
+        dacOut->playBeep(523, 200); // Do
+        vTaskDelay(pdMS_TO_TICKS(50));
+        dacOut->playBeep(659, 200); // Mi
+        vTaskDelay(pdMS_TO_TICKS(50));
+        dacOut->playBeep(784, 300); // Sol
+        server.send(200, "text/plain", "Test ovozi yangradi");
+    });
+
+    // 4. Status JSON
     server.on("/status", HTTP_GET, []() {
-        String json = "{\"online\":true,\"vol\":" + String(currentVol) +
+        String json = "{\"online\":true,\"ip\":\"" + WiFi.localIP().toString() +
+                      "\",\"gateway\":\"" + WiFi.gatewayIP().toString() +
+                      "\",\"vol\":" + String(currentVol) +
                       ",\"bass\":" + String(currentBass) +
                       ",\"treble\":" + String(currentTreble) +
-                      ",\"buffered\":" + String(ringBuf.available()) +
+                      ",\"stream_connected\":" + String(streamClient.connected() ? "true" : "false") +
                       ",\"url\":\"" + audioServerUrl + "\"}";
         server.send(200, "application/json", json);
     });
 
-    // 4. Web Panel
+    // 5. Brauzer Boshqaruv Paneli (To'liq Oq rangli zamonaviy veb-interfeys)
     server.on("/", HTTP_GET, []() {
-        String html = "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>ESP32 AI Kalonka</title><style>body{font-family:sans-serif;background:#121212;color:#fff;padding:20px;text-align:center;}.card{background:#1e1e1e;border-radius:12px;padding:20px;max-width:400px;margin:auto;}input[type=range]{width:100%;margin:15px 0;accent-color:#4CAF50;}button{background:#2196F3;border:none;color:#fff;padding:12px;border-radius:8px;font-size:16px;cursor:pointer;width:100%;margin-top:10px;}</style></head><body><div class='card'><h2>🎵 ESP32 Kalonka</h2><p>IP: " + WiFi.localIP().toString() + "</p><hr style='border-color:#333;'><label>🔊 Ovoz: <span id='v'>" + String(currentVol) + "</span>%</label><input type='range' min='0' max='100' value='" + String(currentVol) + "' oninput='upd()' id='vol'><label>🎸 Bass: <span id='b'>" + String(currentBass) + "</span> dB</label><input type='range' min='-10' max='10' value='" + String(currentBass) + "' oninput='upd()' id='bass'><label>🎼 Treble: <span id='t'>" + String(currentTreble) + "</span> dB</label><input type='range' min='-10' max='10' value='" + String(currentTreble) + "' oninput='upd()' id='treble'><button onclick='setPhone()'>📲 Smartfonga Ulanish</button></div><script>function upd(){var v=document.getElementById('vol').value;var b=document.getElementById('bass').value;var t=document.getElementById('treble').value;document.getElementById('v').innerText=v;document.getElementById('b').innerText=b;document.getElementById('t').innerText=t;fetch('/set?vol='+v+'&bass='+b+'&treble='+t);}function setPhone(){var url=prompt('Smartfon IP:','192.168.118.207');if(url)fetch('/stream?url='+encodeURIComponent('http://'+url+':5901/stream/swyh.wav'));}</script></body></html>";
+        String gateway = WiFi.gatewayIP().toString();
+        String html = "<!DOCTYPE html><html lang='uz'><head><meta charset='utf-8'>"
+                      "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                      "<title>ESP32 AI Kalonka Paneli</title>"
+                      "<style>"
+                      "*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;padding:0;}"
+                      "body{background:#f8fafc;color:#1e293b;padding:20px;display:flex;justify-content:center;align-items:center;min-height:100vh;}"
+                      ".card{background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;padding:24px;width:100%;max-width:440px;box-shadow:0 10px 25px rgba(0,0,0,0.05);}"
+                      "h2{font-size:20px;color:#0f172a;display:flex;align-items:center;gap:8px;margin-bottom:4px;}"
+                      ".sub{font-size:12px;color:#64748b;margin-bottom:18px;}"
+                      ".badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;margin-bottom:12px;}"
+                      ".badge-ok{background:#dcfce7;color:#166534;}"
+                      ".info-box{background:#f1f5f9;border-radius:12px;padding:12px;font-size:12px;margin-bottom:16px;line-height:1.6;}"
+                      ".label-row{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-top:14px;margin-bottom:4px;}"
+                      "input[type=range]{width:100%;accent-color:#2563eb;cursor:pointer;height:6px;}"
+                      "input[type=text]{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:13px;outline:none;margin-top:6px;}"
+                      "input[type=text]:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,0.1);}"
+                      ".btn{display:block;width:100%;padding:12px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-top:12px;transition:all 0.15s;text-align:center;}"
+                      ".btn-primary{background:#2563eb;color:#fff;}.btn-primary:hover{background:#1d4ed8;}"
+                      ".btn-success{background:#10b981;color:#fff;}.btn-success:hover{background:#059669;}"
+                      ".btn-outline{background:#fff;border:1px solid #cbd5e1;color:#334155;}.btn-outline:hover{background:#f8fafc;}"
+                      "</style></head><body><div class='card'>"
+                      "<h2>🔊 ESP32 AI Kalonka</h2>"
+                      "<p class='sub'>Hamshiralar Simulyatsiya Tizimi</p>"
+                      "<span class='badge badge-ok'>● Wi-Fi: " + String(default_ssid) + "</span>"
+                      "<div class='info-box'>"
+                      "📍 <b>Kalonka IP:</b> " + WiFi.localIP().toString() + "<br>"
+                      "📱 <b>Smartfon (Gateway) IP:</b> " + gateway + "<br>"
+                      "🔗 <b>Joriy URL:</b> <span id='u_txt'>" + (audioServerUrl.length() > 0 ? audioServerUrl : "Ulanmagan") + "</span>"
+                      "</div>"
+                      "<button class='btn btn-success' onclick='connectHotspot()'>⚡ Smartfonga To'g'ridan-to'g'ri Ulanish</button>"
+                      "<button class='btn btn-outline' onclick='testSound()'>🔔 Dinamikni Tekshirish (Test Ovoz)</button>"
+                      "<hr style='border:0;border-top:1px solid #f1f5f9;margin:18px 0;'>"
+                      "<div class='label-row'><span>🔊 Ovoz balandligi</span><span id='v'>" + String(currentVol) + "%</span></div>"
+                      "<input type='range' min='0' max='100' value='" + String(currentVol) + "' oninput='upd()' id='vol'>"
+                      "<div class='label-row'><span>🎸 Bass (Past chastota)</span><span id='b'>" + String(currentBass) + " dB</span></div>"
+                      "<input type='range' min='-10' max='10' value='" + String(currentBass) + "' oninput='upd()' id='bass'>"
+                      "<div class='label-row'><span>🎼 Treble (Yuqori chastota)</span><span id='t'>" + String(currentTreble) + " dB</span></div>"
+                      "<input type='range' min='-10' max='10' value='" + String(currentTreble) + "' oninput='upd()' id='treble'>"
+                      "<div style='margin-top:16px;'><label style='font-size:12px;font-weight:600;color:#64748b;'>Qo'lda Stream URL kiritish:</label>"
+                      "<input type='text' id='custom_url' placeholder='http://" + gateway + ":5901/stream/swyh.wav' value='" + audioServerUrl + "'>"
+                      "<button class='btn btn-primary' onclick='setUrl()'>Oqimni Ulash</button></div>"
+                      "</div>"
+                      "<script>"
+                      "function upd(){var v=document.getElementById('vol').value;var b=document.getElementById('bass').value;var t=document.getElementById('treble').value;"
+                      "document.getElementById('v').innerText=v+'%';document.getElementById('b').innerText=b+' dB';document.getElementById('t').innerText=t+' dB';"
+                      "fetch('/set?vol='+v+'&bass='+b+'&treble='+t);}"
+                      "function connectHotspot(){var url='http://" + gateway + ":5901/stream/swyh.wav';document.getElementById('custom_url').value=url;fetch('/stream?url='+encodeURIComponent(url)).then(()=>alert('Ulandi: '+url));}"
+                      "function setUrl(){var url=document.getElementById('custom_url').value;if(url)fetch('/stream?url='+encodeURIComponent(url)).then(()=>alert('Yangi URL saqlandi'));}"
+                      "function testSound(){fetch('/test').then(()=>alert('Test signali yuborildi'));}"
+                      "</script></body></html>";
         server.send(200, "text/html", html);
     });
 
     server.begin();
 }
 
-// ==========================================
+// ==============================================================================
 // 6. SETUP VA LOOP
-// ==========================================
+// ==============================================================================
 void setup() {
     Serial.begin(115200);
     delay(500);
@@ -403,10 +473,10 @@ void setup() {
     silenceDac();
 
     prefs.begin("speaker_cfg", false);
-    currentVol = prefs.getInt("vol", 80);
+    currentVol = prefs.getInt("vol", 85);
     currentBass = prefs.getInt("bass", 0);
     currentTreble = prefs.getInt("treble", 0);
-    audioServerUrl = prefs.getString("url", audioServerUrl);
+    audioServerUrl = prefs.getString("url", "");
 
     dacOut = new EqualizerDAC();
     dacOut->SetRate(48000);
@@ -416,7 +486,9 @@ void setup() {
 
     WiFi.mode(WIFI_STA);
     WiFi.begin(default_ssid, default_password);
-    Serial.println("\n--- ESP32 AI Kalonka (Ultra-Past Kechikish) ---");
+    Serial.println("\n==============================================");
+    Serial.println("  ESP32 AI Kalonka (2-Variant: Web Boshqaruv)");
+    Serial.println("==============================================");
     Serial.print("Wi-Fi ga ulanmoqda...");
 
     int retry = 0;
@@ -428,16 +500,24 @@ void setup() {
 
     if (WiFi.status() == WL_CONNECTED) {
         Serial.println("\n✅ Wi-Fi ulandi!");
-        Serial.print("ESP32 IP manzili: ");
+        Serial.print("🌐 ESP32 Web Panel manzili: http://");
         Serial.println(WiFi.localIP());
+        Serial.print("📱 Smartfon Hotspot IP: ");
+        Serial.println(WiFi.gatewayIP());
+
+        // Agar URL kiritilmagan bo'lsa, avtomatik Hotspot IP ga sozlash
+        if (audioServerUrl.length() == 0) {
+            audioServerUrl = "http://" + WiFi.gatewayIP().toString() + ":5901/stream/swyh.wav";
+            Serial.println("Auto-stream manzili: " + audioServerUrl);
+        }
     }
 
     setupWebServer();
 
-    // 1. Tarmoq qabul qilish vazifasi (Core 0)
+    // 1. Tarmoq oqimi (Core 0)
     xTaskCreatePinnedToCore(streamTask, "StreamTask", 8192, NULL, 3, NULL, 0);
 
-    // 2. Audio DAC ijro vazifasi (Core 1)
+    // 2. Audio DAC ijro (Core 1)
     xTaskCreatePinnedToCore(audioTask, "AudioTask", 8192, NULL, 4, NULL, 1);
 
     delay(200);

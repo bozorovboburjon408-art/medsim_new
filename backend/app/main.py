@@ -36,8 +36,16 @@ async def chat(req: ChatRequest):
         raise HTTPException(404, "Bemor topilmadi")
     if not req.history or req.history[-1].role != "user":
         raise HTTPException(400, "Oxirgi xabar hamshiradan bo'lishi kerak")
-    text = await llm.generate(p.system_prompt(), [t.model_dump() for t in req.history])
-    audio = await tts.synthesize(text, p)
+    try:
+        text = await llm.generate(p.system_prompt(), [t.model_dump() for t in req.history])
+    except Exception as e:
+        raise HTTPException(502, f"AI xatosi: {e}"[:400])
+    try:
+        audio = await tts.synthesize(text, p)
+    except Exception as e:
+        raise HTTPException(502, f"Ovoz (TTS) xatosi: {e} | javob: {text}"[:400])
+    if not audio:
+        raise HTTPException(502, f"Ovoz bo'sh chiqdi (TTS) | javob: {text}"[:400])
     return ChatResponse(text=text, audio_b64=base64.b64encode(audio).decode())
 
 

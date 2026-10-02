@@ -19,7 +19,7 @@ async def _gemini(system: str, history: list[dict]) -> str:
             {"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]}
             for m in history
         ],
-        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 300},
+        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1024},
     }
     models = [m.strip() for m in settings.gemini_models.split(",") if m.strip()]
     last = "model ro'yxati bo'sh"
@@ -30,11 +30,18 @@ async def _gemini(system: str, history: list[dict]) -> str:
             if r.status_code in (404, 429, 500, 503):  # limit/yo'q/band: keyingi modelga o'tamiz
                 last = f"{model}: {r.status_code} {r.text[:200]}"
                 continue
-            r.raise_for_status()
+            if r.status_code >= 400:
+                last = f"{model}: {r.status_code} {r.text[:200]}"
+                continue
+            data = r.json()
             try:
-                return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                parts = data["candidates"][0]["content"]["parts"]
+                text = "".join(p.get("text", "") for p in parts if not p.get("thought")).strip()
             except (KeyError, IndexError):
-                last = f"{model}: bo'sh javob"
+                text = ""
+            if text:
+                return text
+            last = f"{model}: bo'sh javob ({str(data)[:200]})"
     raise RuntimeError(f"Hamma Gemini modellari muvaffaqiyatsiz. Oxirgisi: {last}")
 
 

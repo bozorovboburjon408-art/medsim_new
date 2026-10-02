@@ -35,8 +35,9 @@ object Api {
                 .post(body.toString().toRequestBody("application/json".toMediaType()))
                 .build()
             http.newCall(req).execute().use { r ->
-                check(r.isSuccessful) { "Server xatosi: ${r.code}" }
-                val j = JSONObject(r.body!!.string())
+                val raw = r.body!!.string()
+                check(r.isSuccessful) { "Server xatosi ${r.code}: " + (runCatching { JSONObject(raw).getString("detail") }.getOrDefault(raw)).take(300) }
+                val j = JSONObject(raw)
                 Reply(j.getString("text"), Base64.decode(j.getString("audio_b64"), Base64.DEFAULT))
             }
         }

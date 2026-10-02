@@ -73,4 +73,11 @@ object Api {
                 }
             }
         }
+
+    suspend fun health(baseUrl: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            http.newCall(Request.Builder().url(normalize(baseUrl) + "/health").build())
+                .execute().use { it.isSuccessful }
+        }.getOrDefault(false)
+    }
 }

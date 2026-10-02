@@ -6,7 +6,7 @@
 // ==========================================
 // 1. WI-FI VA STREAM SOZLAMALARI
 // ==========================================
-const char* default_ssid     = "A56 5g";
+const char* default_ssid     = "A56";
 const char* default_password = "21082007";
 
 // Smartfoningiz jonli oqim manzili

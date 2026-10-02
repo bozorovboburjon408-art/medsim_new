@@ -2,8 +2,8 @@
 #define CONFIG_H
 
 // WiFi Configuration
-#define WIFI_SSID "Your_SSID"
-#define WIFI_PASSWORD "Your_Password"
+#define WIFI_SSID "A56"
+#define WIFI_PASSWORD "21082007"
 
 // Network Configuration (Optional Static IP)
 #define USE_STATIC_IP false

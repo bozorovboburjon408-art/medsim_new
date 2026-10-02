@@ -74,6 +74,7 @@ fun App() {
     val ctx = LocalContext.current
     val prefs = remember { ctx.getSharedPreferences("medsim", Context.MODE_PRIVATE) }
     var server by remember { mutableStateOf(prefs.getString("server", "") ?: "") }
+    var model by remember { mutableStateOf(prefs.getString("model", "") ?: "") }
     var showSettings by remember { mutableStateOf(server.isBlank()) }
     var current by remember { mutableStateOf<PatientInfo?>(null) }
     // manikenga biriktirilgan kalonka: patient.id -> AudioDeviceInfo.id
@@ -86,10 +87,11 @@ fun App() {
         val picker: @Composable () -> Unit = { SpeakerPicker(speakers[p.id]) { speakers[p.id] = it } }
         val back = { Speaker.stop(); current = null }
         if (p.isBaby) BabyScreen(p, speakers[p.id], back, picker)
-        else ChatScreen(p, server, speakers[p.id], back, picker)
+        else ChatScreen(p, server, model, speakers[p.id], back, picker)
     }
-    if (showSettings) SettingsDialog(server, onDismiss = { showSettings = false }) {
-        server = it.trim(); prefs.edit().putString("server", server).apply(); showSettings = false
+    if (showSettings) SettingsDialog(server, model, onDismiss = { showSettings = false }) { srv, mdl ->
+        server = srv.trim(); model = mdl
+        prefs.edit().putString("server", server).putString("model", model).apply(); showSettings = false
     }
 }
 
@@ -148,8 +150,9 @@ fun PatientCard(p: PatientInfo, speakerName: String?, onClick: () -> Unit) {
 }
 
 @Composable
-fun SettingsDialog(server: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+fun SettingsDialog(server: String, model: String, onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
     var text by remember { mutableStateOf(server) }
+    var mdl by remember { mutableStateOf(model) }
     var result by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     AlertDialog(
@@ -172,9 +175,22 @@ fun SettingsDialog(server: String, onDismiss: () -> Unit, onSave: (String) -> Un
                     Spacer(Modifier.height(8.dp))
                     Text(result, color = if (result.startsWith("✓")) Ok else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                Spacer(Modifier.height(14.dp))
+                Text("AI modeli (sinov uchun)", style = MaterialTheme.typography.labelLarge)
+                Row(Modifier.horizontalScroll(rememberScrollState())) {
+                    listOf(
+                        "" to "Avto",
+                        "gemini-3.5-flash-lite" to "3.5 Flash-Lite",
+                        "gemini-3.1-flash-lite" to "3.1 Flash-Lite",
+                        "gemini-3.8-flash" to "3.8 Flash",
+                        "gemini-3.7-flash" to "3.7 Flash",
+                    ).forEach { (id, label) ->
+                        FilterChip(mdl == id, { mdl = id }, { Text(label) }, modifier = Modifier.padding(end = 8.dp))
+                    }
+                }
             }
         },
-        confirmButton = { Button({ onSave(text) }) { Text("Saqlash") } },
+        confirmButton = { Button({ onSave(text, mdl) }) { Text("Saqlash") } },
         dismissButton = { TextButton(onDismiss) { Text("Bekor qilish") } },
     )
 }
@@ -270,7 +286,7 @@ fun Bubble(t: Turn, patient: PatientInfo) {
 // ───────────────────────── Suhbat ─────────────────────────
 
 @Composable
-fun ChatScreen(p: PatientInfo, server: String, deviceId: Int?, onBack: () -> Unit, picker: @Composable () -> Unit) {
+fun ChatScreen(p: PatientInfo, server: String, model: String, deviceId: Int?, onBack: () -> Unit, picker: @Composable () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val history = remember(p.id) { mutableStateListOf<Turn>() }
@@ -288,7 +304,7 @@ fun ChatScreen(p: PatientInfo, server: String, deviceId: Int?, onBack: () -> Uni
             val parts = mutableListOf<String>()
             try {
                 Speaker.beginStream(deviceId) { phase = Phase.IDLE }
-                Api.chatStream(server, p.id, history.toList()) { seg ->
+                Api.chatStream(server, p.id, history.toList(), model) { seg ->
                     if (parts.isEmpty()) {
                         firstAudio = "Birinchi ovozgacha: %.1f s\nAI %.1f s · ovoz %.1f s\n%s%s".format(
                             (System.currentTimeMillis() - t0) / 1000.0, seg.llmMs / 1000.0, seg.ttsMs / 1000.0,

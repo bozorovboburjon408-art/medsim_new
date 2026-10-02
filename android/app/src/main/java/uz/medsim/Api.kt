@@ -49,13 +49,14 @@ object Api {
         }
 
     /** Oqim: har bir gap tayyor bo'lishi bilan onSeg (asosiy oqimda) chaqiriladi. */
-    suspend fun chatStream(baseUrl: String, patientId: String, history: List<Turn>, onSeg: (Seg) -> Unit) =
+    suspend fun chatStream(baseUrl: String, patientId: String, history: List<Turn>, model: String, onSeg: (Seg) -> Unit) =
         withContext(Dispatchers.IO) {
             val body = JSONObject()
                 .put("patient_id", patientId)
                 .put("history", JSONArray(history.map {
                     JSONObject().put("role", it.role).put("content", it.content)
                 }))
+            if (model.isNotBlank()) body.put("model", model)
             val req = Request.Builder()
                 .url(normalize(baseUrl) + "/chat_stream")
                 .post(body.toString().toRequestBody("application/json".toMediaType()))

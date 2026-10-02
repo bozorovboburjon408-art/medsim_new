@@ -23,6 +23,7 @@ class Turn(BaseModel):
 class ChatRequest(BaseModel):
     patient_id: str
     history: list[Turn]  # oxirgisi hamshiraning yangi gapi bo'lishi kerak
+    model: str | None = None  # ixtiyoriy: shu model birinchi sinaladi
 
 
 class ChatResponse(BaseModel):
@@ -84,7 +85,7 @@ async def chat_stream(req: ChatRequest):
 
         async def producer():
             try:
-                async for s in llm.stream_sentences(p.system_prompt(), history, info):
+                async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model):
                     t_llm = int((time.perf_counter() - t0) * 1000)
                     await q.put(asyncio.create_task(synth(s, t_llm)))  # TTS parallel boshlanadi
             except Exception as e:

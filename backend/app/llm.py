@@ -81,7 +81,8 @@ def _split(buf: str) -> tuple[list[str], str]:
     return out, buf[pos:]
 
 
-async def stream_sentences(system: str, history: list[dict], info: dict | None = None) -> AsyncIterator[str]:
+async def stream_sentences(system: str, history: list[dict], info: dict | None = None,
+                           model: str | None = None) -> AsyncIterator[str]:
     """Javobni tayyor bo'lgan gaplar bo'yicha qaytaradi (birinchi gap tez keladi)."""
     if settings.llm_provider == "claude":
         text = await _claude(system, history)
@@ -98,6 +99,8 @@ async def stream_sentences(system: str, history: list[dict], info: dict | None =
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1024},
     }
     models = [m.strip() for m in settings.gemini_models.split(",") if m.strip()]
+    if model and re.fullmatch(r"[a-z0-9.\-]+", model):  # sinov uchun tanlangan model birinchi
+        models = [model] + [m for m in models if m != model]
     last = "model ro'yxati bo'sh"
     tries = info.setdefault("tries", []) if info is not None else []
     # Tez almashtirish: 8 soniya ichida javob bermagan model o'tkazib yuboriladi

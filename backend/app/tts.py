@@ -1,3 +1,4 @@
+import asyncio
 from xml.sax.saxutils import escape
 
 import edge_tts
@@ -11,11 +12,14 @@ async def synthesize(text: str, p: Patient) -> bytes:
     """Matnni o'zbekcha ovozga aylantiradi, mp3 baytlarini qaytaradi."""
     if settings.tts_provider == "azure":
         return await _azure(text, p)
-    out = b""
-    async for ch in edge_tts.Communicate(text, p.voice, rate=p.rate, pitch=p.pitch).stream():
-        if ch["type"] == "audio":
-            out += ch["data"]
-    return out
+    async def run() -> bytes:
+        out = b""
+        async for ch in edge_tts.Communicate(text, p.voice, rate=p.rate, pitch=p.pitch).stream():
+            if ch["type"] == "audio":
+                out += ch["data"]
+        return out
+
+    return await asyncio.wait_for(run(), timeout=25)
 
 
 async def _azure(text: str, p: Patient) -> bytes:

@@ -43,13 +43,13 @@ export function playAudioResponse(audioBase64, text, mannequinSlug = 'homilador'
         });
       }
 
-      // ESP32 Kalonkasiga ham to'g'ridan-to'g'ri yuborish (Brauzerdan)
-      const espIp = localStorage.getItem('esp32_ip') || '10.108.2.154';
-      if (espIp) {
-        fetch(`http://${espIp}/play`, {
+      // Har bir manikenning o'zining mustaqil ESP32 kalonkasi (Multi-Mannequin IP Routing)
+      const mannequinIp = localStorage.getItem(`mannequin_ip_${mannequinSlug}`) || localStorage.getItem('esp32_ip') || '10.108.2.154';
+      if (mannequinIp) {
+        fetch(`http://${mannequinIp}/play`, {
           method: 'POST',
           body: audioBase64
-        }).catch(e => console.debug("ESP32 ga audio uzatish xatosi:", e));
+        }).catch(e => console.debug(`${mannequinSlug} ESP32 (${mannequinIp}) ga audio uzatish:`, e));
       }
 
       return;

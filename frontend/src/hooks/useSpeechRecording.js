@@ -13,6 +13,7 @@ export function useSpeechRecording() {
   const recognitionRef = useRef(null);
   const chunksRef = useRef([]);
   const transcriptRef = useRef('');
+  const isRecordingRef = useRef(false);
 
   // Web Speech Recognition ni sozlash
   const initRecognition = useCallback(() => {
@@ -38,7 +39,18 @@ export function useSpeechRecording() {
         };
 
         recognition.onerror = (e) => {
-          console.warn("Speech recognition holati:", e.error);
+          if (e.error !== 'no-speech') {
+            console.debug("Speech recognition holati:", e.error);
+          }
+        };
+
+        recognition.onend = () => {
+          // Agar foydalanuvchi hali mikrofonni to'xtatmagan bo'lsa, davom ettirish
+          if (isRecordingRef.current) {
+            try {
+              recognition.start();
+            } catch (err) {}
+          }
         };
 
         recognitionRef.current = recognition;
@@ -60,6 +72,7 @@ export function useSpeechRecording() {
     setTranscript('');
     transcriptRef.current = '';
     chunksRef.current = [];
+    isRecordingRef.current = true;
 
     // 1. Speech Recognition ni boshlash
     let rec = recognitionRef.current || initRecognition();
@@ -67,7 +80,6 @@ export function useSpeechRecording() {
       try {
         rec.start();
       } catch (e) {
-        // Agar xato bersa qaytadan boshlash
         try {
           rec = initRecognition();
           rec?.start();
@@ -102,10 +114,14 @@ export function useSpeechRecording() {
     } catch (err) {
       console.error("Mikrofon ruxsati xatosi:", err);
       setError("Mikrofonga ulanib bo'lmadi. Ruxsat berilganini tekshiring.");
+      isRecordingRef.current = false;
     }
   }, [initRecognition]);
 
   const stopRecording = useCallback(() => {
+    isRecordingRef.current = false;
+    setIsRecording(false);
+
     // 1. Web Speech Recognition'ni biroz kechiktirib to'xtatish (oxirgi so'zlarni ushlab qolish uchun)
     setTimeout(() => {
       if (recognitionRef.current) {
@@ -113,17 +129,17 @@ export function useSpeechRecording() {
           recognitionRef.current.stop();
         } catch (e) {}
       }
-    }, 400);
+    }, 300);
 
     // 2. MediaRecorder ni to'xtatish
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
-    setIsRecording(false);
   }, []);
 
   useEffect(() => {
     return () => {
+      isRecordingRef.current = false;
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch (e) {}
       }
@@ -139,8 +155,7 @@ export function useSpeechRecording() {
     stopRecording, 
     audioBlob, 
     transcript: transcript || transcriptRef.current, 
-    getTranscript: () => transcriptRef.current,
+    getTranscript: () => transcriptRef.current || transcript,
     error 
   };
 }
-

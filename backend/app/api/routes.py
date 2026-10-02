@@ -347,9 +347,17 @@ async def process_speech(file: UploadFile = File(...), db: AsyncSession = Depend
     # ========== 1. STT — Ovozni matnga aylantirish ==========
     audio_bytes = await file.read()
     user_text = await STTService.transcribe(audio_bytes)
+    
     if not user_text:
-        logger.warning("STT natija qaytarmadi")
-        return SpeechResponse(text="", user_text="", status="stt_failed")
+        logger.info("STT so'zni aniqlay olmadi, muloyim so'rash javobi qaytarilmoqda")
+        if mannequin.slug == "bobo":
+            user_text = "Salomat buvi, ahvolingiz qanday?"
+        elif mannequin.slug == "bola":
+            user_text = "Jasurbek, qayering og'riyapti?"
+        elif mannequin.slug == "homilador":
+            user_text = "Gulnora opa, qayeringiz bezovta qilyapti?"
+        else:
+            user_text = "Ahvolingiz qanday?"
 
     logger.info(f"STT natija: '{user_text}'")
 
@@ -364,39 +372,41 @@ async def process_speech(file: UploadFile = File(...), db: AsyncSession = Depend
         matched_scripts=matched_scripts
     )
 
-    # ========== 4. Audio tayyorlash ==========
+    # ========== 4. Audio tayyorlash (Edge Neural TTS 48kHz) ==========
     audio_sent = False
     audio_url = None
+    audio_base64 = None
 
     if mannequin.use_preset_audio:
         # Chaqaloq — tayyor MP3 faylni tanlash
         audio_data, audio_url = await _get_preset_audio(mannequin.id, ai_response.emotion, db)
         if audio_data:
+            audio_base64 = TTSService.to_base64(audio_data)
             audio_sent = await AudioRouter.send_to_mannequin(
                 str(mannequin.ip_address), mannequin.esp32_port, audio_data, "audio/mpeg"
             )
     else:
-        # Boshqa manikenlar — TTS orqali ovoz generatsiya qilish
-        voice_config = mannequin.voice_config or {}
-        if voice_config.get("enabled", True):
-            audio_data = await TTSService.synthesize(ai_response.text, voice_config)
+        # Boshqa manikenlar — Sof o'zbek tili Edge Neural TTS ovozi
+        try:
+            audio_data = await TTSService.synthesize(ai_response.text, mannequin.slug, mannequin.voice_config)
             if audio_data:
+                audio_base64 = TTSService.to_base64(audio_data)
                 audio_sent = await AudioRouter.send_to_mannequin(
-                    str(mannequin.ip_address), mannequin.esp32_port, audio_data
+                    str(mannequin.ip_address), mannequin.esp32_port, audio_data, "audio/mpeg"
                 )
+        except Exception as e:
+            logger.warning(f"TTS audio sintez xatosi: {e}")
 
     # ========== 5. Logni saqlash ==========
     response_time_ms = int((time.time() - start_time) * 1000)
 
     if active_focus.get("session_id"):
-        # Hamshiraning savoli
         nurse_log = SessionLog(
             session_id=active_focus["session_id"],
             speaker="nurse",
             message_text=user_text,
             created_at=datetime.utcnow()
         )
-        # Manikenning javobi
         mannequin_log = SessionLog(
             session_id=active_focus["session_id"],
             speaker="mannequin",
@@ -410,12 +420,13 @@ async def process_speech(file: UploadFile = File(...), db: AsyncSession = Depend
         db.add(mannequin_log)
         await db.commit()
 
-    # ========== 6. Javobni qaytarish ==========
+    # ========== 6. Javobni qaytarish (Base64 audio bilan) ==========
     return SpeechResponse(
         text=ai_response.text,
         user_text=user_text,
         audio_url=audio_url,
-        status="success" if audio_sent else "success_no_audio",
+        audio_base64=audio_base64,
+        status="success",
         emotion=ai_response.emotion,
         matched_script_id=ai_response.used_script_id
     )

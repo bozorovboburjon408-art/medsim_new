@@ -62,7 +62,20 @@ function App() {
       const replyText = result?.text || "Tushunmadim, iltimos qaytadan ayting.";
       const emotion = result?.emotion || null;
 
-      // 3. AI javobini chatga chiqarish
+      // 3. Hamshira xabarini va AI javobini chatga chiqarish
+      if (result?.user_text && (!textToSend || textToSend === "🎤 [Ovozli so'rov]")) {
+        setConversation(prev => {
+          const updated = [...prev];
+          for (let i = updated.length - 1; i >= 0; i--) {
+            if (updated[i].speaker === 'nurse') {
+              updated[i] = { ...updated[i], text: result.user_text };
+              break;
+            }
+          }
+          return updated;
+        });
+      }
+
       setConversation(prev => [
         ...prev,
         {

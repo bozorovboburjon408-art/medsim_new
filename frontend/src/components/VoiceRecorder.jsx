@@ -33,7 +33,12 @@ export default function VoiceRecorder({ activeMannequin, isProcessing, onAudioRe
   const handleMicClick = () => {
     if (disabled) return;
     if (isRecording) {
+      const capturedText = (liveText || transcript || getTranscript() || '').trim();
       stopRecording();
+      if (capturedText) {
+        onTextSubmit(capturedText);
+        setLiveText('');
+      }
     } else {
       setLiveText('');
       startRecording();

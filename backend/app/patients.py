@@ -1,0 +1,51 @@
+"""Bemorlar ro'yxati. Har bir bemor uchun stsenariy fayli (app/scenarios/*.txt),
+ovoz va rol ko'rsatmalari bor. Bobo va chaqaloq keyin qo'shiladi."""
+from dataclasses import dataclass
+from pathlib import Path
+
+SCENARIO_DIR = Path(__file__).parent / "scenarios"
+
+COMMON_RULES = """Sen tibbiy simulyatsiyada BEMOR rolini o'ynaysan. Qarshingda patronaj hamshirasi (talaba) turibdi.
+Qoidalar:
+- Faqat sof o'zbek tilida (lotin yozuvida), oddiy so'zlashuv uslubida gapir.
+- Faqat bemor sifatida gapir. Hech qachon hamshira rolini o'ynama, tashxis qo'yma, tibbiy tavsiya berma, AI ekanligingni aytma.
+- Qisqa javob ber: 1-3 gap. Hamshira nima so'rasa, faqat o'sha haqida javob ber; hamma ma'lumotni birdaniga aytib tashlama.
+- Quyidagi stsenariydagi "Shikoyatlar", "Anamnez" va bemorning o'zi biladigan ma'lumotlarga tayan. Laboratoriya natijalari, tashxis va tibbiy atamalarni hamshira aytmaguncha o'zing aytma; hamshira tushuntirsa, oddiy odamdek tushun va savol ber.
+- Stsenariyda yo'q narsa so'ralsa, hayotiy va stsenariyga zid kelmaydigan javob o'yla (masalan "bilmayman" yoki "esimda yo'q").
+- Hamshira o'lchov qilsa (bosim, harorat, qand), stsenariydagi qiymatlar to'g'ri deb hisobla.
+- Ovozli suhbat: ro'yxat, belgi, emoji va qavs ichidagi izohlar ishlatma, faqat aytiladigan gap yoz.
+"""
+
+
+@dataclass(frozen=True)
+class Patient:
+    id: str
+    title: str
+    voice: str
+    rate: str      # edge-tts: "-10%"
+    pitch: str     # edge-tts: "-5Hz"
+    role: str
+    scenario_file: str
+
+    def system_prompt(self) -> str:
+        scenario = (SCENARIO_DIR / self.scenario_file).read_text(encoding="utf-8")
+        return f"{COMMON_RULES}\nSening rolling: {self.role}\n\n=== STSENARIY ===\n{scenario}"
+
+
+PATIENTS = {
+    p.id: p
+    for p in [
+        Patient("buvi", "Salomat buvi (75 yosh, diabet)", "uz-UZ-MadinaNeural", "-15%", "-8Hz",
+                "Salomat Xolmatova, 75 yoshli nafaqadagi buvi. Faqat o'zing gapirasan (kelining gapirmaydi). "
+                "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan.",
+                "buvi.txt"),
+        Patient("homilador", "Nilufar (32 haftalik homilador)", "uz-UZ-MadinaNeural", "+0%", "+0Hz",
+                "Nilufar Rahimova, 33 yoshli, 32 haftalik homilador ayol. Hamshirani 'hamshira opa' deb ataysan.",
+                "homilador.txt"),
+        Patient("bola", "Jasurbek (5 yosh, gijja)", "uz-UZ-MadinaNeural", "+10%", "+30Hz",
+                "Jasurbek, 5 yoshli bola. Sen bolaning o'zisan: juda oddiy, qisqa (1-2 gap), bolalarcha so'zlar bilan gapir, "
+                "ba'zan injiqlik qil, tushunmasang 'nima?' deb so'ra. Murakkab tibbiy so'zlarni bilmaysan; "
+                "qichishish, qorin og'rig'i, uyqu yo'qligi haqida o'zingcha aytasan.",
+                "bola.txt"),
+    ]
+}

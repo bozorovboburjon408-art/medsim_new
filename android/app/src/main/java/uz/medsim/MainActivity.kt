@@ -80,9 +80,21 @@ fun App() {
     // manikenga biriktirilgan kalonka: patient.id -> AudioDeviceInfo.id
     val speakers = remember { mutableStateMapOf<String, Int>() }
 
+    // Server holati: 0 noma'lum, 1 tayyor, 2 uyg'onmoqda, 3 aloqa yo'q. Ilova ochiq turganda server uxlamaydi.
+    var serverState by remember { mutableStateOf(0) }
+    LaunchedEffect(server) {
+        if (server.isBlank()) { serverState = 0; return@LaunchedEffect }
+        while (true) {
+            serverState = 2
+            val ok = Api.health(server)
+            serverState = if (ok) 1 else 3
+            delay(if (ok) 8 * 60 * 1000L else 20 * 1000L)
+        }
+    }
+
     val p = current
     if (p == null) {
-        HomeScreen(speakers, onPick = { current = it }, onSettings = { showSettings = true })
+        HomeScreen(speakers, serverState, onPick = { current = it }, onSettings = { showSettings = true })
     } else {
         val picker: @Composable () -> Unit = { SpeakerPicker(speakers[p.id]) { speakers[p.id] = it } }
         val back = { Speaker.stop(); current = null }
@@ -98,13 +110,18 @@ fun App() {
 // ───────────────────────── Bosh sahifa ─────────────────────────
 
 @Composable
-fun HomeScreen(speakers: Map<String, Int>, onPick: (PatientInfo) -> Unit, onSettings: () -> Unit) {
+fun HomeScreen(speakers: Map<String, Int>, serverState: Int, onPick: (PatientInfo) -> Unit, onSettings: () -> Unit) {
     val ctx = LocalContext.current
     Column(Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("MedSim", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 Text("Bemorni tanlang", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                when (serverState) {
+                    1 -> Text("● Server tayyor", style = MaterialTheme.typography.labelLarge, color = Ok)
+                    2 -> Text("● Server uyg'onmoqda… (1 daqiqagacha kuting)", style = MaterialTheme.typography.labelLarge, color = Warn)
+                    3 -> Text("● Server bilan aloqa yo'q (qayta urinilmoqda)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error)
+                }
             }
             FilledTonalButton(onSettings) { Text("⚙  Sozlamalar") }
         }

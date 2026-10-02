@@ -1,37 +1,44 @@
-# 🎵 ESP32 Smart Wi-Fi Audio Kalonka Tizimi
+# 🏥 MedSim — Hamshiralar Tibbiy Simulyatsiya Tizimi
 
-Smartfon va noutbukdagi jonli audio signallarni (AI agentlar, musiqa, video) Wi-Fi orqali kechikishlarsiz ESP32 kalonkasiga uzatuvchi to'liq tizim.
-
----
-
-## 📦 To'plam Tarkibi
-
-| Fayl | Tavsif |
-|---|---|
-| `AISpeakerHub.apk` | Smartfonlar uchun Android ilovasi (Live Stream, Ekvalayzer, Ko'p kalonkali boshqaruv) |
-| `ESP32_Audio_Speaker.ino` | ESP32 uchun to'liq Arduino dasturi (Internal DAC, DSP Bass/Treble, Web Server) |
-| `QOLLANMA_ISHLATISH_YORIQNOMASI.txt` | Bosqichma-bosqich to'liq o'zbekcha qo'llanma |
+Hamshiralik kasbiy ko'nikmalarini baholash va o'rgatish uchun mo'ljallangan interaktiv tibbiy simulyatsiya va apparat-dasturiy majmuasi.
 
 ---
 
-## ⚡ Tezkor Boshlash
+## 🌟 Asosiy Imkoniyatlar
 
-1. **Ulash sxemasi:**
-   - ESP32 `GPIO 25` ➡️ PAM8403 `L_IN`
-   - ESP32 `GPIO 26` ➡️ PAM8403 `R_IN`
-   - ESP32 `GND` ➡️ PAM8403 `GND`
-   - ESP32 `5V / VIN` ➡️ PAM8403 `+5V`
+1. **AI Bemorlar (Klinik Case va Dialoglar):**
+   * 👵 **Salomat buvi (75 yosh):** 2-tip qandli diabet, diabetik tovon yarasi, arterial gipertenziya parvarishi.
+   * 🤰 **Gulnora opa (28 yosh):** 32 haftalik homiladorlik patronaji, surunkali piyelonefrit va 2-darajali anemiya.
+   * 👦 **Jasurbek (5 yosh) va onasi Nilufar opa:** Gel'mintoz (enterobioz va askaridoz) shikoyatlari va gigiyenik tavsiyalar.
+   * 👶 **Chaqaloq:** Yig'lash va taktil ovuntirish simulyatori.
 
-2. **ESP32 dasturini yuklash:**
-   - Arduino IDE da `ESP8266Audio` kutubxonasini o'rnating.
-   - `ESP32_Audio_Speaker.ino` faylida Wi-Fi nom va parolingizni kiriting.
-   - ESP32 ga yuklang va Serial Monitorda uning IP manzilini ko'ring.
+2. **Ovozli Sintez (Neural TTS):**
+   * Microsoft Edge Neural TTS orqali tabiiy va sof o'zbek tili ovozi (`uz-UZ-MadinaNeural` va `uz-UZ-SardorNeural`).
 
-3. **Smartfonda ishlatish:**
-   - `AISpeakerHub.apk` ni smartfonga o'rnating va oching.
-   - **`Boshlash`** tugmasini bosing.
-   - Kalonkangiz yonidagi **`📡 Ushbu Kalonkani Telefonga Bog'lash`** tugmasini bosing.
-   - Ovoz, Bass va Treble slayderlarini o'zingizga moslang!
+3. **ESP32 Audio & Taktil Maniken:**
+   * mDNS qo'llab-quvvatlash: `http://medsim-speaker.local` (IP qidirish shart emas).
+   * To'g'ridan-to'g'ri HTTP Push (`POST /play`) audio uzatish.
+   * MPU-6050 (GY-521) sensori orqali chaqaloqni mayin tebratib ovuntirishni avtomatik aniqlash.
 
 ---
-*Barcha savollar va to'liq yo'riqnoma uchun `QOLLANMA_ISHLATISH_YORIQNOMASI.txt` faylini o'qing.*
+
+## 📂 Loyiha Tuzilishi
+
+* **`frontend/`** — React 19 + Tailwind CSS planshet interfeysi.
+* **`backend/`** — FastAPI + DeepSeek AI + Edge TTS + SQLAlchemy backend.
+* **`ESP32_Audio_Speaker/`** — Universal ESP32 Audio Kalonka firmware (`ESP32_Audio_Speaker.ino`).
+* **`ESP32_Chaqaloq_Baby/`** — Chaqaloq manikeni firmware (`ESP32_Chaqaloq_Baby.ino`).
+* **`QOLLANMA_ISHLATISH_YORIQNOMASI.txt`** — Foydalanish bo'yicha to'liq qo'llanma.
+
+---
+
+## 🚀 Ishga Tushirish
+
+### Frontend & Backend:
+* Backend: `http://localhost:8000` (yoki Render live)
+* Frontend: `http://localhost:3000` (yoki Render live)
+
+### ESP32 Ulanishi:
+* `GPIO 25/26` ➡️ PAM8403 Ovoz kirishi
+* `GPIO 21/22` ➡️ MPU-6050 I2C (SDA/SCL)
+* Brauzerdan kirish: `http://medsim-speaker.local`

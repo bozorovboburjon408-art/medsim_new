@@ -1,49 +1,37 @@
-# MedSim - Hamshiralik Simulyatsiyasi Tizimi
+# 🎵 ESP32 Smart Wi-Fi Audio Kalonka Tizimi
 
-Loyiha hamshiralarni o'qitish va simulyatsiya qilish uchun mo'ljallangan. Tizim maxsus jihozlangan manekenlar (ESP32 orqali boshqariladi) va boshqaruv panelini (veb-ilovalar) o'z ichiga oladi.
+Smartfon va noutbukdagi jonli audio signallarni (AI agentlar, musiqa, video) Wi-Fi orqali kechikishlarsiz ESP32 kalonkasiga uzatuvchi to'liq tizim.
 
-## Arxitektura
+---
 
-- **ESP32 Firmware**: Maneken ichidagi audio qabul qiluvchi va sensorlarni boshqaruvchi mikrokontroller.
-- **Backend**: Python FastAPI orqali ishlaydigan RESTful API.
-- **Frontend**: Node.js / React (yoki boshqa freymvork) asosidagi foydalanuvchi interfeysi.
-- **Database**: PostgreSQL 16 ma'lumotlar bazasi.
+## 📦 To'plam Tarkibi
 
-## Talablar
+| Fayl | Tavsif |
+|---|---|
+| `AISpeakerHub.apk` | Smartfonlar uchun Android ilovasi (Live Stream, Ekvalayzer, Ko'p kalonkali boshqaruv) |
+| `ESP32_Audio_Speaker.ino` | ESP32 uchun to'liq Arduino dasturi (Internal DAC, DSP Bass/Treble, Web Server) |
+| `QOLLANMA_ISHLATISH_YORIQNOMASI.txt` | Bosqichma-bosqich to'liq o'zbekcha qo'llanma |
 
-- Docker va Docker Compose
-- Node.js 20+
-- Python 3.12+
-- PlatformIO (ESP32 dastrurini yozish uchun)
+---
 
-## O'rnatish (Docker orqali)
+## ⚡ Tezkor Boshlash
 
-1. Loyihani yuklab oling.
-2. Root papkada `.env` faylini yarating va kerakli muhit o'zgaruvchilarini sozlang:
-   ```env
-   POSTGRES_USER=medsim
-   POSTGRES_PASSWORD=medsim123
-   POSTGRES_DB=medsim_db
-   ```
-3. Docker Compose orqali barcha xizmatlarni ishga tushiring:
-   ```bash
-   docker-compose up --build
-   ```
+1. **Ulash sxemasi:**
+   - ESP32 `GPIO 25` ➡️ PAM8403 `L_IN`
+   - ESP32 `GPIO 26` ➡️ PAM8403 `R_IN`
+   - ESP32 `GND` ➡️ PAM8403 `GND`
+   - ESP32 `5V / VIN` ➡️ PAM8403 `+5V`
 
-## ESP32 Dasturini Yozish
+2. **ESP32 dasturini yuklash:**
+   - Arduino IDE da `ESP8266Audio` kutubxonasini o'rnating.
+   - `ESP32_Audio_Speaker.ino` faylida Wi-Fi nom va parolingizni kiriting.
+   - ESP32 ga yuklang va Serial Monitorda uning IP manzilini ko'ring.
 
-1. `esp32/audio_receiver/config.h` faylida Wi-Fi va boshqa sozlamalarni o'zgartiring.
-2. PlatformIO yordamida loyihani oching.
-3. ESP32 modulini kompyuterga ulang.
-4. "Upload" tugmasini bosib dasturni mikrokontrollerga yuklang.
+3. **Smartfonda ishlatish:**
+   - `AISpeakerHub.apk` ni smartfonga o'rnating va oching.
+   - **`Boshlash`** tugmasini bosing.
+   - Kalonkangiz yonidagi **`📡 Ushbu Kalonkani Telefonga Bog'lash`** tugmasini bosing.
+   - Ovoz, Bass va Treble slayderlarini o'zingizga moslang!
 
-## API Endpoints (ESP32)
-
-- `GET /health` - Qurilma holati va ma'lumotlarini qaytaradi.
-- `POST /play` - Audio ma'lumotlarni qabul qilib, o'ynashni boshlaydi.
-- `POST /stop` - Audioni to'xtatadi.
-- `GET /volume?level=50` - Ovoz balandligini o'zgartiradi (0-100).
-
-## Hissa Qo'shish
-
-Loyiha bo'yicha takliflar yoki xatolar haqida xabar berish uchun Issue yarating yoki Pull Request jo'nating.
+---
+*Barcha savollar va to'liq yo'riqnoma uchun `QOLLANMA_ISHLATISH_YORIQNOMASI.txt` faylini o'qing.*

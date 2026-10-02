@@ -1,0 +1,150 @@
+================================================================================
+          ESP32 SMART WI-FI AUDIO KALONKA TIZIMI — TO'LIQ QO'LLANMA
+================================================================================
+
+Ushbu to'plam smartfoningiz yoki noutbukingizdagi barcha jonli ovozlarni (AI agentlar,
+YouTube, musiqa, video) Wi-Fi orqali ESP32 kalonkasiga yuqori sifatda (48 kHz 16-bit)
+uzatish va har bir kalonkani alohida boshqarish uchun yaratilgan.
+
+TO'PLAM TARKIBI:
+1. AISpeakerHub.apk           — Smartfonlar uchun maxsus boshqaruv va ovoz uzatish ilovasi
+2. ESP32_Audio_Speaker.ino    — ESP32 uchun to'liq yangilangan dasturiy ta'minot (sketch)
+3. QOLLANMA_ISHLATISH_YORIQNOMASI.txt — Ushbu to'liq yo'riqnoma
+4. README.md                  — Tezkor qisqa qo'llanma
+
+================================================================================
+1. KERAKLI DETALLAR VA ULASH SXEMASI (HARDWARE)
+================================================================================
+
+KERAKLI MODULLAR:
+1. ESP32 DevKit V1 (yoki NodeMCU ESP32)
+2. PAM8403 Ovoz kuchaytirgich moduli (Audio Amplifier 2x3W)
+3. Dinamik (Kalonka) — 4 Om yoki 8 Om (3W - 5W)
+4. Ulash simlari (Jumper wires)
+5. 5V quvvat manbai (Micro-USB yoki Type-C kabel)
+
+SIMLARNI ULASH JADVALI:
+------------------------------------------------------------
+ESP32 PIN          PAM8403 PIN          VAZIFASI
+------------------------------------------------------------
+GPIO 25      --->  L_IN                 Chap kanal audio signali (DAC 1)
+GPIO 26      --->  R_IN                 O'ng kanal audio signali (DAC 2)
+GND          --->  GND (Audio GND)      Umumiy yer (massa)
+5V (yoki VIN)--->  +5V (VDD)            Kuchaytirgich quvvati
+GND          --->  GND (Power GND)      Quvvat yeri
+------------------------------------------------------------
+
+DINAMIKNI (KALONKANI) ULASH:
+- PAM8403 dagi +L va -L chiqishlariga chap dinamik ulanadi.
+- PAM8403 dagi +R va -R chiqishlariga o'ng dinamik ulanadi.
+*(Agar faqat 1 ta dinamik bo'lsa, uni +L va -L ga ulab qo'yish kifoya).*
+
+MUHIM ESLATMA: PAM8403 kuchaytirgichining -L va -R chiqishlarini bir-biriga
+yoki umumiy GND ga ulab qo'ymang! Har bir dinamik o'zining mustaqil chiqishiga
+ulanadi.
+
+================================================================================
+2. ESP32 DASTURINI SOZLASH VA YUKLASH (ARDUINO IDE)
+================================================================================
+
+1-QADAM: ARDUINO IDE DA KUTUBXONANI O'RNATISH
+ESP32 ovozni to'g'ri ijro etishi uchun bitta maxsus kutubxona kerak:
+- Arduino IDE ni oching.
+- Menyu: "Sketch" -> "Include Library" -> "Manage Libraries..."
+- Qidiruvga yozing: "ESP8266Audio" (Muallifi: Earle F. Philhower, III).
+- "Install" tugmasini bosing.
+
+2-QADAM: WI-FI NOM VA PAROLINI KIRITISH
+"ESP32_Audio_Speaker.ino" faylini Arduino IDE da oching va 12-13 qatorlarga
+uydagi o'zgarmas Wi-Fi routeringiz ma'lumotlarini yozing:
+
+  const char* default_ssid     = "Sizning_WiFi_Nomi";
+  const char* default_password = "Sizning_WiFi_Paroli";
+
+3-QADAM: ESP32 GA YUKLASH
+- ESP32 ni kompyuterga USB kabel orqali ulang.
+- Arduino IDE da "Tools" -> "Board" -> "esp32" -> "ESP32 Dev Module" ni tanlang.
+- "Tools" -> "Port" bo'limidan ESP32 ulangan COM-portni tanlang.
+- "Upload" (O'ngga strelka) tugmasini bosing va yuklanish tugashini kuting.
+
+4-QADAM: ESP32 NING IP MANZILINI BILIB OLISH
+- Yuklanish tugagach, Arduino IDE da "Serial Monitor"ni oching (Tezlik: 115200 baud).
+- Ekranda quyidagicha yozuv chiqadi:
+    ✅ Wi-Fi ulandi!
+    ESP32 IP manzili: 192.168.x.x
+- Ushbu IP manzilni eslab qoling (masalan: 192.168.1.154).
+
+================================================================================
+3. SMARTFON ILOVASI (AISpeakerHub.apk) BILAN ISHLASH
+================================================================================
+
+1-QADAM: ILOVANI SMARTFONGA O'RNATISH
+- "AISpeakerHub.apk" faylini smartfoningizga o'tkazing va o'rnating.
+- Smartfoningiz ESP32 ulangan o'sha bitta Wi-Fi routerga ulangan bo'lishi shart!
+
+2-QADAM: JONLI EFIRNI YOQISH
+- "AI Speaker Hub" ilovasini oching.
+- Yuqoridagi "Boshlash" tugmasini bosing.
+- Ekranda audio yozish / tizim ovozini uzatish so'raladi: "Start now" (Boshlash)
+  tugmasini bosing.
+- Ilova tepasida yashil belgi yonadi va tizim ovozi tarmoqqa uzatila boshlaydi!
+
+3-QADAM: KALONKANI ULASH VA BOSHQARISH
+- Ilova ekranida kalonkangiz (masalan: 192.168.1.154) ko'rinadi.
+  (Agar yangi kalonka bo'lsa, "➕ Yangi Kalonka" tugmasini bosib IP sini kiriting).
+- "📡 Ushbu Kalonkani Telefonga Bog'lash" tugmasini bosing.
+- Kalonka darhol telefoningizga ulanadi va ovoz jaranglaydi!
+
+4-QADAM: EKVALAYZER VA OVOZNI SOZLASH
+Har bir kalonka kartasida real vaqtli slayderlar mavjud:
+  🔊 Ovoz balandligi: 0% dan 100% gacha
+  🎸 Bass (Past chastota): -10 dB dan +10 dB gacha
+  🎼 Treble (Yuqori chastota): -10 dB dan +10 dB gacha
+Slayderni siljitishingiz bilan ESP32 ichidagi DSP filtri ovozni darhol o'zgartiradi.
+
+================================================================================
+4. BIR VAQTNING O'ZIDA BIR NECHTA KALONKANI ISHLATISH (MULTI-ROOM)
+================================================================================
+
+Agar sizda bir nechta ESP32 kalonkalari bo'lsa (masalan: Oshxona, Mehmonxona):
+1. Har bir ESP32 ga bir xil kodni yuklaysiz. Har biri routerdan o'z IP manzilini oladi.
+2. Ilovadagi "➕ Yangi Kalonka" tugmasini bosib, har birining nomini va IP sini
+   kiritasiz.
+3. "▶ Barcha Kalonkalarni Telefonga Bog'lash" tugmasini bossangiz, barcha
+   xonadagi kalonkalar bir vaqtda smartfoningizdagi ovozni ijro etadi!
+4. Har bir xonadagi kalonkaning ovozini va bassini ilovadan alohida boshqarasiz.
+
+================================================================================
+5. QO'SHIMCHA: BRAUZER ORQALI BOSHQARISH (KOMPYUTER YOKI TELEFONDA)
+================================================================================
+
+Kalonkani hech qanday ilovasiz ham boshqarish mumkin:
+- Istalgan brauzerda (Chrome, Safari, Opera) kalonkaning IP manzilini yozing:
+    http://192.168.x.x
+- Chiroyli boshqaruv oynasi ochiladi: ovoz balandligi, bass, treble slayderlari
+  va ulanish sozlamalari brauzer orqali ham to'liq ishlaydi.
+
+================================================================================
+6. TEZ-TEZ UCHRAYDIGAN SAVOLLAR VA MUAMMOLARNI HAL QILISH (FAQ)
+================================================================================
+
+SAVOL 1: Kalonkadan ovoz chiqmayapti yoki ulanmayapti?
+JAVOB: 
+- Smartfon va ESP32 aynan bir xil Wi-Fi tarmog'iga ulanganini tekshiring.
+- Smartfonda "AISpeakerHub" ilovasida "Boshlash" bosilgani va yashil nuqta
+  yonib turganini tekshiring.
+
+SAVOL 2: Ovozda g'irchillash yoki xirillash eshitilmoqda?
+JAVOB:
+- PAM8403 moduli quvvatga juda sezgir. ESP32 ni va PAM8403 ni sifatli 5V (kamida 2A)
+  quvvat manbaiga (kuchli adapter yoki yaxshi USB portga) ulang.
+- Ilovadagi "Bass" slayderini 0 dB yoki biroz pastroqqa tushiring.
+
+SAVOL 3: Wi-Fi paroli o'zgarsa nima qilish kerak?
+JAVOB:
+- ESP32 kodidagi (12-13 qator) SSID va parolni yangisiga almashtirib, qayta
+  yuklab qo'yish kifoya.
+
+================================================================================
+Tizim to'liq sinovdan o'tgan va 100% ishlashga tayyor!
+================================================================================

@@ -4,7 +4,12 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Bundle
+import android.view.WindowManager
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.RecognitionListener
@@ -21,7 +26,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.sqrt
 import java.io.File
 
 data class PatientInfo(val id: String, val title: String, val isBaby: Boolean = false)
@@ -36,6 +43,7 @@ val PATIENTS = listOf(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.BLUETOOTH_CONNECT), 1)
         setContent { MaterialTheme { App() } }
     }
@@ -88,18 +96,84 @@ fun SpeakerPicker(selected: Int?, onPick: (Int) -> Unit) {
     }
 }
 
+// Tebranish sozlamalari (m/s², chiziqli tezlanish RMS). Real manikenda sinab sozlanadi.
+private const val ROCK_MIN = 0.5f      // shundan past = qimirlamayapti
+private const val SHAKE_MAX = 6.0f     // shundan baland = qattiq silkitish
+private const val CALM_AFTER_MS = 4000L   // shuncha vaqt yumshoq tebratilsa tinchiydi
+private const val RESUME_AFTER_MS = 10000L // tebratish to'xtasa shuncha vaqtdan keyin yana yig'laydi
+private const val SHAKE_AFTER_MS = 1000L
+
 @Composable
 fun BabyScreen(deviceId: Int?) {
     val ctx = LocalContext.current
     var msg by remember { mutableStateOf("") }
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Button({
-            msg = if (Speaker.playAsset(ctx, "baby_cry.mp3", deviceId, loop = true)) "Chaqaloq yig'layapti"
-            else "assets/baby_cry.mp3 fayli topilmadi"
-        }) { Text("Yig'latish") }
-        Button({ Speaker.stop(); msg = "Jim bo'ldi" }) { Text("Ovuntirish (jim)") }
+    var auto by remember { mutableStateOf(true) }
+    var crying by remember { mutableStateOf(false) }
+    var calmedByRock by remember { mutableStateOf(false) }
+    var rms by remember { mutableStateOf(0f) }
+    var hasSensor by remember { mutableStateOf(true) }
+    val level = remember { floatArrayOf(0f) } // tezlanish kvadratining silliqlangan o'rtachasi
+
+    fun startCry() {
+        crying = true
+        msg = if (Speaker.playAsset(ctx, "baby_cry.mp3", deviceId, loop = true)) "Chaqaloq yig'layapti"
+        else "assets/baby_cry.mp3 fayli topilmadi"
     }
+
+    DisposableEffect(Unit) {
+        val sm = ctx.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val sensor = sm.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
+        val l = object : SensorEventListener {
+            override fun onSensorChanged(e: SensorEvent) {
+                val a2 = e.values[0] * e.values[0] + e.values[1] * e.values[1] + e.values[2] * e.values[2]
+                level[0] = level[0] * 0.98f + a2 * 0.02f
+            }
+            override fun onAccuracyChanged(s: Sensor?, a: Int) {}
+        }
+        if (sensor == null) hasSensor = false
+        else sm.registerListener(l, sensor, SensorManager.SENSOR_DELAY_GAME)
+        onDispose { sm.unregisterListener(l); Speaker.stop() }
+    }
+
+    LaunchedEffect(Unit) {
+        var rockMs = 0L; var stillMs = 0L; var shakeMs = 0L
+        val step = 200L
+        while (true) {
+            delay(step)
+            val r = sqrt(level[0]); rms = r
+            if (!auto) { rockMs = 0; stillMs = 0; shakeMs = 0; continue }
+            val shaking = r > SHAKE_MAX
+            val rocking = r in ROCK_MIN..SHAKE_MAX
+            shakeMs = if (shaking) shakeMs + step else 0
+            rockMs = if (rocking) rockMs + step else 0
+            stillMs = if (r < ROCK_MIN) stillMs + step else 0
+            when {
+                shakeMs >= SHAKE_AFTER_MS -> {
+                    if (!crying) startCry()
+                    calmedByRock = false
+                    msg = "Qattiq silkitish! Chaqaloq yig'layapti"
+                }
+                crying && rockMs >= CALM_AFTER_MS -> {
+                    for (v in 10 downTo 0) { Speaker.setVolume(v / 10f); delay(80) }
+                    Speaker.stop(); crying = false; calmedByRock = true
+                    msg = "Chaqaloq tinchidi"
+                }
+                !crying && calmedByRock && stillMs >= RESUME_AFTER_MS -> {
+                    calmedByRock = false; startCry()
+                }
+            }
+        }
+    }
+
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Button({ calmedByRock = false; startCry() }) { Text("Yig'latish") }
+        Button({ Speaker.stop(); crying = false; calmedByRock = false; msg = "Jim bo'ldi" }) { Text("Ovuntirish (jim)") }
+        Switch(auto, { auto = it })
+        Text("Avto ovuntirish (tebratish)")
+    }
+    Spacer(Modifier.height(8.dp))
     Text(msg)
+    Text(if (hasSensor) "Tebranish darajasi: %.2f".format(rms) else "Bu qurilmada tebranish datchigi yo'q")
 }
 
 @Composable

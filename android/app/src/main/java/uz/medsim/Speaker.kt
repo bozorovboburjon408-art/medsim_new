@@ -16,6 +16,8 @@ object Speaker {
 
     private var player: MediaPlayer? = null
 
+    fun setVolume(v: Float) { player?.setVolume(v, v) }
+
     fun stop() {
         queue.clear(); playing = false; expectMore = false
         player?.release(); player = null

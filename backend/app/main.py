@@ -24,6 +24,7 @@ class ChatRequest(BaseModel):
     patient_id: str
     history: list[Turn]  # oxirgisi hamshiraning yangi gapi bo'lishi kerak
     model: str | None = None  # ixtiyoriy: shu model birinchi sinaladi
+    tts: str | None = None  # ixtiyoriy: 'edge' | 'gemini' | 'azure'
 
 
 class ChatResponse(BaseModel):
@@ -52,7 +53,7 @@ async def chat(req: ChatRequest):
         raise HTTPException(502, f"AI xatosi: {e}"[:400])
     t1 = time.perf_counter()
     try:
-        audio = await tts.synthesize(text, p)
+        audio, _fmt, _used = await tts.synthesize(text, p)
     except Exception as e:
         raise HTTPException(502, f"Ovoz (TTS) xatosi: {e} | javob: {text}"[:400])
     t2 = time.perf_counter()
@@ -80,8 +81,8 @@ async def chat_stream(req: ChatRequest):
 
         async def synth(s: str, t_llm: int):
             t = time.perf_counter()
-            audio = await tts.synthesize(s, p)
-            return s, audio, t_llm, int((time.perf_counter() - t) * 1000)
+            audio, fmt, used = await tts.synthesize(s, p, req.tts)
+            return s, audio, fmt, used, t_llm, int((time.perf_counter() - t) * 1000)
 
         async def producer():
             try:
@@ -98,7 +99,7 @@ async def chat_stream(req: ChatRequest):
                 try:
                     if isinstance(item, Exception):
                         raise item
-                    s, audio, t_llm, t_tts = await item
+                    s, audio, fmt, used, t_llm, t_tts = await item
                     if not audio:
                         raise RuntimeError(f"Ovoz bo'sh chiqdi | javob: {s}")
                 except Exception as e:
@@ -109,7 +110,7 @@ async def chat_stream(req: ChatRequest):
                          info.get("model", ""), info.get("tries", []))
                 yield json.dumps({"text": s, "audio_b64": base64.b64encode(audio).decode(),
                                   "ms": int((time.perf_counter() - t0) * 1000),
-                                  "llm_ms": t_llm, "tts_ms": t_tts,
+                                  "llm_ms": t_llm, "tts_ms": t_tts, "fmt": fmt, "tts": used,
                                   "model": info.get("model", ""), "tries": ", ".join(info.get("tries", []))}) + "\n"
         finally:
             prod.cancel()

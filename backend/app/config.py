@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-5-5"
     tts_provider: str = "edge"
+    gemini_tts_models: str = "gemini-3.8-flash-tts,gemini-3.1-flash-tts-preview,gemini-2.5-flash-preview-tts"
     azure_speech_key: str = ""
     azure_speech_region: str = ""
 

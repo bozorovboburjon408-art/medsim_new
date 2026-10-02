@@ -62,8 +62,8 @@ object Speaker {
         stop(); expectMore = true; dev = deviceId; idleCb = onIdle
     }
 
-    fun enqueue(ctx: Context, bytes: ByteArray) {
-        val f = File(ctx.cacheDir, "seg_${seq++}.mp3").also { it.writeBytes(bytes) }
+    fun enqueue(ctx: Context, bytes: ByteArray, ext: String = "mp3") {
+        val f = File(ctx.cacheDir, "seg_${seq++}.$ext").also { it.writeBytes(bytes) }
         queue.addLast(f)
         if (!playing) playNext(ctx)
     }

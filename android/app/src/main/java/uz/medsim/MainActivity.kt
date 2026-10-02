@@ -75,6 +75,7 @@ fun App() {
     val prefs = remember { ctx.getSharedPreferences("medsim", Context.MODE_PRIVATE) }
     var server by remember { mutableStateOf(prefs.getString("server", "") ?: "") }
     var model by remember { mutableStateOf(prefs.getString("model", "") ?: "") }
+    var tts by remember { mutableStateOf(prefs.getString("tts", "") ?: "") }
     var showSettings by remember { mutableStateOf(server.isBlank()) }
     var current by remember { mutableStateOf<PatientInfo?>(null) }
     // manikenga biriktirilgan kalonka: patient.id -> AudioDeviceInfo.id
@@ -99,11 +100,11 @@ fun App() {
         val picker: @Composable () -> Unit = { SpeakerPicker(speakers[p.id]) { speakers[p.id] = it } }
         val back = { Speaker.stop(); current = null }
         if (p.isBaby) BabyScreen(p, speakers[p.id], back, picker)
-        else ChatScreen(p, server, model, speakers[p.id], back, picker)
+        else ChatScreen(p, server, model, tts, speakers[p.id], back, picker)
     }
-    if (showSettings) SettingsDialog(server, model, onDismiss = { showSettings = false }) { srv, mdl ->
-        server = srv.trim(); model = mdl
-        prefs.edit().putString("server", server).putString("model", model).apply(); showSettings = false
+    if (showSettings) SettingsDialog(server, model, tts, onDismiss = { showSettings = false }) { srv, mdl, tt ->
+        server = srv.trim(); model = mdl; tts = tt
+        prefs.edit().putString("server", server).putString("model", model).putString("tts", tts).apply(); showSettings = false
     }
 }
 
@@ -167,9 +168,10 @@ fun PatientCard(p: PatientInfo, speakerName: String?, onClick: () -> Unit) {
 }
 
 @Composable
-fun SettingsDialog(server: String, model: String, onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
+fun SettingsDialog(server: String, model: String, tts: String, onDismiss: () -> Unit, onSave: (String, String, String) -> Unit) {
     var text by remember { mutableStateOf(server) }
     var mdl by remember { mutableStateOf(model) }
+    var tt by remember { mutableStateOf(tts) }
     var result by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     AlertDialog(
@@ -205,9 +207,16 @@ fun SettingsDialog(server: String, model: String, onDismiss: () -> Unit, onSave:
                         FilterChip(mdl == id, { mdl = id }, { Text(label) }, modifier = Modifier.padding(end = 8.dp))
                     }
                 }
+                Spacer(Modifier.height(10.dp))
+                Text("Ovoz (sinov uchun)", style = MaterialTheme.typography.labelLarge)
+                Row {
+                    listOf("" to "Avto", "edge" to "Edge (oddiy)", "gemini" to "Gemini (jonli)").forEach { (id, label) ->
+                        FilterChip(tt == id, { tt = id }, { Text(label) }, modifier = Modifier.padding(end = 8.dp))
+                    }
+                }
             }
         },
-        confirmButton = { Button({ onSave(text, mdl) }) { Text("Saqlash") } },
+        confirmButton = { Button({ onSave(text, mdl, tt) }) { Text("Saqlash") } },
         dismissButton = { TextButton(onDismiss) { Text("Bekor qilish") } },
     )
 }
@@ -303,7 +312,7 @@ fun Bubble(t: Turn, patient: PatientInfo) {
 // ───────────────────────── Suhbat ─────────────────────────
 
 @Composable
-fun ChatScreen(p: PatientInfo, server: String, model: String, deviceId: Int?, onBack: () -> Unit, picker: @Composable () -> Unit) {
+fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, deviceId: Int?, onBack: () -> Unit, picker: @Composable () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val history = remember(p.id) { mutableStateListOf<Turn>() }
@@ -321,16 +330,16 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, deviceId: Int?, on
             val parts = mutableListOf<String>()
             try {
                 Speaker.beginStream(deviceId) { phase = Phase.IDLE }
-                Api.chatStream(server, p.id, history.toList(), model) { seg ->
+                Api.chatStream(server, p.id, history.toList(), model, tts) { seg ->
                     if (parts.isEmpty()) {
-                        firstAudio = "Birinchi ovozgacha: %.1f s\nAI %.1f s · ovoz %.1f s\n%s%s".format(
-                            (System.currentTimeMillis() - t0) / 1000.0, seg.llmMs / 1000.0, seg.ttsMs / 1000.0,
+                        firstAudio = "Birinchi ovozgacha: %.1f s\nAI %.1f s · ovoz %.1f s (%s)\n%s%s".format(
+                            (System.currentTimeMillis() - t0) / 1000.0, seg.llmMs / 1000.0, seg.ttsMs / 1000.0, seg.tts,
                             seg.model, if (seg.tries.isNotEmpty()) "\n⚠ ${seg.tries}" else "",
                         )
                         phase = Phase.SPEAKING
                     }
                     parts.add(seg.text)
-                    Speaker.enqueue(ctx, seg.mp3)
+                    Speaker.enqueue(ctx, seg.mp3, seg.fmt)
                 }
                 if (parts.isNotEmpty()) history.add(Turn("assistant", parts.joinToString(" ")))
                 Speaker.endStream()

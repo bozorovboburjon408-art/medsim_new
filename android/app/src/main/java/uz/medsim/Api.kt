@@ -17,6 +17,7 @@ data class Reply(val text: String, val mp3: ByteArray, val llmMs: Int = 0, val t
 data class Seg(
     val text: String, val mp3: ByteArray, val ms: Int,
     val llmMs: Int = 0, val ttsMs: Int = 0, val model: String = "", val tries: String = "",
+    val fmt: String = "mp3", val tts: String = "",
 )
 
 object Api {
@@ -49,7 +50,7 @@ object Api {
         }
 
     /** Oqim: har bir gap tayyor bo'lishi bilan onSeg (asosiy oqimda) chaqiriladi. */
-    suspend fun chatStream(baseUrl: String, patientId: String, history: List<Turn>, model: String, onSeg: (Seg) -> Unit) =
+    suspend fun chatStream(baseUrl: String, patientId: String, history: List<Turn>, model: String, tts: String, onSeg: (Seg) -> Unit) =
         withContext(Dispatchers.IO) {
             val body = JSONObject()
                 .put("patient_id", patientId)
@@ -57,6 +58,7 @@ object Api {
                     JSONObject().put("role", it.role).put("content", it.content)
                 }))
             if (model.isNotBlank()) body.put("model", model)
+            if (tts.isNotBlank()) body.put("tts", tts)
             val req = Request.Builder()
                 .url(normalize(baseUrl) + "/chat_stream")
                 .post(body.toString().toRequestBody("application/json".toMediaType()))
@@ -73,7 +75,8 @@ object Api {
                     val j = JSONObject(line)
                     if (j.has("error")) error(j.getString("error"))
                     val seg = Seg(j.getString("text"), Base64.decode(j.getString("audio_b64"), Base64.DEFAULT), j.optInt("ms"),
-                        j.optInt("llm_ms"), j.optInt("tts_ms"), j.optString("model"), j.optString("tries"))
+                        j.optInt("llm_ms"), j.optInt("tts_ms"), j.optString("model"), j.optString("tries"),
+                        j.optString("fmt", "mp3"), j.optString("tts"))
                     withContext(Dispatchers.Main) { onSeg(seg) }
                 }
             }

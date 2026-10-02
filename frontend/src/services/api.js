@@ -22,16 +22,23 @@ export const focusMannequin = async (slug) => {
 
 export const sendSpeech = async (audioBlob, mannequinSlug, sessionId) => {
   const formData = new FormData();
-  formData.append('audio', audioBlob, 'speech.webm');
-  formData.append('mannequinSlug', mannequinSlug);
-  if (sessionId) {
-    formData.append('sessionId', sessionId);
-  }
+  formData.append('file', audioBlob, 'speech.webm');
+  if (mannequinSlug) formData.append('mannequin_slug', mannequinSlug);
+  if (sessionId) formData.append('session_id', sessionId);
 
   const response = await api.post('/speech', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+  });
+  return response.data;
+};
+
+export const sendChatMessage = async (text, mannequinSlug, sessionId) => {
+  const response = await api.post('/chat', {
+    text,
+    mannequin_slug: mannequinSlug,
+    session_id: sessionId
   });
   return response.data;
 };

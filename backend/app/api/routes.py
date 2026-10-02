@@ -18,6 +18,7 @@ from app.models.schemas import (
     MannequinResponse,
     MannequinListResponse,
     FocusRequest,
+    ChatRequest,
     SpeechResponse,
     ScenarioResponse,
     SessionCreate,
@@ -92,8 +93,78 @@ async def set_focus(req: FocusRequest, db: AsyncSession = Depends(get_db)):
 
 
 # =====================
-# SPEECH ENDPOINT (ASOSIY)
+# CHAT & SPEECH ENDPOINTS
 # =====================
+
+@router.post("/api/chat", response_model=SpeechResponse)
+async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Matnli yoki brauzer STT orqali kelgan savolga DeepSeek AI javob qaytarish.
+    """
+    start_time = time.time()
+    user_text = request.text.strip()
+    if not user_text:
+        raise HTTPException(status_code=400, detail="Savol matni bo'sh bo'lmasligi kerak")
+
+    mannequin_slug = request.mannequin_slug or active_focus.get("mannequin_slug")
+    if not mannequin_slug:
+        raise HTTPException(status_code=400, detail="Avval manikenni tanlang")
+
+    result = await db.execute(select(Mannequin).where(Mannequin.slug == mannequin_slug))
+    mannequin = result.scalar_one_or_none()
+    if not mannequin:
+        raise HTTPException(status_code=404, detail="Tanlangan manikenni topib bo'lmadi")
+
+    scenario = None
+    session_id = request.session_id or active_focus.get("session_id")
+    if session_id:
+        session_result = await db.execute(
+            select(Session).where(Session.id == session_id)
+        )
+        session = session_result.scalar_one_or_none()
+        if session and session.scenario_id:
+            scenario_result = await db.execute(
+                select(Scenario).where(Scenario.id == session.scenario_id)
+            )
+            scenario = scenario_result.scalar_one_or_none()
+
+    scripts_result = await db.execute(
+        select(ScriptQA)
+        .where(ScriptQA.mannequin_id == mannequin.id)
+        .order_by(desc(ScriptQA.priority))
+    )
+    all_scripts = scripts_result.scalars().all()
+    matched_scripts = _match_scripts(user_text, all_scripts)
+
+    # DeepSeek / AI orqali javob generatsiya qilish
+    ai_response = await ai_engine.generate_response(
+        mannequin=mannequin,
+        user_text=user_text,
+        scenario=scenario,
+        matched_scripts=matched_scripts
+    )
+
+    # Chaqaloq audio presetlari
+    audio_url = None
+    if mannequin.use_preset_audio:
+        audio_data, audio_url = await _get_preset_audio(mannequin.id, ai_response.emotion, db)
+        if audio_data:
+            import asyncio
+            asyncio.create_task(
+                AudioRouter.send_to_mannequin(
+                    str(mannequin.ip_address), mannequin.esp32_port, audio_data, "audio/mpeg"
+                )
+            )
+
+    return SpeechResponse(
+        text=ai_response.text,
+        user_text=user_text,
+        audio_url=audio_url,
+        status="success",
+        emotion=ai_response.emotion,
+        matched_script_id=ai_response.used_script_id
+    )
+
 
 @router.post("/api/speech", response_model=SpeechResponse)
 async def process_speech(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):

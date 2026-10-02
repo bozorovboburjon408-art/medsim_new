@@ -45,10 +45,17 @@ class FocusRequest(BaseModel):
 # =====================
 # Speech Schemas
 # =====================
+class ChatRequest(BaseModel):
+    """To'g'ridan-to'g'ri matnli xabar yuborish"""
+    text: str
+    mannequin_slug: Optional[str] = None
+    session_id: Optional[str] = None
+
+
 class SpeechResponse(BaseModel):
-    """Ovozli so'rov javobini qaytarish"""
+    """Ovozli yoki matnli so'rov javobini qaytarish"""
     text: str  # AI javob matni
-    user_text: Optional[str] = None  # STT natijasi — hamshira nima dedi
+    user_text: Optional[str] = None  # Hamshira nima dedi
     audio_url: Optional[str] = None  # Audio fayl URL (agar mavjud bo'lsa)
     status: str  # success, stt_failed, ai_error, no_audio
     emotion: Optional[str] = None  # oddiy, xavotirli, og'riqli, qo'rqqan

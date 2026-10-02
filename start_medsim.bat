@@ -6,28 +6,29 @@ echo ===========================================================================
 echo          🏥 MEDSIM — HAMSHIRALAR TIBBIY SIMULYATSIYA TIZIMI
 echo ===============================================================================
 echo.
-echo 1. Backend server ishga tushirilmoqda (FastAPI + DeepSeek AI + Edge TTS)...
+echo 1/3. Backend server ishga tushirilmoqda (FastAPI + DeepSeek AI)...
 pushd "%~dp0backend"
 start "MedSim Backend (Port 8000)" cmd /k "python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
 popd
 
-echo 2. Frontend planshet interfeysi ishga tushirilmoqda (Port 3000)...
+echo 2/3. Frontend planshet interfeysi ishga tushirilmoqda (Port 3000)...
 pushd "%~dp0frontend"
-start "MedSim Frontend (Port 3000)" cmd /k "npm run dev -- --host 0.0.0.0 --port 3000"
+start "MedSim Frontend (Port 3000)" cmd /k "npm run dev"
 popd
 
 echo.
-echo 3. Tizim tayyorlanmoqda, 3 soniya kuting...
-timeout /t 4 /nobreak >nul
+echo 3/3. Tizim yuklanmoqda (6 soniya kuting)...
+timeout /t 6 /nobreak >nul
 
 echo.
-echo ✅ Dastur muvaffaqiyatli ishga tushdi!
+echo ✅ Tizim to'liq ishga tushdi!
 echo 🌐 Brauzer ochilmoqda: http://localhost:3000
 echo.
 
 start http://localhost:3000
 
 echo ===============================================================================
-echo  Tizim faol ishlamoqda. Dasturni to'xtatish uchun ochilgan qora oynalarni yoping.
+echo  Tizim faol ishlamoqda.
+echo  Agar brauzerda sahifa ochilmasa, klaviaturadan F5 (Sahifani yangilash) ni bosing.
 echo ===============================================================================
 pause

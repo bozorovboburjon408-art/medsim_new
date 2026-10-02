@@ -1,86 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, WifiOff, Users, Radio, Stethoscope, ChevronRight, AlertCircle, Heart } from 'lucide-react';
+import { Wifi, Users } from 'lucide-react';
 
 /**
- * MannequinSelector — Bemorlar (Manikenlar) Triaj va Tanlov Paneli
- * Har bir manikenning klinik triaj holati, apparat IP manzili va fiziologik xarakteristikasini ko'rsatadi.
+ * MannequinSelector — Sodda, oq va tushunarli Bemorlar Paneli
  */
 
 const MANNEQUINS = [
   {
     slug: 'bobo',
-    name: 'Qariya Bobo',
-    age: '70 yosh (Geriatriya)',
+    name: 'Bobo',
+    age: '65-75 yosh',
     emoji: '👴',
-    code: 'MK-701-GER',
-    triage: 'Sariq (Nazorat)',
-    triageColor: 'bg-amber-100 text-amber-800 border-amber-300',
-    description: 'Surunkali arterial gipertenziya III, stenokardiya',
-    ip: '192.168.1.10',
-    audioMode: 'TTS • Oqsoqol ovozi (0.7 pitch)',
-    accent: {
+    description: 'Qon bosimi ko\'tarilgan, yurak sanchishi va bosh aylanishi',
+    color: {
       border: 'border-amber-400',
-      activeBg: 'bg-gradient-to-r from-amber-50/90 to-white',
-      ring: 'ring-amber-200',
-      badge: 'bg-amber-500 text-white',
-      bar: 'bg-amber-500'
+      activeBg: 'bg-amber-50',
+      text: 'text-amber-900',
+      glow: 'ring-amber-200',
+      badge: 'bg-amber-100 text-amber-800'
     }
   },
   {
     slug: 'homilador',
     name: 'Gulnora opa (Homilador)',
-    age: '32 hafta • 28 yosh (Akusherlik)',
+    age: '32 hafta (28 yosh)',
     emoji: '🤰',
-    code: 'MK-320-OBG',
-    triage: 'Qizil (Shoshilinch)',
-    triageColor: 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse',
-    description: 'Surunkali piyelonefrit xuruji, anemiya (Hb 80 g/l)',
-    ip: '192.168.1.11',
-    audioMode: 'TTS • Ayol ovozi (1.1 pitch)',
-    accent: {
-      border: 'border-rose-400',
-      activeBg: 'bg-gradient-to-r from-rose-50/90 to-white',
-      ring: 'ring-rose-200',
-      badge: 'bg-rose-500 text-white',
-      bar: 'bg-rose-500'
+    description: 'Bel og\'rig\'i, tana harorati 37.5°C, to\'q siydik va holsizlik',
+    color: {
+      border: 'border-pink-400',
+      activeBg: 'bg-pink-50',
+      text: 'text-pink-900',
+      glow: 'ring-pink-200',
+      badge: 'bg-pink-100 text-pink-800'
     }
   },
   {
     slug: 'bola',
-    name: '5 yoshli Bola',
-    age: '5 yosh (Pediatriya)',
+    name: 'Bola',
+    age: '5-6 yosh',
     emoji: '👦',
-    code: 'MK-051-PED',
-    triage: 'Sariq (Gipertermiya)',
-    triageColor: 'bg-blue-100 text-blue-800 border-blue-300',
-    description: 'Tana harorati 39.5°C, inyeksiya fobiyasi',
-    ip: '192.168.1.12',
-    audioMode: 'TTS • Bola ovozi (1.4 pitch)',
-    accent: {
+    description: 'Tana harorati 39.5°C, ukoldan qo\'rqadi, faqat onasini so\'raydi',
+    color: {
       border: 'border-blue-400',
-      activeBg: 'bg-gradient-to-r from-blue-50/90 to-white',
-      ring: 'ring-blue-200',
-      badge: 'bg-blue-500 text-white',
-      bar: 'bg-blue-500'
+      activeBg: 'bg-blue-50',
+      text: 'text-blue-900',
+      glow: 'ring-blue-200',
+      badge: 'bg-blue-100 text-blue-800'
     }
   },
   {
     slug: 'chaqaloq',
     name: 'Chaqaloq',
-    age: '0-1 yosh (Neonatologiya)',
+    age: '0-1 yosh',
     emoji: '👶',
-    code: 'MK-001-NEO',
-    triage: 'Moviy (Asfiksiya)',
-    triageColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-    description: 'Asfiksiya belgilari, gipoksiya, tovushli reaksiyalar',
-    ip: '192.168.1.13',
-    audioMode: 'Direct MP3 DMA (TTS yo\'q)',
-    accent: {
+    description: 'Gapirmaydi, yig\'lash va kulish ovozlarini chiqaradi',
+    color: {
       border: 'border-emerald-400',
-      activeBg: 'bg-gradient-to-r from-emerald-50/90 to-white',
-      ring: 'ring-emerald-200',
-      badge: 'bg-emerald-500 text-white',
-      bar: 'bg-emerald-500'
+      activeBg: 'bg-emerald-50',
+      text: 'text-emerald-900',
+      glow: 'ring-emerald-200',
+      badge: 'bg-emerald-100 text-emerald-800'
     }
   }
 ];
@@ -95,103 +74,71 @@ export default function MannequinSelector({ activeMannequin, onSelect }) {
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 border-r border-slate-800 select-none">
+    <div className="flex flex-col h-full bg-slate-50 border-r border-slate-200 select-none">
       {/* Sarlavha */}
-      <div className="p-4 border-b border-slate-800 bg-slate-950/60">
+      <div className="p-4 border-b border-slate-200 bg-white">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users size={16} className="text-blue-400" />
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
-              Bemorlar Ro'yxati
-            </h2>
-          </div>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-            4 Maniken
+          <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+            <Users size={18} className="text-blue-600" />
+            <span>Bemorlar</span>
+          </h2>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+            4 ta maniken
           </span>
         </div>
-        <p className="text-[11px] text-slate-400 mt-1">
-          Muloqot va tekshiruv uchun bemor profilini tanlang
+        <p className="text-xs text-slate-500 mt-1">
+          Gaplashmoqchi bo'lgan bemorni tanlang
         </p>
       </div>
 
-      {/* Manikenlar kartochkalari */}
+      {/* Bemorlar ro'yxati */}
       <div className="flex-1 p-3.5 space-y-3 overflow-y-auto">
         {MANNEQUINS.map(m => {
           const isActive = activeMannequin?.slug === m.slug;
-          const isOnline = healthStatus[m.slug] ?? true;
 
           return (
             <button
               key={m.slug}
               onClick={() => onSelect(m)}
               className={`
-                w-full text-left rounded-xl p-3.5 transition-all duration-200 border relative overflow-hidden group
+                w-full text-left rounded-xl p-4 transition-all duration-200 border-2 cursor-pointer
                 ${isActive
-                  ? `${m.accent.border} ${m.accent.activeBg} ring-2 ${m.accent.ring} shadow-lg shadow-black/20 text-slate-900`
-                  : 'border-slate-800 bg-slate-800/60 hover:bg-slate-800 hover:border-slate-700 text-slate-200'
+                  ? `${m.color.border} ${m.color.activeBg} ring-3 ${m.color.glow} shadow-sm`
+                  : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs'
                 }
               `}
             >
-              {/* Faol vertikal indikator chiziq */}
-              {isActive && (
-                <div className={`absolute top-0 left-0 bottom-0 w-1.5 ${m.accent.bar}`} />
-              )}
-
-              {/* Yuqori qator: Kod va Triaj */}
-              <div className="flex items-center justify-between mb-1.5">
-                <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                  isActive ? 'bg-slate-900/10 text-slate-700' : 'bg-slate-900 text-slate-400 border border-slate-800'
-                }`}>
-                  {m.code}
-                </span>
-
-                <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${m.triageColor}`}>
-                  {m.triage}
-                </span>
-              </div>
-
-              {/* Markaz: Ism va Avatar */}
-              <div className="flex items-start gap-3 my-1">
-                <div className={`text-3xl p-1.5 rounded-xl shrink-0 ${
-                  isActive ? 'bg-white shadow-sm' : 'bg-slate-900/80 border border-slate-700/50'
+              <div className="flex items-start gap-3.5">
+                {/* Emoji Avatar */}
+                <div className={`text-3xl p-2 rounded-xl shrink-0 ${
+                  isActive ? 'bg-white shadow-xs' : 'bg-slate-50'
                 }`}>
                   {m.emoji}
                 </div>
 
-                <div className="min-w-0 flex-1">
-                  <div className={`font-bold text-sm leading-tight flex items-center gap-1.5 ${
-                    isActive ? 'text-slate-900' : 'text-white'
-                  }`}>
-                    <span className="truncate">{m.name}</span>
-                    {isActive && (
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1 mb-0.5">
+                    <span className={`font-bold text-sm ${
+                      isActive ? m.color.text : 'text-slate-900'
+                    }`}>
+                      {m.name}
+                    </span>
+
+                    {isActive ? (
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${m.color.badge}`}>
+                        Tanlangan
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase bg-emerald-50 px-2 py-0.5 rounded-full">
+                        <Wifi size={11} /> Online
+                      </span>
                     )}
                   </div>
-                  <div className={`text-[11px] mt-0.5 font-medium ${
-                    isActive ? 'text-slate-600' : 'text-slate-400'
-                  }`}>
-                    {m.age}
-                  </div>
-                  <div className={`text-[11px] leading-snug mt-1 line-clamp-2 ${
-                    isActive ? 'text-slate-700 font-medium' : 'text-slate-400'
-                  }`}>
+
+                  <div className="text-xs text-slate-500 font-medium">{m.age}</div>
+                  <div className="text-xs text-slate-600 mt-1 leading-snug line-clamp-2">
                     {m.description}
                   </div>
-                </div>
-              </div>
-
-              {/* Pastki qator: Hardware Telemetriya & Audio rejimi */}
-              <div className={`mt-2.5 pt-2 border-t flex items-center justify-between text-[10px] font-mono ${
-                isActive ? 'border-slate-300/80 text-slate-600' : 'border-slate-700/60 text-slate-400'
-              }`}>
-                <div className="flex items-center gap-1">
-                  <Radio size={12} className={isActive ? 'text-blue-600' : 'text-slate-500'} />
-                  <span>{m.ip}</span>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
-                  <span className="truncate max-w-[120px]">{m.audioMode}</span>
                 </div>
               </div>
             </button>
@@ -199,11 +146,12 @@ export default function MannequinSelector({ activeMannequin, onSelect }) {
         })}
       </div>
 
-      {/* Pastki holat */}
-      <div className="p-3.5 border-t border-slate-800 bg-slate-950 text-center">
-        <div className="flex items-center justify-center gap-2 text-[11px] font-mono text-slate-400">
-          <Stethoscope size={13} className="text-blue-400" />
-          <span>Wi-Fi Audio Mesh: <strong className="text-emerald-400 font-bold">FAOL</strong></span>
+      {/* Pastki eslatma */}
+      <div className="p-3.5 border-t border-slate-200 bg-white text-center">
+        <div className="text-xs text-slate-500">
+          {activeMannequin
+            ? `Hozir faol: ${activeMannequin.emoji} ${activeMannequin.name}`
+            : 'Bemor tanlanmagan'}
         </div>
       </div>
     </div>

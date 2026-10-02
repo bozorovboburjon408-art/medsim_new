@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import StatusBar from './components/StatusBar';
-import VitalSignsMonitor from './components/VitalSignsMonitor';
 import MannequinSelector from './components/MannequinSelector';
 import ConversationPanel from './components/ConversationPanel';
 import VoiceRecorder from './components/VoiceRecorder';
@@ -12,16 +11,14 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [conversation, setConversation] = useState([]);
   const [sessionId, setSessionId] = useState(null);
-  const [completedActions, setCompletedActions] = useState([]);
 
   const handleSelectMannequin = async (mannequin) => {
     setActiveMannequin(mannequin);
     setConversation([]);
-    setCompletedActions([]);
     try {
       await focusMannequin(mannequin.slug);
     } catch (e) {
-      console.warn("Backend API ulanmagan, lokal rejimda ishlayapti", e);
+      console.warn("Backend ulanmagan, lokal rejimda ishlayapti", e);
     }
   };
 
@@ -29,22 +26,22 @@ function App() {
     if (!activeMannequin) return;
     setIsProcessing(true);
 
-    // Hamshiraning yuborilgan ovozli xabari
+    // Hamshira xabarini qo'shish
     setConversation(prev => [...prev, {
       speaker: 'nurse',
-      text: '🎤 [Ovozli so\'rov uzatildi...]',
+      text: '🎤 Ovozli xabar yuborildi...',
       timestamp: new Date().toISOString()
     }]);
 
     try {
-      // Backend FastAPI ga yuborish
+      // Backend ga ovoz yuborish
       const result = await sendSpeech(audioBlob, activeMannequin.slug, sessionId);
 
       setConversation(prev => {
         const updated = [...prev];
         updated[updated.length - 1] = {
           ...updated[updated.length - 1],
-          text: result.user_text || '[Ovozli patronaj savoli]'
+          text: result.user_text || '[Ovozli xabar yuborildi]'
         };
         return [
           ...updated,
@@ -56,25 +53,15 @@ function App() {
           }
         ];
       });
-
-      // Avtomatik cheklist progressini yangilash
-      setCompletedActions(prev => {
-        const nextIdx = prev.length;
-        if (nextIdx < 5 && !prev.includes(nextIdx)) {
-          return [...prev, nextIdx];
-        }
-        return prev;
-      });
-
     } catch (error) {
-      console.warn("Backend aloqasi yo'q, lokal klinik dialog ishga tushdi:", error);
+      console.warn("Backend javob bermadi, lokal dialog:", error);
 
-      // Klinik replikalar (offline fallback)
+      // Gulnora opa va boshqa bemorlarning aniq klinik replikalari
       const mockResponses = {
         bobo: [
           "Rahmat qizim, biroz boshim aylanib, yuragim tez uryapti.",
           "Ha, ertalab o'zimning dorilarimni ichgan edim, lekin foydasi bo'lmadi.",
-          "Boshim qattiq og'riyapti, qon bosimimni o'lchab bering bolam."
+          "Oyoqlarim shishib ketdi, qon bosimimni o'lchab bering bolam."
         ],
         homilador: [
           "Vaalaykum assalom, hamshira opa. Yaxshi deb bo'lmaydi... Oxirgi ikki kunda o'zimni juda holsiz his qilyapman. Boshim aylanib, tez charchab qolayapman. Belim ham simillab og'riyapti.",
@@ -83,17 +70,18 @@ function App() {
           "Belimning orqa tomoni, ayniqsa o'ng tomoni simillab og'riyapti. Bolaligimdan surunkali piyelonefritim bor edi.",
           "Mayli hamshira opa, bolam va o'zimning sog'lig'im uchun shifoxonaga yotishga tayyorman. Hozir kiyimlarimni yig'ishtiraman.",
           "Xudoga shukur, bolam harakatlanyapti, lekin unga biror ziyon yetmaydimi deb juda xavotirdaman, hamshira opa.",
+          "Yo'q, xudoga shukur, qonli ajralma yoki suv ketishi bo'lmadi.",
           "Aytganingizdek qilaman: tuzli taomlarni cheklab, na'matak damlamasi ichaman va kuniga 3-4 mahal tizza-tirsak holatida turaman."
         ],
         bola: [
           "Rostdanmi? Ukol qilmaysizmi? Oyim qachon keladilar?",
-          "Oyim qani? Qornim og'riyapti, uyga ketaman!",
+          "Oyim qani? Uyga ketaman!",
           "Menga dori bermang, qo'rqaman!"
         ],
         chaqaloq: [
-          "👶 *qattiq yig'lash ovozi*",
-          "👶 *xursand bo'lib kulish ovozi*",
-          "👶 *yengil yo'tal va injiqlik ovozi*"
+          "👶 *yig'lash ovozi*",
+          "👶 *kulish ovozi*",
+          "👶 *uhh... uhh...*"
         ]
       };
 
@@ -111,25 +99,17 @@ function App() {
         const updated = [...prev];
         updated[updated.length - 1] = {
           ...updated[updated.length - 1],
-          text: '[Hamshira patronaj savoli uzatildi]'
+          text: '[Ovozli xabar yuborildi]'
         };
         return [
           ...updated,
           {
             speaker: 'mannequin',
             text: resText,
-            emotion: emotions[activeMannequin.slug] || 'oddiy',
+            emotion: emotions[activeMannequin.slug] || null,
             timestamp: new Date().toISOString()
           }
         ];
-      });
-
-      setCompletedActions(prev => {
-        const nextIdx = prev.length;
-        if (nextIdx < 5 && !prev.includes(nextIdx)) {
-          return [...prev, nextIdx];
-        }
-        return prev;
       });
     } finally {
       setIsProcessing(false);
@@ -137,12 +117,11 @@ function App() {
   }, [activeMannequin, sessionId]);
 
   const handleStartSession = useCallback((data) => {
-    const newId = 'SES-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+    const newId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
     setSessionId(newId);
-    setCompletedActions([0]);
     setConversation([{
       speaker: 'system',
-      text: `🏥 Klinik patronaj seansi boshlandi — ${data.scenarioTitle || 'Standart Ssenariy'}`,
+      text: `📋 Mashg'ulot boshlandi — ${data.scenarioTitle || 'Umumiy ssenariy'}`,
       timestamp: new Date().toISOString()
     }]);
   }, []);
@@ -150,24 +129,20 @@ function App() {
   const handleEndSession = useCallback(() => {
     setConversation(prev => [...prev, {
       speaker: 'system',
-      text: '🏁 Patronaj seansi yakunlandi. Protokol baholashga yuborildi.',
+      text: '✅ Mashg\'ulot yakunlandi.',
       timestamp: new Date().toISOString()
     }]);
     setSessionId(null);
   }, []);
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden font-sans select-none antialiased">
-      {/* Yuqori Tizim Paneli */}
+    <div className="flex flex-col h-screen w-screen bg-slate-50 overflow-hidden font-sans select-none antialiased">
+      {/* Yuqori panel */}
       <StatusBar activeMannequin={activeMannequin} sessionId={sessionId} />
 
-      {/* Real-Vaqtli Vital Signs & EKG Monitori */}
-      <VitalSignsMonitor activeMannequin={activeMannequin} />
-
-      {/* Asosiy 3 Ustunli Ishchi Maydon */}
-      <div className="flex flex-1 overflow-hidden bg-slate-900">
-        
-        {/* Chap Panel (25%): Triaj va Bemorlar */}
+      {/* Asosiy ishchi maydon (3 ustunli) */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Chap panel (25%): Bemorlar ro'yxati */}
         <div className="w-1/4 h-full shrink-0">
           <MannequinSelector
             activeMannequin={activeMannequin}
@@ -175,8 +150,8 @@ function App() {
           />
         </div>
 
-        {/* Markaziy Panel (50%): Transkript Jurnali + Ovoz Konsoli */}
-        <div className="w-1/2 h-full flex flex-col shrink-0 bg-slate-900 border-x border-slate-800 shadow-2xl relative z-10">
+        {/* Markaziy panel (50%): Muloqot jurnali + Mikrofon */}
+        <div className="w-1/2 h-full flex flex-col shadow-[0_0_15px_rgba(0,0,0,0.03)] z-10 shrink-0 bg-white">
           <ConversationPanel
             conversation={conversation}
             activeMannequin={activeMannequin}
@@ -188,13 +163,12 @@ function App() {
           />
         </div>
 
-        {/* O'ng Panel (25%): Klinik Protokol, Cheklist va Baholash */}
+        {/* O'ng panel (25%): Ssenariy va Nazorat */}
         <ScenarioPanel
           activeMannequin={activeMannequin}
           sessionId={sessionId}
           onStartSession={handleStartSession}
           onEndSession={handleEndSession}
-          completedActions={completedActions}
         />
       </div>
     </div>

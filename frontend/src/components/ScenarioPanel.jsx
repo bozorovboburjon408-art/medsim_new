@@ -1,40 +1,35 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Play, Square, Clock, CheckCircle2, Circle, AlertTriangle, FileText, Award, ChevronRight, Stethoscope } from 'lucide-react';
+import { Play, Square, Clock, BookOpen, AlertCircle } from 'lucide-react';
 
 /**
- * ScenarioPanel — Klinik Ssenariy, Protokol va Ko'nikmalarni Baholash Paneli
+ * ScenarioPanel — Sodda, oq va tushunarli Ssenariy va Nazorat Paneli
  */
 
-const CLINICAL_SCENARIOS = {
+const MOCK_SCENARIOS = {
   bobo: [
     {
       id: 1,
-      code: 'SCN-GER-01',
-      title: "Arterial Gipertenziya va Stenokardiya",
-      desc: "Bemor qon bosimi 180/100 mm sim.ust. ga ko'tarilgan. Bosh aylanishi, yurak sohasidagi sanchiq va holsizlik.",
+      title: "Qon bosimi ko'tarilishi",
+      desc: "Bemor qon bosimi 180/100 ga ko'tarilib, bosh aylanishi va yurak sanchishi bilan murojaat qilgan.",
       duration: 15,
-      diagnosis: "Gipertonik kriz, IYX Stenokardiya xuruji",
       actions: [
-        "Salomlashish va shikoyatlarni to'liq aniqlash",
-        "Qon bosimi (NIBP) va pulsni o'lchash",
-        "Tinchlantiruvchi muomala va holatni baholash",
-        "Gipotenziv dori vositalari bo'yicha ko'rsatma berish",
-        "Shifokorga xabar berish va EKG tavsiya qilish"
+        "Bemor bilan salomlashish va ahvolini so'rash",
+        "Qon bosimini o'lchash",
+        "Tinchlantiruvchi suhbat o'tkazish",
+        "Dori berish va shifokor chaqirish"
       ]
     }
   ],
   homilador: [
     {
       id: 3,
-      code: 'SCN-OBG-32',
-      title: "32-Hafta Patronaji: Piyelonefrit va Anemiya",
-      desc: "32 haftalik 3-homiladorlik. Surunkali piyelonefrit qo'zishi va o'rta og'ir darajali temir tanqisligi anemiyasi (Hb 80 g/l).",
+      title: "Homilador ayol patronaji (Piyelonefrit va Anemiya)",
+      desc: "32 haftalik homiladorlik. Surunkali piyelonefrit qo'zishi va 2-darajali anemiya. Shikoyatlar: bel og'rig'i, harorat 37.5°C, to'q siydik, holsizlik.",
       duration: 20,
-      diagnosis: "Homiladorlik III (32 h), Surunkali piyelonefrit qo'zishi, Anemiya II daraja",
       actions: [
-        "1-BOSQICH: Salomlashish, shikoyat va anamnezni surishtirish (bel og'rig'i, to'q siydik, 37.5°C)",
-        "2-BOSQICH: Shoshilinch shifokorga xabar berish va statsionarga (patologiya) yo'llanma berish",
-        "3-BOSQICH: 'Xavfli belgilar' (harorat 38°C+, qon ketishi, homila harakati) bo'yicha yo'riqnoma",
+        "1-BOSQICH: Salomlashish, shikoyatlar va anamnezni surishtirish (bel og'rig'i, to'q siydik, 37.5°C)",
+        "2-BOSQICH: Shoshilinch shifokorga xabar berish va statsionarga (patologiya bo'limiga) yo'llanma berish",
+        "3-BOSQICH: 'Xavfli belgilar' (harorat 38°C+, qon ketishi, homila harakatsizligi) bo'yicha yo'riqnoma berish",
         "4-BOSQICH: Parhez (tuzsiz, temirga boy), na'matak damlamasi va tizza-tirsak pozitsion terapiyasi",
         "5-BOSQICH: Doppler-UTT va KTG skriningining hayotiy zarurligini tushuntirish"
       ]
@@ -43,42 +38,37 @@ const CLINICAL_SCENARIOS = {
   bola: [
     {
       id: 4,
-      code: 'SCN-PED-05',
-      title: "Febril Gipertermiya va Inyeksiya Fobiyasi",
-      desc: "5 yoshli bola, tana harorati 39.5°C. Injiqlik, shifokor va ukoldan qattiq qo'rquv.",
+      title: "Tana haroratining ko'tarilishi",
+      desc: "Tana harorati 39.5°C ga ko'tarilgan, bola injiqlik qilyapti va ukoldan qo'rqadi.",
       duration: 15,
-      diagnosis: "O'tkir respirator infeksiya, Febril sindrom",
       actions: [
-        "Bola bilan ishonchli psixologik kontakt o'rnatish",
-        "Haroratni tushirish bo'yicha fizikal sovutish choralarini ko'rish",
-        "Og'riqsiz paratsetamol siropini taklif qilish",
-        "Ona uchun febril tutqanoq profilaktikasini tushuntirish"
+        "Bola bilan muloqot o'rnatish va tinchlantirish",
+        "Tana haroratini o'lchash",
+        "Dori ichirish va onasiga tushuntirish"
       ]
     }
   ],
   chaqaloq: [
     {
       id: 5,
-      code: 'SCN-NEO-01',
-      title: "Yangi Tug'ilgan Chaqaloqda Asfiksiya",
-      desc: "Asfiksiya belgilari, gipoksiya, nafas olishning susayishi va qaltirash tovushlari.",
+      title: "Nafas olishning qiyinlashishi",
+      desc: "Yangi tug'ilgan chaqaloqda asfiksiya belgilari. Teri rangida ko'karish kuzatilmoqda.",
       duration: 10,
-      diagnosis: "Chaqaloqlar asfiksiyasi, gipoksiya",
       actions: [
-        "Yuqori nafas yo'llari o'tkazuvchanligini tekshirish",
-        "Oksigenoterapiya va taktil stimulatsiya ko'rsatish",
-        "Neonatolog reanimatologni zudlik bilan chaqirish"
+        "Nafas yo'llarini tekshirish",
+        "Oksigen berish va taktil stimulatsiya",
+        "Neonatolog shifokorni chaqirish"
       ]
     }
   ]
 };
 
-export default function ScenarioPanel({ activeMannequin, sessionId, onStartSession, onEndSession, completedActions = [] }) {
+export default function ScenarioPanel({ activeMannequin, sessionId, onStartSession, onEndSession }) {
   const [selectedScenarioId, setSelectedScenarioId] = useState('');
   const [timer, setTimer] = useState(0);
 
   const scenarios = useMemo(() => {
-    return activeMannequin ? (CLINICAL_SCENARIOS[activeMannequin.slug] || []) : [];
+    return activeMannequin ? (MOCK_SCENARIOS[activeMannequin.slug] || []) : [];
   }, [activeMannequin?.slug]);
 
   useEffect(() => {
@@ -118,120 +108,75 @@ export default function ScenarioPanel({ activeMannequin, sessionId, onStartSessi
 
   if (!activeMannequin) {
     return (
-      <div className="w-1/4 bg-slate-900 border-l border-slate-800 flex flex-col h-full select-none">
-        <div className="p-4 border-b border-slate-800 bg-slate-950/60">
-          <h2 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
-            Klinik Protokol
-          </h2>
+      <div className="w-1/4 bg-white border-l border-slate-200 flex flex-col h-full select-none">
+        <div className="p-4 border-b border-slate-100">
+          <h2 className="text-base font-bold text-slate-800">Ssenariy va Nazorat</h2>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-500">
-          <FileText size={36} className="mb-2 text-slate-600" />
-          <p className="text-xs">Ssenariy va protokolni ko'rish uchun bemorni tanlang.</p>
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-400">
+          <BookOpen size={36} className="mb-2 opacity-40 text-slate-400" />
+          <p className="text-xs">Ssenariylarni ko'rish uchun bemorni tanlang</p>
         </div>
       </div>
     );
   }
 
-  const totalActions = activeScenario?.actions?.length || 1;
-  const progressPercent = sessionId ? Math.min(100, Math.round((completedActions.length / totalActions) * 100)) : 0;
-
   return (
-    <div className="w-1/4 bg-slate-900 border-l border-slate-800 flex flex-col h-full select-none text-slate-200">
+    <div className="w-1/4 bg-white border-l border-slate-200 flex flex-col h-full select-none">
       
-      {/* Ssenariy Tanlash va Tashxis */}
-      <div className="p-4 border-b border-slate-800 bg-slate-950/60 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-white font-mono uppercase">
-            <FileText size={14} className="text-blue-400" />
-            <span>Klinik Ssenariy</span>
-          </div>
-          {activeScenario && (
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-950 border border-blue-800 text-blue-300">
-              {activeScenario.code}
-            </span>
-          )}
-        </div>
-
+      {/* Ssenariy tanlash */}
+      <div className="p-4 border-b border-slate-100 space-y-3">
+        <h2 className="text-sm font-bold text-slate-800">Ssenariy tanlash</h2>
+        
         <select
           value={selectedScenarioId}
           onChange={(e) => setSelectedScenarioId(e.target.value)}
           disabled={!!sessionId}
-          className="w-full bg-slate-800 border border-slate-700 text-white text-xs rounded-xl p-2.5 font-medium
+          className="w-full bg-slate-50 border border-slate-300 text-slate-800 text-xs rounded-lg p-2.5 font-medium
                      focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none
                      disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {scenarios.map(s => (
             <option key={s.id} value={s.id}>{s.title}</option>
           ))}
-          {scenarios.length === 0 && <option value="">Ssenariy mavjud emas</option>}
+          {scenarios.length === 0 && <option value="">Ssenariy yo'q</option>}
         </select>
 
         {activeScenario && (
-          <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 space-y-1.5">
-            <div className="text-[11px] font-bold text-slate-100">{activeScenario.title}</div>
-            <div className="text-[10px] text-slate-400 leading-snug">{activeScenario.desc}</div>
-            <div className="text-[10px] font-mono text-amber-300/90 pt-1 border-t border-slate-700/60 flex items-center gap-1">
-              <Stethoscope size={11} />
-              <span>Tashxis: {activeScenario.diagnosis}</span>
+          <div className="bg-blue-50 p-3.5 rounded-xl border border-blue-100 space-y-1.5">
+            <h3 className="font-bold text-blue-900 text-xs">{activeScenario.title}</h3>
+            <p className="text-xs text-blue-800/80 leading-relaxed">{activeScenario.desc}</p>
+            <div className="flex items-center text-[11px] font-bold text-blue-600 uppercase tracking-wide pt-1">
+              <Clock size={12} className="mr-1" />
+              Taxminiy vaqt: {activeScenario.duration} daqiqa
             </div>
           </div>
         )}
       </div>
 
-      {/* Protokol Bosqichlari va Checklist */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-slate-300 font-mono uppercase tracking-wider flex items-center gap-1.5">
-            <span>Patronaj Cheklisti</span>
-          </h3>
-          <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900">
-            {progressPercent}% Bajarildi
-          </span>
-        </div>
+      {/* Kutilayotgan amallar */}
+      <div className="flex-1 p-4 overflow-y-auto space-y-2.5">
+        <h3 className="font-bold text-slate-700 text-xs flex items-center gap-1.5">
+          <AlertCircle size={14} className="text-blue-500" />
+          <span>Kutilayotgan amallar</span>
+        </h3>
 
-        {/* Progress Bar */}
-        <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden border border-slate-700">
-          <div
-            style={{ width: `${progressPercent}%` }}
-            className="h-full bg-gradient-to-r from-blue-500 to-emerald-400 transition-all duration-300"
-          />
-        </div>
-
-        <ul className="space-y-2 pt-1">
-          {(activeScenario?.actions || []).map((action, i) => {
-            const isDone = completedActions.includes(i) || (sessionId && progressPercent >= ((i + 1) / totalActions) * 100);
-
-            return (
-              <li
-                key={i}
-                className={`p-2.5 rounded-xl border text-[11px] transition-all flex items-start gap-2.5 ${
-                  isDone
-                    ? 'bg-emerald-950/30 border-emerald-800/60 text-emerald-200'
-                    : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:border-slate-700'
-                }`}
-              >
-                {isDone ? (
-                  <CheckCircle2 size={15} className="text-emerald-400 mt-0.5 shrink-0" />
-                ) : (
-                  <Circle size={15} className="text-slate-600 mt-0.5 shrink-0" />
-                )}
-                <span className="leading-relaxed font-normal">{action}</span>
-              </li>
-            );
-          })}
+        <ul className="space-y-2">
+          {(activeScenario?.actions || []).map((action, i) => (
+            <li key={i} className="flex items-start text-xs text-slate-600">
+              <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold mr-2 mt-0.5 shrink-0">
+                {i + 1}
+              </div>
+              <span className="leading-snug">{action}</span>
+            </li>
+          ))}
         </ul>
       </div>
 
-      {/* Sessiya Taymeri va Boshqaruv Tugmalari */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950 space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <span className="text-slate-400 font-mono text-xs flex items-center gap-1.5">
-            <Clock size={13} />
-            <span>Seans Vaqti:</span>
-          </span>
-          <div className={`text-xl font-mono font-extrabold tracking-wider ${
-            sessionId ? 'text-emerald-400 animate-pulse' : 'text-slate-500'
-          }`}>
+      {/* Sessiya boshqaruvi va Taymer */}
+      <div className="p-4 border-t border-slate-100 bg-slate-50 space-y-3">
+        <div className="flex justify-between items-center px-1">
+          <span className="text-slate-600 font-medium text-xs">Seans vaqti:</span>
+          <div className={`text-2xl font-mono font-bold ${sessionId ? 'text-green-600 animate-pulse' : 'text-slate-300'}`}>
             {formatTime(timer)}
           </div>
         </div>
@@ -240,22 +185,22 @@ export default function ScenarioPanel({ activeMannequin, sessionId, onStartSessi
           <button
             onClick={handleStart}
             disabled={!selectedScenarioId}
-            className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500
-                       text-white font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center gap-2
-                       shadow-lg shadow-emerald-900/40 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4
+                       rounded-xl flex items-center justify-center gap-2 text-xs transition-colors
+                       disabled:opacity-50 disabled:cursor-not-allowed active:scale-98 shadow-xs cursor-pointer"
           >
             <Play size={16} className="fill-white" />
-            <span>SIMULYATSIYANI BOSHLASH</span>
+            <span>Seansni boshlash</span>
           </button>
         ) : (
           <button
             onClick={onEndSession}
-            className="w-full bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500
-                       text-white font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center gap-2
-                       shadow-lg shadow-rose-900/40 transition-all active:scale-95 cursor-pointer"
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4
+                       rounded-xl flex items-center justify-center gap-2 text-xs transition-colors
+                       active:scale-98 shadow-xs cursor-pointer"
           >
             <Square size={16} className="fill-white" />
-            <span>SEANSNI YAKUNLASH VA BAHOLASH</span>
+            <span>Seansni yakunlash</span>
           </button>
         )}
       </div>

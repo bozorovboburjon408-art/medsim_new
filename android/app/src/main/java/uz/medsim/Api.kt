@@ -14,7 +14,10 @@ import java.util.concurrent.TimeUnit
 data class Turn(val role: String, val content: String) // "user" = hamshira, "assistant" = bemor
 data class Reply(val text: String, val mp3: ByteArray, val llmMs: Int = 0, val ttsMs: Int = 0)
 
-data class Seg(val text: String, val mp3: ByteArray, val ms: Int)
+data class Seg(
+    val text: String, val mp3: ByteArray, val ms: Int,
+    val llmMs: Int = 0, val ttsMs: Int = 0, val model: String = "", val tries: String = "",
+)
 
 object Api {
     private val http = OkHttpClient.Builder()
@@ -68,7 +71,8 @@ object Api {
                     if (line.isBlank()) continue
                     val j = JSONObject(line)
                     if (j.has("error")) error(j.getString("error"))
-                    val seg = Seg(j.getString("text"), Base64.decode(j.getString("audio_b64"), Base64.DEFAULT), j.optInt("ms"))
+                    val seg = Seg(j.getString("text"), Base64.decode(j.getString("audio_b64"), Base64.DEFAULT), j.optInt("ms"),
+                        j.optInt("llm_ms"), j.optInt("tts_ms"), j.optString("model"), j.optString("tries"))
                     withContext(Dispatchers.Main) { onSeg(seg) }
                 }
             }

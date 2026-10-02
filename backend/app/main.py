@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import json
+import logging
 import time
 
 from fastapi import FastAPI, HTTPException
@@ -10,6 +11,7 @@ from pydantic import BaseModel
 from . import llm, tts
 from .patients import PATIENTS
 
+log = logging.getLogger("uvicorn.error")
 app = FastAPI(title="MedSim backend")
 
 
@@ -73,13 +75,18 @@ async def chat_stream(req: ChatRequest):
         t0 = time.perf_counter()
         q: asyncio.Queue = asyncio.Queue()
 
-        async def synth(s: str):
-            return s, await tts.synthesize(s, p)
+        info: dict = {}
+
+        async def synth(s: str, t_llm: int):
+            t = time.perf_counter()
+            audio = await tts.synthesize(s, p)
+            return s, audio, t_llm, int((time.perf_counter() - t) * 1000)
 
         async def producer():
             try:
-                async for s in llm.stream_sentences(p.system_prompt(), history):
-                    await q.put(asyncio.create_task(synth(s)))  # TTS parallel boshlanadi
+                async for s in llm.stream_sentences(p.system_prompt(), history, info):
+                    t_llm = int((time.perf_counter() - t0) * 1000)
+                    await q.put(asyncio.create_task(synth(s, t_llm)))  # TTS parallel boshlanadi
             except Exception as e:
                 await q.put(RuntimeError(f"AI xatosi: {e}"))
             await q.put(None)
@@ -90,14 +97,19 @@ async def chat_stream(req: ChatRequest):
                 try:
                     if isinstance(item, Exception):
                         raise item
-                    s, audio = await item
+                    s, audio, t_llm, t_tts = await item
                     if not audio:
                         raise RuntimeError(f"Ovoz bo'sh chiqdi | javob: {s}")
                 except Exception as e:
                     yield json.dumps({"error": str(e)[:400]}) + "\n"
                     break
+                log.info("seg patient=%s total=%dms llm=%dms tts=%dms model=%s tries=%s",
+                         p.id, int((time.perf_counter() - t0) * 1000), t_llm, t_tts,
+                         info.get("model", ""), info.get("tries", []))
                 yield json.dumps({"text": s, "audio_b64": base64.b64encode(audio).decode(),
-                                  "ms": int((time.perf_counter() - t0) * 1000)}) + "\n"
+                                  "ms": int((time.perf_counter() - t0) * 1000),
+                                  "llm_ms": t_llm, "tts_ms": t_tts,
+                                  "model": info.get("model", ""), "tries": ", ".join(info.get("tries", []))}) + "\n"
         finally:
             prod.cancel()
 

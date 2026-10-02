@@ -19,7 +19,13 @@ async def synthesize(text: str, p: Patient) -> bytes:
                 out += ch["data"]
         return out
 
-    return await asyncio.wait_for(run(), timeout=25)
+    last: Exception | None = None
+    for _ in range(2):  # osilib qolsa 8 soniyadan keyin bir marta qayta uriniladi
+        try:
+            return await asyncio.wait_for(run(), timeout=8)
+        except Exception as e:
+            last = e
+    raise last
 
 
 async def _azure(text: str, p: Patient) -> bytes:

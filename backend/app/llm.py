@@ -81,7 +81,7 @@ def _split(buf: str) -> tuple[list[str], str]:
     return out, buf[pos:]
 
 
-async def stream_sentences(system: str, history: list[dict]) -> AsyncIterator[str]:
+async def stream_sentences(system: str, history: list[dict], info: dict | None = None) -> AsyncIterator[str]:
     """Javobni tayyor bo'lgan gaplar bo'yicha qaytaradi (birinchi gap tez keladi)."""
     if settings.llm_provider == "claude":
         text = await _claude(system, history)
@@ -99,33 +99,50 @@ async def stream_sentences(system: str, history: list[dict]) -> AsyncIterator[st
     }
     models = [m.strip() for m in settings.gemini_models.split(",") if m.strip()]
     last = "model ro'yxati bo'sh"
-    async with httpx.AsyncClient(timeout=TIMEOUT) as c:
+    tries = info.setdefault("tries", []) if info is not None else []
+    # Tez almashtirish: 8 soniya ichida javob bermagan model o'tkazib yuboriladi
+    fast = httpx.Timeout(connect=5, read=8, write=5, pool=5)
+    async with httpx.AsyncClient(timeout=fast) as c:
         for model in models:
             url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
                    f"{model}:streamGenerateContent?alt=sse")
-            async with c.stream("POST", url, json=body,
-                                headers={"x-goog-api-key": settings.gemini_api_key}) as r:
-                if r.status_code >= 400:
-                    last = f"{model}: {r.status_code} {(await r.aread()).decode()[:200]}"
-                    continue
-                buf, got = "", False
-                async for line in r.aiter_lines():
-                    if not line.startswith("data:"):
+            got = False
+            try:
+                async with c.stream("POST", url, json=body,
+                                    headers={"x-goog-api-key": settings.gemini_api_key}) as r:
+                    if r.status_code >= 400:
+                        last = f"{model}: {r.status_code} {(await r.aread()).decode()[:200]}"
+                        tries.append(f"{model} {r.status_code}")
                         continue
-                    try:
-                        parts = json.loads(line[5:])["candidates"][0]["content"]["parts"]
-                    except (KeyError, IndexError, ValueError):
-                        continue
-                    buf += "".join(p.get("text", "") for p in parts if not p.get("thought"))
-                    sents, buf = _split(buf)
-                    for s in sents:
-                        if s:
-                            got = True
-                            yield s
-                if buf.strip():
-                    got = True
-                    yield buf.strip()
+                    buf = ""
+                    async for line in r.aiter_lines():
+                        if not line.startswith("data:"):
+                            continue
+                        try:
+                            parts = json.loads(line[5:])["candidates"][0]["content"]["parts"]
+                        except (KeyError, IndexError, ValueError):
+                            continue
+                        buf += "".join(p.get("text", "") for p in parts if not p.get("thought"))
+                        sents, buf = _split(buf)
+                        for s in sents:
+                            if s:
+                                got = True
+                                if info is not None:
+                                    info["model"] = model
+                                yield s
+                    if buf.strip():
+                        got = True
+                        if info is not None:
+                            info["model"] = model
+                        yield buf.strip()
+            except httpx.TimeoutException:
                 if got:
-                    return
-                last = f"{model}: bo'sh javob"
+                    return  # javob boshlangan edi, bor narsani beramiz
+                last = f"{model}: timeout"
+                tries.append(f"{model} timeout")
+                continue
+            if got:
+                return
+            last = f"{model}: bo'sh javob"
+            tries.append(f"{model} bo'sh")
     raise RuntimeError(f"Hamma Gemini modellari muvaffaqiyatsiz. Oxirgisi: {last}")

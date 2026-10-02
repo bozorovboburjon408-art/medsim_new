@@ -14,6 +14,11 @@ import java.util.concurrent.TimeUnit
 data class Turn(val role: String, val content: String) // "user" = hamshira, "assistant" = bemor
 data class Reply(val text: String, val mp3: ByteArray, val llmMs: Int = 0, val ttsMs: Int = 0)
 
+data class EvalStage(val name: String, val score: Int, val max: Int, val done: List<String>, val missed: List<String>)
+data class EvalResult(
+    val total: Int, val stages: List<EvalStage>, val strengths: List<String>, val advice: List<String>, val summary: String,
+)
+
 data class Seg(
     val text: String, val mp3: ByteArray, val ms: Int,
     val llmMs: Int = 0, val ttsMs: Int = 0, val model: String = "", val tries: String = "",
@@ -22,7 +27,7 @@ data class Seg(
 
 object Api {
     private val http = OkHttpClient.Builder()
-        .readTimeout(60, TimeUnit.SECONDS).build()
+        .readTimeout(45, TimeUnit.SECONDS).build()
 
     private fun normalize(u: String): String {
         val t = u.trim().trimEnd('/')
@@ -89,4 +94,31 @@ object Api {
                 .execute().use { it.isSuccessful }
         }.getOrDefault(false)
     }
+
+    private fun strList(a: JSONArray?): List<String> = (0 until (a?.length() ?: 0)).map { a!!.getString(it) }
+
+    /** Suhbatni baholash (AI 5-20 soniya o'ylashi mumkin). */
+    suspend fun evaluate(baseUrl: String, patientId: String, history: List<Turn>, model: String): EvalResult =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject()
+                .put("patient_id", patientId)
+                .put("history", JSONArray(history.map { JSONObject().put("role", it.role).put("content", it.content) }))
+            if (model.isNotBlank()) body.put("model", model)
+            val req = Request.Builder().url(normalize(baseUrl) + "/evaluate")
+                .post(body.toString().toRequestBody("application/json".toMediaType())).build()
+            http.newBuilder().readTimeout(90, TimeUnit.SECONDS).build().newCall(req).execute().use { r ->
+                val raw = r.body!!.string()
+                check(r.isSuccessful) { "Server xatosi ${r.code}: " + (runCatching { JSONObject(raw).getString("detail") }.getOrDefault(raw)).take(300) }
+                val j = JSONObject(raw)
+                val st = j.getJSONArray("stages")
+                EvalResult(
+                    j.getInt("total"),
+                    (0 until st.length()).map {
+                        val s = st.getJSONObject(it)
+                        EvalStage(s.getString("name"), s.getInt("score"), s.getInt("max"), strList(s.optJSONArray("done")), strList(s.optJSONArray("missed")))
+                    },
+                    strList(j.optJSONArray("strengths")), strList(j.optJSONArray("advice")), j.optString("summary"),
+                )
+            }
+        }
 }

@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from typing import AsyncIterator
 
 import httpx
@@ -7,6 +8,19 @@ import httpx
 from .config import settings
 
 TIMEOUT = 30
+
+# Sekin yoki xato bergan model qisqa vaqtga o'tkazib yuboriladi (qayta-qayta kutib qolmaslik uchun)
+_bad: dict[str, float] = {}
+
+
+def mark_bad(model: str, seconds: float = 90) -> None:
+    _bad[model] = time.monotonic() + seconds
+
+
+def healthy_first(models: list[str]) -> list[str]:
+    now = time.monotonic()
+    ok = [m for m in models if _bad.get(m, 0) <= now]
+    return ok + [m for m in models if m not in ok]  # buzuqlari oxirida, lekin zaxira sifatida qoladi
 
 
 async def generate(system: str, history: list[dict]) -> str:
@@ -104,7 +118,8 @@ async def stream_sentences(system: str, history: list[dict], info: dict | None =
     last = "model ro'yxati bo'sh"
     tries = info.setdefault("tries", []) if info is not None else []
     # Tez almashtirish: 8 soniya ichida javob bermagan model o'tkazib yuboriladi
-    fast = httpx.Timeout(connect=5, read=8, write=5, pool=5)
+    models = healthy_first(models)
+    fast = httpx.Timeout(connect=4, read=6, write=5, pool=5)
     async with httpx.AsyncClient(timeout=fast) as c:
         for model in models:
             url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
@@ -116,6 +131,7 @@ async def stream_sentences(system: str, history: list[dict], info: dict | None =
                     if r.status_code >= 400:
                         last = f"{model}: {r.status_code} {(await r.aread()).decode()[:200]}"
                         tries.append(f"{model} {r.status_code}")
+                        mark_bad(model)
                         continue
                     buf = ""
                     async for line in r.aiter_lines():
@@ -143,6 +159,7 @@ async def stream_sentences(system: str, history: list[dict], info: dict | None =
                     return  # javob boshlangan edi, bor narsani beramiz
                 last = f"{model}: timeout"
                 tries.append(f"{model} timeout")
+                mark_bad(model, 120)
                 continue
             if got:
                 return

@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from . import llm, tts
+from . import evaluator, llm, tts
 from .config import settings
 from .patients import PATIENTS
 
@@ -82,7 +82,12 @@ async def chat_stream(req: ChatRequest):
             # Gemini ovozi: javob to'liq yoziladi, so'ng butun matn bitta oqimli so'rovda ovozlashtiriladi
             # (bir ohang, birinchi bo'lak ~0.5 s da keladi); bo'laklar darrov ilovaga uzatiladi.
             try:
-                sents = [s async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model)]
+                async def collect():
+                    return [s async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model)]
+                sents = await asyncio.wait_for(collect(), timeout=22)
+            except asyncio.TimeoutError:
+                yield json.dumps({"error": "AI vaqtida javob bermadi, qayta urinib ko'ring"}) + "\n"
+                return
             except Exception as e:
                 yield json.dumps({"error": f"AI xatosi: {e}"[:400]}) + "\n"
                 return
@@ -163,6 +168,27 @@ async def chat_stream(req: ChatRequest):
             prod.cancel()
 
     return StreamingResponse(gen(), media_type="application/x-ndjson")
+
+
+class EvalRequest(BaseModel):
+    patient_id: str
+    history: list[Turn]
+    model: str | None = None
+
+
+@app.post("/evaluate")
+async def evaluate(req: EvalRequest):
+    """Suhbat tugagach hamshirani 5 mezon bo'yicha baholaydi."""
+    p = PATIENTS.get(req.patient_id)
+    if not p:
+        raise HTTPException(404, "Bemor topilmadi")
+    history = [t.model_dump() for t in req.history if t.content.strip()]
+    if not any(t["role"] == "user" for t in history):
+        raise HTTPException(400, "Baholash uchun suhbat kerak")
+    try:
+        return await evaluator.evaluate(p, history, req.model)
+    except Exception as e:
+        raise HTTPException(502, f"Baholash xatosi: {e}"[:400])
 
 
 @app.get("/tts_test")

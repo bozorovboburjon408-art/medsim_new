@@ -16,6 +16,8 @@ from .patients import Patient
 
 log = logging.getLogger("uvicorn.error")
 
+_tts_bad: dict[str, float] = {}  # sekin/xato TTS modellari vaqtincha oxiriga o'tkaziladi
+
 
 async def synthesize(text: str, p: Patient, provider: str | None = None) -> tuple[bytes, str, str]:
     """Matnni ovozga aylantiradi. Qaytaradi: (audio baytlari, format 'mp3'|'wav', ishlatilgan provayder)."""
@@ -178,8 +180,15 @@ async def gemini_stream(text: str, p: Patient) -> AsyncIterator[bytes]:
     }
     hdr = {"x-goog-api-key": settings.gemini_api_key}
     last = "model ro'yxati bo'sh"
-    tmo = httpx.Timeout(connect=5, read=15, write=5, pool=5)
-    for model in [m.strip() for m in settings.gemini_tts_models.split(",") if m.strip()]:
+    tmo = httpx.Timeout(connect=4, read=6, write=5, pool=5)
+    models = [m.strip() for m in settings.gemini_tts_models.split(",") if m.strip()]
+    now = time.monotonic()
+    models = [m for m in models if _tts_bad.get(m, 0) <= now] + [m for m in models if _tts_bad.get(m, 0) > now]
+    deadline = time.monotonic() + 12  # birinchi tovush uchun umumiy chegara
+    for model in models:
+        if time.monotonic() > deadline:
+            last = f"{last} | vaqt chegarasi"
+            break
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse"
         got, carry = False, b""
         try:
@@ -187,6 +196,7 @@ async def gemini_stream(text: str, p: Patient) -> AsyncIterator[bytes]:
                 async with c.stream("POST", url, json=body, headers=hdr) as r:
                     if r.status_code != 200:
                         last = f"{model}: {r.status_code} {(await r.aread()).decode()[:150]}"
+                        _tts_bad[model] = time.monotonic() + 60
                         continue
                     async for line in r.aiter_lines():
                         if not line.startswith("data:"):
@@ -206,8 +216,10 @@ async def gemini_stream(text: str, p: Patient) -> AsyncIterator[bytes]:
             if got:
                 return
             last = f"{model}: timeout"
+            _tts_bad[model] = time.monotonic() + 120
             continue
         if got:
             return
         last = f"{model}: audio qaytmadi"
+        _tts_bad[model] = time.monotonic() + 60
     raise RuntimeError(last)

@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.sqrt
@@ -320,6 +321,8 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
     var phase by remember { mutableStateOf(Phase.IDLE) }
     var error by remember { mutableStateOf("") }
     var firstAudio by remember { mutableStateOf("") }
+    var evaluating by remember { mutableStateOf(false) }
+    var evalResult by remember { mutableStateOf<EvalResult?>(null) }
     val listState = rememberLazyListState()
     LaunchedEffect(history.size) { if (history.isNotEmpty()) listState.animateScrollToItem(history.size - 1) }
 
@@ -329,24 +332,38 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
         val t0 = System.currentTimeMillis()
         scope.launch {
             val parts = mutableListOf<String>()
-            try {
-                Speaker.beginStream(deviceId) { phase = Phase.IDLE }
-                Api.chatStream(server, p.id, history.toList(), model, tts) { seg ->
-                    if (parts.isEmpty() && seg.text.isNotEmpty()) {
-                        firstAudio = "Birinchi ovozgacha: %.1f s\nAI %.1f s · ovoz %.1f s (%s)\n%s%s".format(
-                            (System.currentTimeMillis() - t0) / 1000.0, seg.llmMs / 1000.0, seg.ttsMs / 1000.0, seg.tts,
-                            seg.model, if (seg.tries.isNotEmpty()) "\n⚠ ${seg.tries}" else "",
-                        )
-                        phase = Phase.SPEAKING
+            var attempt = 0
+            while (true) {
+                try {
+                    Speaker.beginStream(deviceId) { phase = Phase.IDLE }
+                    Api.chatStream(server, p.id, history.toList(), model, tts) { seg ->
+                        if (parts.isEmpty() && seg.text.isNotEmpty()) {
+                            firstAudio = "Birinchi ovozgacha: %.1f s\nAI %.1f s · ovoz %.1f s (%s)\n%s%s".format(
+                                (System.currentTimeMillis() - t0) / 1000.0, seg.llmMs / 1000.0, seg.ttsMs / 1000.0, seg.tts,
+                                seg.model, if (seg.tries.isNotEmpty()) "\n⚠ ${seg.tries}" else "",
+                            )
+                            phase = Phase.SPEAKING
+                        }
+                        if (seg.text.isNotEmpty()) parts.add(seg.text)
+                        if (seg.pcmRate > 0) Speaker.writePcm(ctx, seg.mp3, seg.pcmRate)
+                        else Speaker.enqueue(ctx, seg.mp3, seg.fmt)
                     }
-                    if (seg.text.isNotEmpty()) parts.add(seg.text)
-                    if (seg.pcmRate > 0) Speaker.writePcm(ctx, seg.mp3, seg.pcmRate)
-                    else Speaker.enqueue(ctx, seg.mp3, seg.fmt)
+                    if (parts.isNotEmpty()) history.add(Turn("assistant", parts.joinToString(" ")))
+                    Speaker.endStream()
+                    break
+                } catch (e: Exception) {
+                    Speaker.stop()
+                    if (parts.isEmpty() && attempt == 0) {  // hech narsa kelmagan: bir marta o'zi qayta uriniladi
+                        attempt++; phase = Phase.THINKING; error = ""
+                        continue
+                    }
+                    phase = Phase.IDLE
+                    val msg = e.message.orEmpty()
+                    error = if (msg.contains("timeout", true) || msg.contains("timed out", true))
+                        "Server javob bermadi (vaqt tugadi). Mikrofonni bosib qayta urinib ko'ring"
+                    else "Xato: $msg"
+                    break
                 }
-                if (parts.isNotEmpty()) history.add(Turn("assistant", parts.joinToString(" ")))
-                Speaker.endStream()
-            } catch (e: Exception) {
-                Speaker.stop(); phase = Phase.IDLE; error = "Xato: ${e.message}"
             }
         }
     }
@@ -378,6 +395,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
         })
     }
 
+    evalResult?.let { EvaluationDialog(it) { evalResult = null } }
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 14.dp)) {
         ScreenHeader(p, onBack, picker)
         Spacer(Modifier.height(10.dp))
@@ -420,10 +438,67 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
                     }
                 }
                 Spacer(Modifier.height(8.dp))
+                val canEval = history.any { it.role == "user" } && phase == Phase.IDLE && !evaluating
+                OutlinedButton({
+                    evaluating = true; error = ""
+                    scope.launch {
+                        try { evalResult = Api.evaluate(server, p.id, history.toList(), model) }
+                        catch (e: Exception) { error = "Baholash xatosi: ${e.message}" }
+                        finally { evaluating = false }
+                    }
+                }, enabled = canEval) {
+                    if (evaluating) { CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Text("Baholanmoqda…") }
+                    else Text("📋 Baholash")
+                }
                 TextButton({ Speaker.stop(); history.clear(); phase = Phase.IDLE; error = ""; firstAudio = "" }) { Text("Yangi suhbat") }
             }
         }
     }
+}
+
+// ───────────────────────── Baholash natijasi ─────────────────────────
+
+@Composable
+fun EvaluationDialog(r: EvalResult, onDismiss: () -> Unit) {
+    val color = when { r.total >= 80 -> Ok; r.total >= 60 -> Warn; else -> MaterialTheme.colorScheme.error }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth(0.88f),
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        title = { Text("Baholash natijasi") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text("${r.total}", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = color)
+                    Text(" / 100", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
+                }
+                if (r.summary.isNotBlank()) Text(r.summary, style = MaterialTheme.typography.bodyLarge)
+                r.stages.forEach { st ->
+                    Spacer(Modifier.height(14.dp))
+                    Row {
+                        Text(st.name, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                        Text("${st.score}/${st.max}", fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    LinearProgressIndicator(
+                        progress = st.score.toFloat() / st.max, color = if (st.score * 100 / st.max >= 60) Ok else Warn,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+                    )
+                    st.done.forEach { Text("✓ $it", color = Ok, style = MaterialTheme.typography.bodyMedium) }
+                    st.missed.forEach { Text("✗ $it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+                }
+                if (r.strengths.isNotEmpty()) {
+                    Spacer(Modifier.height(16.dp)); Text("Kuchli tomonlar", fontWeight = FontWeight.Bold)
+                    r.strengths.forEach { Text("• $it") }
+                }
+                if (r.advice.isNotEmpty()) {
+                    Spacer(Modifier.height(12.dp)); Text("Yaxshilash uchun", fontWeight = FontWeight.Bold)
+                    r.advice.forEach { Text("• $it") }
+                }
+            }
+        },
+        confirmButton = { Button(onDismiss) { Text("Yopish") } },
+    )
 }
 
 // ───────────────────────── Chaqaloq ─────────────────────────

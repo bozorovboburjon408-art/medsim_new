@@ -332,15 +332,16 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
             try {
                 Speaker.beginStream(deviceId) { phase = Phase.IDLE }
                 Api.chatStream(server, p.id, history.toList(), model, tts) { seg ->
-                    if (parts.isEmpty()) {
+                    if (parts.isEmpty() && seg.text.isNotEmpty()) {
                         firstAudio = "Birinchi ovozgacha: %.1f s\nAI %.1f s · ovoz %.1f s (%s)\n%s%s".format(
                             (System.currentTimeMillis() - t0) / 1000.0, seg.llmMs / 1000.0, seg.ttsMs / 1000.0, seg.tts,
                             seg.model, if (seg.tries.isNotEmpty()) "\n⚠ ${seg.tries}" else "",
                         )
                         phase = Phase.SPEAKING
                     }
-                    parts.add(seg.text)
-                    Speaker.enqueue(ctx, seg.mp3, seg.fmt)
+                    if (seg.text.isNotEmpty()) parts.add(seg.text)
+                    if (seg.pcmRate > 0) Speaker.writePcm(ctx, seg.mp3, seg.pcmRate)
+                    else Speaker.enqueue(ctx, seg.mp3, seg.fmt)
                 }
                 if (parts.isNotEmpty()) history.add(Turn("assistant", parts.joinToString(" ")))
                 Speaker.endStream()

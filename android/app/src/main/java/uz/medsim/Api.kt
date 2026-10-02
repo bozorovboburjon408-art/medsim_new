@@ -17,7 +17,7 @@ data class Reply(val text: String, val mp3: ByteArray, val llmMs: Int = 0, val t
 data class Seg(
     val text: String, val mp3: ByteArray, val ms: Int,
     val llmMs: Int = 0, val ttsMs: Int = 0, val model: String = "", val tries: String = "",
-    val fmt: String = "mp3", val tts: String = "",
+    val fmt: String = "mp3", val tts: String = "", val pcmRate: Int = 0,
 )
 
 object Api {
@@ -74,9 +74,10 @@ object Api {
                     if (line.isBlank()) continue
                     val j = JSONObject(line)
                     if (j.has("error")) error(j.getString("error"))
-                    val seg = Seg(j.getString("text"), Base64.decode(j.getString("audio_b64"), Base64.DEFAULT), j.optInt("ms"),
+                    val isPcm = j.has("pcm_b64")
+                    val seg = Seg(j.optString("text"), Base64.decode(j.getString(if (isPcm) "pcm_b64" else "audio_b64"), Base64.DEFAULT), j.optInt("ms"),
                         j.optInt("llm_ms"), j.optInt("tts_ms"), j.optString("model"), j.optString("tries"),
-                        j.optString("fmt", "mp3"), j.optString("tts"))
+                        j.optString("fmt", "mp3"), j.optString("tts"), if (isPcm) j.optInt("rate", 24000) else 0)
                     withContext(Dispatchers.Main) { onSeg(seg) }
                 }
             }

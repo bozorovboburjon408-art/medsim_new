@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import time
+from typing import AsyncIterator
 import io
 import logging
 import wave
@@ -44,7 +45,6 @@ async def _gemini(text: str, p: Patient) -> bytes:
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "responseModalities": ["AUDIO"],
-            "temperature": 0.4,
             "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": p.gemini_voice}}},
         },
     }
@@ -165,3 +165,49 @@ async def benchmark(text: str) -> dict:
     for i, m in enumerate(models):
         out[m] = {"plain": res[1 + 2 * i], "stream": res[2 + 2 * i]}
     return out
+
+
+async def gemini_stream(text: str, p: Patient) -> AsyncIterator[bytes]:
+    """Gemini TTS oqimi: 24 kHz, 16-bit, mono PCM bo'laklari (juft uzunlikda) kelishi bilan qaytariladi."""
+    body = {
+        "contents": [{"parts": [{"text": text}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": p.gemini_voice}}},
+        },
+    }
+    hdr = {"x-goog-api-key": settings.gemini_api_key}
+    last = "model ro'yxati bo'sh"
+    tmo = httpx.Timeout(connect=5, read=15, write=5, pool=5)
+    for model in [m.strip() for m in settings.gemini_tts_models.split(",") if m.strip()]:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse"
+        got, carry = False, b""
+        try:
+            async with httpx.AsyncClient(timeout=tmo) as c:
+                async with c.stream("POST", url, json=body, headers=hdr) as r:
+                    if r.status_code != 200:
+                        last = f"{model}: {r.status_code} {(await r.aread()).decode()[:150]}"
+                        continue
+                    async for line in r.aiter_lines():
+                        if not line.startswith("data:"):
+                            continue
+                        try:
+                            raw = base64.b64decode(
+                                json.loads(line[5:])["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
+                        except (KeyError, IndexError, ValueError):
+                            continue
+                        raw = carry + raw
+                        carry = raw[len(raw) // 2 * 2:]
+                        raw = raw[:len(raw) // 2 * 2]
+                        if raw:
+                            got = True
+                            yield raw
+        except httpx.TimeoutException:
+            if got:
+                return
+            last = f"{model}: timeout"
+            continue
+        if got:
+            return
+        last = f"{model}: audio qaytmadi"
+    raise RuntimeError(last)

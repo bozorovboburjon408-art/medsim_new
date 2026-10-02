@@ -76,9 +76,55 @@ async def chat_stream(req: ChatRequest):
 
     async def gen():
         t0 = time.perf_counter()
-        q: asyncio.Queue = asyncio.Queue()
-
         info: dict = {}
+
+        if (req.tts or settings.tts_provider) == "gemini":
+            # Gemini ovozi: javob to'liq yoziladi, so'ng butun matn bitta oqimli so'rovda ovozlashtiriladi
+            # (bir ohang, birinchi bo'lak ~0.5 s da keladi); bo'laklar darrov ilovaga uzatiladi.
+            try:
+                sents = [s async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model)]
+            except Exception as e:
+                yield json.dumps({"error": f"AI xatosi: {e}"[:400]}) + "\n"
+                return
+            if not sents:
+                yield json.dumps({"error": "AI bo'sh javob qaytardi"}) + "\n"
+                return
+            full = " ".join(sents)
+            t_llm = int((time.perf_counter() - t0) * 1000)
+            t_tts0 = time.perf_counter()
+            first = True
+            try:
+                async for pcm in tts.gemini_stream(full, p):
+                    tts_ms = int((time.perf_counter() - t_tts0) * 1000) if first else 0
+                    if first:
+                        log.info("gemini-stream patient=%s llm=%dms first_chunk=%dms model=%s",
+                                 p.id, t_llm, tts_ms, info.get("model", ""))
+                    yield json.dumps({
+                        "pcm_b64": base64.b64encode(pcm).decode(), "rate": 24000,
+                        "text": full if first else "", "ms": int((time.perf_counter() - t0) * 1000),
+                        "llm_ms": t_llm, "tts_ms": tts_ms, "tts": "gemini-stream",
+                        "model": info.get("model", ""), "tries": ", ".join(info.get("tries", [])),
+                    }) + "\n"
+                    first = False
+                return
+            except Exception as e:
+                if not first:  # ovoz yarmigacha chalingan: Edge'ga o'tib bo'lmaydi
+                    yield json.dumps({"error": f"Ovoz oqimi uzildi: {e}"[:400]}) + "\n"
+                    return
+                log.warning("Gemini TTS oqimi xato, Edge'ga o'tildi: %s", e)
+            try:  # zaxira: Edge
+                audio = await tts._edge(full, p)
+                yield json.dumps({
+                    "text": full, "audio_b64": base64.b64encode(audio).decode(), "fmt": "mp3",
+                    "ms": int((time.perf_counter() - t0) * 1000), "llm_ms": t_llm,
+                    "tts_ms": int((time.perf_counter() - t_tts0) * 1000), "tts": "edge (gemini xato)",
+                    "model": info.get("model", ""), "tries": ", ".join(info.get("tries", [])),
+                }) + "\n"
+            except Exception as e:
+                yield json.dumps({"error": f"Ovoz (TTS) xatosi: {e}"[:400]}) + "\n"
+            return
+
+        q: asyncio.Queue = asyncio.Queue()
 
         async def synth(s: str, t_llm: int):
             t = time.perf_counter()
@@ -87,16 +133,9 @@ async def chat_stream(req: ChatRequest):
 
         async def producer():
             try:
-                if (req.tts or settings.tts_provider) == "gemini":
-                    # Gemini ovozi: butun javob bitta so'rovda, shunda ohang bir xil bo'ladi
-                    sents = [s async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model)]
+                async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model):
                     t_llm = int((time.perf_counter() - t0) * 1000)
-                    if sents:
-                        await q.put(asyncio.create_task(synth(" ".join(sents), t_llm)))
-                else:
-                    async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model):
-                        t_llm = int((time.perf_counter() - t0) * 1000)
-                        await q.put(asyncio.create_task(synth(s, t_llm)))  # TTS parallel boshlanadi
+                    await q.put(asyncio.create_task(synth(s, t_llm)))  # TTS parallel boshlanadi
             except Exception as e:
                 await q.put(RuntimeError(f"AI xatosi: {e}"))
             await q.put(None)

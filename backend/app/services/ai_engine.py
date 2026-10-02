@@ -24,11 +24,24 @@ class AIResponse(BaseModel):
 
 class AIEngine:
     def __init__(self):
-        client_kwargs = {"api_key": settings.OPENAI_API_KEY}
-        if settings.OPENAI_BASE_URL:
-            client_kwargs["base_url"] = settings.OPENAI_BASE_URL
-        self.client = AsyncOpenAI(**client_kwargs)
         self.guardrails = Guardrails()
+        self._init_client()
+
+    def _init_client(self):
+        # DeepSeek kaliti tekshiruvi
+        api_key = settings.OPENAI_API_KEY or "sk-42874f7bcf1f44adb2988b9ae0bc39cc"
+        base_url = settings.OPENAI_BASE_URL or "https://api.deepseek.com"
+        
+        # Agar kalit DeepSeek kaliti bo'lsa, lekin base_url berilmagan bo'lsa
+        if "sk-" in api_key and ("deepseek" in base_url or len(api_key) == 35 or api_key.startswith("sk-428")):
+            base_url = "https://api.deepseek.com"
+
+        self.client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url
+        )
+        self.base_url = base_url
+        self.api_key = api_key
 
     async def generate_response(
         self,
@@ -48,7 +61,6 @@ class AIEngine:
 
         # ========== 1. Skript asosida javob ==========
         if matched_scripts:
-            # Eng yuqori prioritetli skriptni olish
             best_script = matched_scripts[0]
             logger.info(
                 f"Skript #{best_script.id} mos keldi: "
@@ -62,17 +74,13 @@ class AIEngine:
                 used_script_id=best_script.id
             )
 
-        # ========== 2. LLM orqali javob (OpenAI yoki DeepSeek) ==========
+        # ========== 2. LLM orqali javob (DeepSeek / OpenAI) ==========
         system_prompt = self.guardrails.build_system_prompt(mannequin, scenario, matched_scripts)
         filtered_text = self.guardrails.filter_inappropriate_content(user_text)
 
-        # Model tanlash
-        model_name = settings.AI_MODEL
-        if not model_name:
-            if "deepseek" in (settings.OPENAI_BASE_URL or "").lower():
-                model_name = "deepseek-chat"
-            else:
-                model_name = "gpt-4o-mini"
+        model_name = settings.AI_MODEL or "deepseek-chat"
+        if "deepseek" in self.base_url:
+            model_name = "deepseek-chat"
 
         try:
             response = await self.client.chat.completions.create(
@@ -82,7 +90,7 @@ class AIEngine:
                     {"role": "user", "content": filtered_text}
                 ],
                 temperature=0.7,
-                max_tokens=200,  # Manikenning javoblari qisqa bo'lishi kerak
+                max_tokens=200,
             )
 
             raw_text = response.choices[0].message.content.strip()
@@ -93,7 +101,6 @@ class AIEngine:
             if not is_valid:
                 logger.warning(f"Guardrail buzildi, original: '{raw_text}'")
 
-            # Emotsiyani aniqlash (oddiy heuristik)
             emotion = self._detect_emotion(safe_text, mannequin)
 
             return AIResponse(
@@ -103,7 +110,30 @@ class AIEngine:
             )
 
         except Exception as e:
-            logger.error(f"LLM API xatosi: {e}")
+            logger.error(f"LLM API asosiy chaqiruv xatosi: {e}")
+            
+            # Agar asosiy chaqiruv xato bersa, to'g'ridan-to'g'ri DeepSeek API ga urinish
+            try:
+                backup_client = AsyncOpenAI(
+                    api_key="sk-42874f7bcf1f44adb2988b9ae0bc39cc",
+                    base_url="https://api.deepseek.com"
+                )
+                backup_resp = await backup_client.chat.completions.create(
+                    model="deepseek-chat",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": filtered_text}
+                    ],
+                    temperature=0.7,
+                    max_tokens=200,
+                )
+                raw_text = backup_resp.choices[0].message.content.strip()
+                _, safe_text = self.guardrails.validate_response(raw_text, mannequin)
+                emotion = self._detect_emotion(safe_text, mannequin)
+                return AIResponse(text=safe_text, emotion=emotion, confidence=0.85)
+            except Exception as e2:
+                logger.error(f"Zaxira DeepSeek API xatosi: {e2}")
+
             # Xatolik bo'lsa xarakterga mos umumiy javob
             fallback = self._get_fallback_response(mannequin)
             return AIResponse(

@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -178,7 +179,7 @@ fun SettingsDialog(server: String, model: String, tts: String, onDismiss: () -> 
         onDismissRequest = onDismiss,
         title = { Text("Sozlamalar") },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     text, { text = it }, label = { Text("Server manzili") },
                     placeholder = { Text("https://....onrender.com") }, singleLine = true, modifier = Modifier.fillMaxWidth(),

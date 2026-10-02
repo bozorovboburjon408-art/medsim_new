@@ -37,11 +37,12 @@ def _pcm_to_wav(pcm: bytes, rate: int = 24000) -> bytes:
 
 
 async def _gemini(text: str, p: Patient) -> bytes:
-    prompt = f"{p.tts_style}: {text}" if p.tts_style else text
+    prompt = text  # uslub ko'rsatmasi qo'shilmaydi: Gemini uni ovoz chiqarib o'qib yuboradi
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "responseModalities": ["AUDIO"],
+            "temperature": 0.4,
             "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": p.gemini_voice}}},
         },
     }

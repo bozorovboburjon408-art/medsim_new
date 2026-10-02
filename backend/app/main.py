@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from . import llm, tts
+from .config import settings
 from .patients import PATIENTS
 
 log = logging.getLogger("uvicorn.error")
@@ -86,9 +87,16 @@ async def chat_stream(req: ChatRequest):
 
         async def producer():
             try:
-                async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model):
+                if (req.tts or settings.tts_provider) == "gemini":
+                    # Gemini ovozi: butun javob bitta so'rovda, shunda ohang bir xil bo'ladi
+                    sents = [s async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model)]
                     t_llm = int((time.perf_counter() - t0) * 1000)
-                    await q.put(asyncio.create_task(synth(s, t_llm)))  # TTS parallel boshlanadi
+                    if sents:
+                        await q.put(asyncio.create_task(synth(" ".join(sents), t_llm)))
+                else:
+                    async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model):
+                        t_llm = int((time.perf_counter() - t0) * 1000)
+                        await q.put(asyncio.create_task(synth(s, t_llm)))  # TTS parallel boshlanadi
             except Exception as e:
                 await q.put(RuntimeError(f"AI xatosi: {e}"))
             await q.put(None)

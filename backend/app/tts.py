@@ -17,6 +17,28 @@ from .patients import Patient
 log = logging.getLogger("uvicorn.error")
 
 
+def latin_to_cyrillic(text: str) -> str:
+    """ElevenLabs o'zbek tilidagi q, x, g' harflarini inglizcha o'qimasligi uchun
+    Cyrillic ga o'tkazib yuboramiz. Shunda talaffuz 10x yaxshilanadi."""
+    mapping = {
+        "sh": "ш", "ch": "ч", "o'": "ў", "o‘": "ў", "g'": "ғ", "g‘": "ғ",
+        "Sh": "Ш", "Ch": "Ч", "O'": "Ў", "O‘": "Ў", "G'": "Ғ", "G‘": "Ғ",
+        "ya": "я", "yu": "ю", "yo": "ё", "ye": "е",
+        "Ya": "Я", "Yu": "Ю", "Yo": "Ё", "Ye": "Е",
+        "a": "а", "b": "б", "d": "д", "e": "э", "f": "ф", "g": "г", "h": "ҳ",
+        "i": "и", "j": "ж", "k": "к", "l": "л", "m": "м", "n": "н", "o": "о",
+        "p": "п", "q": "қ", "r": "р", "s": "с", "t": "т", "u": "у", "v": "в",
+        "x": "х", "y": "й", "z": "з",
+        "A": "А", "B": "Б", "D": "Д", "E": "Э", "F": "Ф", "G": "Г", "H": "Ҳ",
+        "I": "И", "J": "Ж", "K": "К", "L": "Л", "M": "М", "N": "Н", "O": "О",
+        "P": "П", "Q": "Қ", "R": "Р", "S": "С", "T": "Т", "U": "У", "V": "В",
+        "X": "Х", "Y": "Й", "Z": "З",
+        "'": "ъ"
+    }
+    for k, v in mapping.items():
+        text = text.replace(k, v)
+    return text
+
 def clean_for_tts(text: str) -> str:
     """Ovozga berilmaydigan belgilarni olib tashlaydi (qo'shtirnoq, qavs, ikki nuqta, tire va h.k.).
     O'zbekcha tutuq belgilari (o', g', ʻ, ’) saqlanadi."""
@@ -195,8 +217,12 @@ async def _elevenlabs(text: str, p: Patient) -> bytes:
         "xi-api-key": settings.elevenlabs_api_key,
         "Content-Type": "application/json"
     }
+    
+    # ElevenLabs to'g'ri (q, x, g' ni) o'qishi uchun Krilchaga o'giramiz!
+    cyrillic_text = latin_to_cyrillic(text)
+    
     body = {
-        "text": text,
+        "text": cyrillic_text,
         "model_id": "eleven_multilingual_v2",
         "voice_settings": {
             "stability": 0.35,          # Pastroq barqarorlik = ko'proq emotsiya va jonlilik

@@ -338,7 +338,7 @@ HTML_PAGE = r"""<!doctype html>
   const audioQueue = [];
   let isPlaying = false;
 
-  function appendMessage(role, text, stats = null, audioB64 = null) {
+  function appendMessage(role, text, stats = null, audioB64 = null, fmt = 'wav') {
     const isUser = role === 'user';
     const patientName = patientSelect.options[patientSelect.selectedIndex].text.split(' ')[1] || 'Bemor';
     const sender = isUser ? 'Siz (hamshira)' : patientName;
@@ -350,7 +350,7 @@ HTML_PAGE = r"""<!doctype html>
     if (stats || audioB64) {
       html += `<div class="bubble-footer">`;
       if (audioB64) {
-        html += `<button class="play-icon-btn" onclick="playAudioDirect('${audioB64}')">▶ Qayta tinglash</button>`;
+        html += `<button class="play-icon-btn" onclick="playAudioDirect('${audioB64}', '${fmt}')">▶ Qayta tinglash</button>`;
       }
       if (stats) {
         html += `<span>· ${stats}</span>`;
@@ -362,8 +362,9 @@ HTML_PAGE = r"""<!doctype html>
     chatBox.scrollTop = chatBox.scrollHeight;
   }
 
-  function queueAudio(audioB64) {
-    const audio = new Audio("data:audio/wav;base64," + audioB64);
+  function queueAudio(audioB64, fmt) {
+    const mime = (fmt && fmt.toLowerCase().includes('mp3')) ? 'audio/mpeg' : 'audio/wav';
+    const audio = new Audio(`data:${mime};base64,` + audioB64);
     audioQueue.push(audio);
     if (!isPlaying) playNextAudio();
   }
@@ -380,9 +381,10 @@ HTML_PAGE = r"""<!doctype html>
     audio.play().catch(() => playNextAudio());
   }
 
-  window.playAudioDirect = function(audioB64) {
-    const a = new Audio("data:audio/wav;base64," + audioB64);
-    a.play();
+  window.playAudioDirect = function(audioB64, fmt) {
+    const mime = (fmt && fmt.toLowerCase().includes('mp3')) ? 'audio/mpeg' : 'audio/wav';
+    const a = new Audio(`data:${mime};base64,` + audioB64);
+    a.play().catch(e => console.warn("Audio play xatosi:", e));
   };
 
   async function sendMessage() {
@@ -432,8 +434,8 @@ HTML_PAGE = r"""<!doctype html>
           if (seg.text) {
             replyParts.push(seg.text);
             const stats = `AI: ${seg.llm_ms}ms · Ovoz: ${seg.tts_ms}ms (${seg.tts || tts})`;
-            appendMessage('assistant', seg.text, stats, seg.audio_b64);
-            if (seg.audio_b64) queueAudio(seg.audio_b64);
+            appendMessage('assistant', seg.text, stats, seg.audio_b64, seg.fmt);
+            if (seg.audio_b64) queueAudio(seg.audio_b64, seg.fmt);
           }
         }
       }

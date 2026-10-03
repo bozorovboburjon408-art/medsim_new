@@ -44,10 +44,10 @@ PATIENTS = {
         Patient("bobo", "Hikmatilla ota (78 yosh, skrining)", "uz-UZ-SardorNeural", "-18%", "-12Hz",
                 "Hikmatilla ota, 78 yoshli nuroniy otaxon (nafaqada). Faqat o'zing gapirasan (kelining gapirmaydi). "
                 "Hamshirani 'qizim' yoki 'bolam' deb ataysan, sekin, vazmin va mehribon gapirasan.",
-                "bobo.txt", gemini_voice="Fenrir", elevenlabs_voice="u79kiHBzGgsuvbM5gdA4"), # Maxsus Klon
+                "bobo.txt", gemini_voice="Fenrir", elevenlabs_voice="xDwfBjUEPdIoQekNOXAX"), # Library Jahongir
         Patient("homilador", "Nilufar (32 haftalik homilador)", "uz-UZ-MadinaNeural", "-5%", "+0Hz",
                 "Nilufar Rahimova, 33 yoshli, 32 haftalik homilador ayol. Hamshirani 'hamshira opa' deb ataysan.",
-                "homilador.txt", gemini_voice="Kore", elevenlabs_voice="21m00Tcm4TlvDq8ikWAM"), # Rachel
+                "homilador.txt", gemini_voice="Kore", elevenlabs_voice="132QLQIkg1RJGmpicuhR"), # Library Nodira
         Patient("bola", "Jasurbek (5 yosh, gijja)", "uz-UZ-MadinaNeural", "+12%", "+55Hz",
                 "Jasurbek, 5 yoshli bola. Sen bolaning o'zisan: juda oddiy, qisqa (1-2 gap), bolalarcha so'zlar bilan gapir, "
                 "ba'zan injiqlik qil, tushunmasang 'nima?' deb so'ra. Murakkab tibbiy so'zlarni bilmaysan; "

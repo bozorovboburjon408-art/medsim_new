@@ -199,8 +199,10 @@ async def _elevenlabs(text: str, p: Patient) -> bytes:
         "text": text,
         "model_id": "eleven_multilingual_v2",
         "voice_settings": {
-            "stability": 0.5,
-            "similarity_boost": 0.75
+            "stability": 0.35,          # Pastroq barqarorlik = ko'proq emotsiya va jonlilik
+            "similarity_boost": 0.85,   # Asl ovozga maksimal o'xshashlik
+            "style": 0.15,              # Ovozga ozgina aktyorlik uslubi qo'shish
+            "use_speaker_boost": True
         }
     }
     

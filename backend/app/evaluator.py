@@ -74,7 +74,7 @@ async def evaluate(p: Patient, history: list[dict], model: str | None = None) ->
         "contents": [{"role": "user", "parts": [{"text": build_prompt(p, history)}]}],
         "generationConfig": {"temperature": 0.2, "maxOutputTokens": 4096, "responseMimeType": "application/json"},
     }
-    models = [m.strip() for m in settings.gemini_models.split(",") if m.strip()]
+    models = [m.strip() for m in settings.gemini_eval_models.split(",") if m.strip()]
     if model and re.fullmatch(r"[a-z0-9.\-]+", model):
         models = [model] + [m for m in models if m != model]
     models = llm.healthy_first(models)

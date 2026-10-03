@@ -9,12 +9,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import evaluator, llm, tts
+from . import evaluator, live, llm, tts
 from .config import settings
 from .patients import PATIENTS
 
 log = logging.getLogger("uvicorn.error")
 app = FastAPI(title="MedSim backend")
+app.include_router(live.router)
 
 
 class Turn(BaseModel):

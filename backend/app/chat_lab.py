@@ -285,8 +285,8 @@ HTML_PAGE = r"""<!doctype html>
         <option value="bola">👦 Jasurbek (5 yosh)</option>
       </select>
       <select id="ttsSelect">
-        <option value="gemini">✨ Gemini Audio</option>
-        <option value="edge">🔊 Edge TTS (Zaxira)</option>
+        <option value="edge" selected>🔊 Edge TTS (Tavsiya - Bepul)</option>
+        <option value="gemini">✨ Gemini Audio (Pullik API)</option>
       </select>
       <button class="btn-secondary" id="evalBtn" title="Hamshira ishini baholash">📋 Baholash</button>
       <button class="btn-secondary" id="clearBtn" title="Suhbatni tozalash">↻ Yangi</button>

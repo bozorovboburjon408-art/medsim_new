@@ -214,8 +214,8 @@ fun SettingsDialog(server: String, model: String, tts: String, onDismiss: () -> 
                 Text("Ovoz (TTS) provayderi", style = MaterialTheme.typography.labelLarge)
                 Row(Modifier.horizontalScroll(rememberScrollState())) {
                     listOf(
-                        "gemini" to "✨ Gemini Audio",
-                        "edge" to "🔊 Edge TTS (Zaxira)",
+                        "edge" to "🔊 Edge TTS (Tavsiya - Bepul)",
+                        "gemini" to "✨ Gemini Audio (Pullik)",
                         "" to "Avto",
                         "azure" to "☁ Azure TTS",
                     ).forEach { (id, label) ->
@@ -324,7 +324,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val history = remember(p.id) { mutableStateListOf<Turn>() }
-    var currentTts by remember { mutableStateOf(if (tts.isEmpty()) "gemini" else tts) }
+    var currentTts by remember { mutableStateOf(if (tts.isEmpty()) "edge" else tts) }
     var phase by remember { mutableStateOf(Phase.IDLE) }
     var error by remember { mutableStateOf("") }
     var firstAudio by remember { mutableStateOf("") }
@@ -431,8 +431,8 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
             ) {
                 Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.Center) {
-                    FilterChip(currentTts == "gemini", { currentTts = "gemini" }, { Text("✨ Gemini", fontSize = 12.sp) }, modifier = Modifier.padding(end = 4.dp))
-                    FilterChip(currentTts == "edge", { currentTts = "edge" }, { Text("🔊 Edge", fontSize = 12.sp) })
+                    FilterChip(currentTts == "edge", { currentTts = "edge" }, { Text("🔊 Edge (Bepul)", fontSize = 12.sp) }, modifier = Modifier.padding(end = 4.dp))
+                    FilterChip(currentTts == "gemini", { currentTts = "gemini" }, { Text("✨ Gemini", fontSize = 12.sp) })
                 }
                 Text(
                     phase.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,

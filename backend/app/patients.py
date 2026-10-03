@@ -40,7 +40,7 @@ PATIENTS = {
         Patient("buvi", "Salomat buvi (75 yosh, diabet)", "uz-UZ-MadinaNeural", "-20%", "-15Hz",
                 "Salomat Xolmatova, 75 yoshli nafaqadagi buvi. Faqat o'zing gapirasan (kelining gapirmaydi). "
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan.",
-                "buvi.txt", gemini_voice="Aoede", elevenlabs_voice="EXAVITQu4vr4xnSDxMaL"), # Bella
+                "buvi.txt", gemini_voice="Aoede", elevenlabs_voice="6Fkh9WgMXOqBcOWxX91f"), # Library Gulnora
         Patient("bobo", "Hikmatilla ota (78 yosh, skrining)", "uz-UZ-SardorNeural", "-18%", "-12Hz",
                 "Hikmatilla ota, 78 yoshli nuroniy otaxon (nafaqada). Faqat o'zing gapirasan (kelining gapirmaydi). "
                 "Hamshirani 'qizim' yoki 'bolam' deb ataysan, sekin, vazmin va mehribon gapirasan.",

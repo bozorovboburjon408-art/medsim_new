@@ -108,7 +108,7 @@ async def chat_stream(req: ChatRequest):
                         "pcm_b64": base64.b64encode(pcm).decode(), "rate": 24000,
                         "text": full if first else "", "ms": int((time.perf_counter() - t0) * 1000),
                         "llm_ms": t_llm, "tts_ms": tts_ms, "tts": "gemini-stream",
-                        "model": info.get("model", ""), "tries": ", ".join(info.get("tries", [])),
+                        "model": info.get("model", ""), "usage": info.get("usage", ""), "tries": ", ".join(info.get("tries", [])),
                     }) + "\n"
                     first = False
                 return
@@ -123,7 +123,7 @@ async def chat_stream(req: ChatRequest):
                     "text": full, "audio_b64": base64.b64encode(audio).decode(), "fmt": "mp3",
                     "ms": int((time.perf_counter() - t0) * 1000), "llm_ms": t_llm,
                     "tts_ms": int((time.perf_counter() - t_tts0) * 1000), "tts": "edge (gemini xato)",
-                    "model": info.get("model", ""), "tries": ", ".join(info.get("tries", [])),
+                    "model": info.get("model", ""), "usage": info.get("usage", ""), "tries": ", ".join(info.get("tries", [])),
                 }) + "\n"
             except Exception as e:
                 yield json.dumps({"error": f"Ovoz (TTS) xatosi: {e}"[:400]}) + "\n"
@@ -163,7 +163,7 @@ async def chat_stream(req: ChatRequest):
                 yield json.dumps({"text": s, "audio_b64": base64.b64encode(audio).decode(),
                                   "ms": int((time.perf_counter() - t0) * 1000),
                                   "llm_ms": t_llm, "tts_ms": t_tts, "fmt": fmt, "tts": used,
-                                  "model": info.get("model", ""), "tries": ", ".join(info.get("tries", []))}) + "\n"
+                                  "model": info.get("model", ""), "usage": info.get("usage", ""), "tries": ", ".join(info.get("tries", []))}) + "\n"
         finally:
             prod.cancel()
 

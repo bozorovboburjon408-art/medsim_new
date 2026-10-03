@@ -22,7 +22,7 @@ data class EvalResult(
 data class Seg(
     val text: String, val mp3: ByteArray, val ms: Int,
     val llmMs: Int = 0, val ttsMs: Int = 0, val model: String = "", val tries: String = "",
-    val fmt: String = "mp3", val tts: String = "", val pcmRate: Int = 0,
+    val fmt: String = "mp3", val tts: String = "", val pcmRate: Int = 0, val usage: String = "",
 )
 
 object Api {
@@ -82,7 +82,7 @@ object Api {
                     val isPcm = j.has("pcm_b64")
                     val seg = Seg(j.optString("text"), Base64.decode(j.getString(if (isPcm) "pcm_b64" else "audio_b64"), Base64.DEFAULT), j.optInt("ms"),
                         j.optInt("llm_ms"), j.optInt("tts_ms"), j.optString("model"), j.optString("tries"),
-                        j.optString("fmt", "mp3"), j.optString("tts"), if (isPcm) j.optInt("rate", 24000) else 0)
+                        j.optString("fmt", "mp3"), j.optString("tts"), if (isPcm) j.optInt("rate", 24000) else 0, j.optString("usage"))
                     withContext(Dispatchers.Main) { onSeg(seg) }
                 }
             }

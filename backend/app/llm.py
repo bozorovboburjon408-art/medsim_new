@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 import time
 from typing import AsyncIterator
@@ -8,6 +9,8 @@ import httpx
 from .config import settings
 
 TIMEOUT = 30
+log = logging.getLogger("uvicorn.error")
+_no_think: set[str] = set()  # thinkingLevel'ni tanimagan modellar
 
 # Sekin yoki xato bergan model qisqa vaqtga o'tkazib yuboriladi (qayta-qayta kutib qolmaslik uchun)
 _bad: dict[str, float] = {}
@@ -124,45 +127,74 @@ async def stream_sentences(system: str, history: list[dict], info: dict | None =
         for model in models:
             url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
                    f"{model}:streamGenerateContent?alt=sse")
-            got = False
-            try:
-                async with c.stream("POST", url, json=body,
-                                    headers={"x-goog-api-key": settings.gemini_api_key}) as r:
-                    if r.status_code >= 400:
-                        last = f"{model}: {r.status_code} {(await r.aread()).decode()[:200]}"
-                        tries.append(f"{model} {r.status_code}")
-                        mark_bad(model)
-                        continue
-                    buf = ""
-                    async for line in r.aiter_lines():
-                        if not line.startswith("data:"):
-                            continue
-                        try:
-                            parts = json.loads(line[5:])["candidates"][0]["content"]["parts"]
-                        except (KeyError, IndexError, ValueError):
-                            continue
-                        buf += "".join(p.get("text", "") for p in parts if not p.get("thought"))
-                        sents, buf = _split(buf)
-                        for s in sents:
-                            if s:
+            got, failed = False, False
+            # "O'ylash" darajasi past qilinadi (tezroq va arzonroq); model tanimasa, bir marta o'ylashsiz qayta uriniladi
+            variants = [True, False] if (settings.gemini_thinking and model not in _no_think) else [False]
+            for use_think in variants:
+                b = body
+                if use_think:
+                    b = {**body, "generationConfig": {**body["generationConfig"],
+                                                      "thinkingConfig": {"thinkingLevel": settings.gemini_thinking}}}
+                retry_plain = False
+                try:
+                    async with c.stream("POST", url, json=b,
+                                        headers={"x-goog-api-key": settings.gemini_api_key}) as r:
+                        if r.status_code == 400 and use_think:
+                            _no_think.add(model)
+                            log.warning("%s thinkingLevel=%s ni qabul qilmadi, o'ylash sozlamasisiz davom etiladi",
+                                        model, settings.gemini_thinking)
+                            retry_plain = True
+                        elif r.status_code >= 400:
+                            last = f"{model}: {r.status_code} {(await r.aread()).decode()[:200]}"
+                            tries.append(f"{model} {r.status_code}")
+                            mark_bad(model)
+                            failed = True
+                        else:
+                            buf = ""
+                            async for line in r.aiter_lines():
+                                if not line.startswith("data:"):
+                                    continue
+                                try:
+                                    ev = json.loads(line[5:])
+                                except ValueError:
+                                    continue
+                                um = ev.get("usageMetadata")
+                                if um and info is not None:
+                                    info["usage"] = "AI tokenlar: kirish {} · chiqish {} · o'ylash {}".format(
+                                        um.get("promptTokenCount", 0), um.get("candidatesTokenCount", 0),
+                                        um.get("thoughtsTokenCount", 0))
+                                try:
+                                    parts = ev["candidates"][0]["content"]["parts"]
+                                except (KeyError, IndexError):
+                                    continue
+                                buf += "".join(p.get("text", "") for p in parts if not p.get("thought"))
+                                sents, buf = _split(buf)
+                                for s in sents:
+                                    if s:
+                                        got = True
+                                        if info is not None:
+                                            info["model"] = model
+                                        yield s
+                            if buf.strip():
                                 got = True
                                 if info is not None:
                                     info["model"] = model
-                                yield s
-                    if buf.strip():
-                        got = True
-                        if info is not None:
-                            info["model"] = model
-                        yield buf.strip()
-            except httpx.TimeoutException:
-                if got:
-                    return  # javob boshlangan edi, bor narsani beramiz
-                last = f"{model}: timeout"
-                tries.append(f"{model} timeout")
-                mark_bad(model, 120)
-                continue
+                                yield buf.strip()
+                            if info is not None and info.get("usage"):
+                                log.info("llm %s %s", model, info["usage"])
+                except httpx.TimeoutException:
+                    if got:
+                        return  # javob boshlangan edi, bor narsani beramiz
+                    last = f"{model}: timeout"
+                    tries.append(f"{model} timeout")
+                    mark_bad(model, 120)
+                    failed = True
+                if retry_plain:
+                    continue
+                break
             if got:
                 return
-            last = f"{model}: bo'sh javob"
-            tries.append(f"{model} bo'sh")
+            if not failed:
+                last = f"{model}: bo'sh javob"
+                tries.append(f"{model} bo'sh")
     raise RuntimeError(f"Hamma Gemini modellari muvaffaqiyatsiz. Oxirgisi: {last}")

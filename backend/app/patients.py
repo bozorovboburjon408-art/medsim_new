@@ -44,7 +44,7 @@ PATIENTS = {
         Patient("bobo", "Hikmatilla ota (78 yosh, skrining)", "uz-UZ-SardorNeural", "-18%", "-12Hz",
                 "Hikmatilla ota, 78 yoshli nuroniy otaxon (nafaqada). Faqat o'zing gapirasan (kelining gapirmaydi). "
                 "Hamshirani 'qizim' yoki 'bolam' deb ataysan, sekin, vazmin va mehribon gapirasan.",
-                "bobo.txt", gemini_voice="Fenrir", elevenlabs_voice="ErXwobaYiN019PkySvjV"), # Antoni
+                "bobo.txt", gemini_voice="Fenrir", elevenlabs_voice="u79kiHBzGgsuvbM5gdA4"), # Maxsus Klon
         Patient("homilador", "Nilufar (32 haftalik homilador)", "uz-UZ-MadinaNeural", "-5%", "+0Hz",
                 "Nilufar Rahimova, 33 yoshli, 32 haftalik homilador ayol. Hamshirani 'hamshira opa' deb ataysan.",
                 "homilador.txt", gemini_voice="Kore", elevenlabs_voice="21m00Tcm4TlvDq8ikWAM"), # Rachel

@@ -356,7 +356,7 @@ document.querySelectorAll('.card').forEach(c=>{
  vsel.onchange=()=>{vid.value=vsel.value;};
  VOICES.then(list=>{
   vsel.innerHTML='<option value="">— ovozni tanlang —</option>'+list.map(v=>`<option value="${v.id}">${v.name} — ${v.desc}</option>`).join('');
- }).catch(e=>{vsel.innerHTML='<option value="">ro\'yxat yuklanmadi: '+e+'</option>';});
+ }).catch(e=>{vsel.innerHTML='<option value="">royxat yuklanmadi: '+e+'</option>';});
  c.querySelector('.vb').onclick=()=>{
   const vid=c.querySelector('.vid').value,spd=c.querySelector('.sp').value;
   c.querySelector('.sv').textContent=spd;

@@ -40,14 +40,14 @@ PATIENTS = {
         Patient("buvi", "Salomat buvi (75 yosh, diabet)", "uz-UZ-MadinaNeural", "-20%", "-15Hz",
                 "Salomat Xolmatova, 75 yoshli nafaqadagi buvi. Faqat o'zing gapirasan (kelining gapirmaydi). "
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan.",
-                "buvi.txt", gemini_voice="Aoede", elevenlabs_voice="6Fkh9WgMXOqBcOWxX91f"),
+                "buvi.txt", gemini_voice="Aoede", elevenlabs_voice="EXAVITQu4vr4xnSDxMaL"), # Bella
         Patient("bobo", "Hikmatilla ota (78 yosh, skrining)", "uz-UZ-SardorNeural", "-18%", "-12Hz",
                 "Hikmatilla ota, 78 yoshli nuroniy otaxon (nafaqada). Faqat o'zing gapirasan (kelining gapirmaydi). "
                 "Hamshirani 'qizim' yoki 'bolam' deb ataysan, sekin, vazmin va mehribon gapirasan.",
-                "bobo.txt", gemini_voice="Fenrir", elevenlabs_voice="xDwfBjUEPdIoQekNOXAX"),
+                "bobo.txt", gemini_voice="Fenrir", elevenlabs_voice="ErXwobaYiN019PkySvjV"), # Antoni
         Patient("homilador", "Nilufar (32 haftalik homilador)", "uz-UZ-MadinaNeural", "-5%", "+0Hz",
                 "Nilufar Rahimova, 33 yoshli, 32 haftalik homilador ayol. Hamshirani 'hamshira opa' deb ataysan.",
-                "homilador.txt", gemini_voice="Kore", elevenlabs_voice="132QLQIkg1RJGmpicuhR"),
+                "homilador.txt", gemini_voice="Kore", elevenlabs_voice="21m00Tcm4TlvDq8ikWAM"), # Rachel
         Patient("bola", "Jasurbek (5 yosh, gijja)", "uz-UZ-MadinaNeural", "+12%", "+55Hz",
                 "Jasurbek, 5 yoshli bola. Sen bolaning o'zisan: juda oddiy, qisqa (1-2 gap), bolalarcha so'zlar bilan gapir, "
                 "ba'zan injiqlik qil, tushunmasang 'nima?' deb so'ra. Murakkab tibbiy so'zlarni bilmaysan; "

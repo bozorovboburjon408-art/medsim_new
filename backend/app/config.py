@@ -18,7 +18,9 @@ class Settings(BaseSettings):
     gemini_tts_daily_limit: int = 200
     # Ovoz profili + rejissyor ko'rsatmalari + past temperature/seed (bir xil ohang uchun). Agar Gemini ko'rsatmani
     # ovoz chiqarib o'qib yuborsa, Render'da GEMINI_TTS_STYLE=0 qiling.
-    gemini_tts_style: bool = True
+    gemini_tts_style: bool = False
+    # Past temperature/seed Gemini TTS'ni bir tovushda qotirib qo'yishi mumkin (cho'zilib ketish): sukut bo'yicha o'chiq
+    gemini_tts_deterministic: bool = False
     # VoiceLab (o'zbekcha TTS/STT). Manzillar rasmiy SDK (voicelab-sdk 0.1.0) manba kodidan olingan
     voicelab_api_key: str = ""
     voicelab_base: str = "https://api.voicelab.uz"

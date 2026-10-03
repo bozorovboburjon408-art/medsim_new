@@ -232,13 +232,17 @@ async def gemini_stream(text: str, p: Patient) -> AsyncIterator[bytes]:
     now = time.monotonic()
     models = [m for m in models if _tts_bad.get(m, 0) <= now] + [m for m in models if _tts_bad.get(m, 0) > now]
     deadline = time.monotonic() + 12  # birinchi tovush uchun umumiy chegara
+    # Ovoz uzunligi chegarasi (bayt, 24kHz 16-bit mono = 48000 bayt/s): matndan keskin oshib ketsa, bu cho'zilib
+    # qolgan (nosoz) generatsiya, uzamiz. O'zbekcha nutq ~14 belgi/s, 2 baravar zaxira bilan.
+    max_bytes = int(max(5.0, len(text) * 0.15 + 3.0) * 48000)
+    sent = 0
     for model in models:
         if time.monotonic() > deadline:
             last = f"{last} | vaqt chegarasi"
             break
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse"
         got, carry, failed = False, b"", False
-        for det in ([True, False] if not _gem_nodet else [False]):
+        for det in ([True, False] if (settings.gemini_tts_deterministic and not _gem_nodet) else [False]):
             gc = {**cfg, "temperature": 0.2, "seed": 7} if det else cfg
             body = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": gc}
             retry_plain = False
@@ -267,6 +271,11 @@ async def gemini_stream(text: str, p: Patient) -> AsyncIterator[bytes]:
                                 raw = raw[:len(raw) // 2 * 2]
                                 if raw:
                                     got = True
+                                    sent += len(raw)
+                                    if sent > max_bytes:
+                                        log.warning("Gemini TTS ovozi me'yordan uzun (%.1fs, matn %d belgi): uzildi",
+                                                    sent / 48000, len(text))
+                                        return
                                     yield raw
             except httpx.TimeoutException:
                 if got:

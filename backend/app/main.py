@@ -105,7 +105,9 @@ async def chat_stream(req: ChatRequest):
             t_tts0 = time.perf_counter()
             first = True
             try:
+                total_pcm = 0
                 async for pcm in tts.gemini_stream(full, p):
+                    total_pcm += len(pcm)
                     tts_ms = int((time.perf_counter() - t_tts0) * 1000) if first else 0
                     if first:
                         log.info("gemini-stream patient=%s llm=%dms first_chunk=%dms model=%s",
@@ -117,6 +119,17 @@ async def chat_stream(req: ChatRequest):
                         "model": info.get("model", ""), "usage": info.get("usage", ""), "tries": ", ".join(info.get("tries", [])),
                     }) + "\n"
                     first = False
+                # Juda qisqa/bo'sh ovoz (jim qolish): shu matn Edge bilan aytiladi
+                if total_pcm / 48000 >= max(0.6, len(full) * 0.03):
+                    return
+                log.warning("Gemini TTS ovozi juda qisqa (%.2fs, matn %d belgi): Edge zaxirasi", total_pcm / 48000, len(full))
+                audio = await tts._edge(full, p)
+                yield json.dumps({
+                    "text": "" if not first else full, "audio_b64": base64.b64encode(audio).decode(), "fmt": "mp3",
+                    "ms": int((time.perf_counter() - t0) * 1000), "llm_ms": t_llm, "tts_ms": 0,
+                    "tts": "edge (Gemini jim)", "model": info.get("model", ""), "usage": info.get("usage", ""),
+                    "tries": ", ".join(info.get("tries", [])),
+                }) + "\n"
                 return
             except Exception as e:
                 if not first:  # ovoz yarmigacha chalingan: Edge'ga o'tib bo'lmaydi

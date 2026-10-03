@@ -58,7 +58,7 @@ async def live_models(token: str = ""):
     return out
 
 
-def build_config(patient_id: str, voice: str, ptt: bool) -> types.LiveConnectConfig:
+def build_config(patient_id: str, voice: str, ptt: int) -> types.LiveConnectConfig:
     p = PATIENTS[patient_id]
     voice = voice if voice in VOICES else DEFAULT_VOICE.get(patient_id, "Kore")
     system = p.system_prompt() + LIVE_RULES + STYLE.get(patient_id, "")
@@ -69,8 +69,12 @@ def build_config(patient_id: str, voice: str, ptt: bool) -> types.LiveConnectCon
         system_instruction=system,
         input_audio_transcription=types.AudioTranscriptionConfig(),
         output_audio_transcription=types.AudioTranscriptionConfig(),
-        realtime_input_config=(types.RealtimeInputConfig(
-            automatic_activity_detection=types.AutomaticActivityDetection(disabled=True)) if ptt else None),
+        realtime_input_config=types.RealtimeInputConfig(
+            automatic_activity_detection=(
+                types.AutomaticActivityDetection(disabled=True) if ptt == 2 else types.AutomaticActivityDetection(
+                    start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
+                    end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_HIGH,
+                    silence_duration_ms=600))),
         context_window_compression=types.ContextWindowCompressionConfig(sliding_window=types.SlidingWindow()),
     )
 
@@ -84,8 +88,12 @@ async def live_ws(ws: WebSocket, token: str = "", patient: str = "buvi", model: 
         return
     client = genai.Client(api_key=settings.gemini_api_key)
     try:
-        async with client.aio.live.connect(model=model, config=build_config(patient, voice, bool(ptt))) as session:
+        async with client.aio.live.connect(model=model, config=build_config(patient, voice, ptt)) as session:
             await ws.send_json({"type": "ready"})
+            stats = {"in_audio_bytes": 0, "out_audio_bytes": 0, "events": {}}
+
+            def count(name: str):
+                stats["events"][name] = stats["events"].get(name, 0) + 1
 
             async def from_browser():
                 while True:
@@ -93,14 +101,20 @@ async def live_ws(ws: WebSocket, token: str = "", patient: str = "buvi", model: 
                     if msg["type"] == "websocket.disconnect":
                         return
                     if msg.get("bytes"):
+                        stats["in_audio_bytes"] += len(msg["bytes"])
                         await session.send_realtime_input(audio=types.Blob(data=msg["bytes"], mime_type="audio/pcm;rate=16000"))
                     elif msg.get("text"):
                         ev = json.loads(msg["text"])
-                        if ev.get("type") == "start":
+                        t = ev.get("type")
+                        if t == "start" and ptt == 2:
                             await session.send_realtime_input(activity_start=types.ActivityStart())
-                        elif ev.get("type") == "end":
+                        elif t == "end" and ptt == 2:
                             await session.send_realtime_input(activity_end=types.ActivityEnd())
-                        elif ev.get("type") == "close":
+                        elif t == "flush":  # mikrofon o'chirildi: keshdagi ovozni ishlashga yuborish
+                            await session.send_realtime_input(audio_stream_end=True)
+                        elif t == "text" and ev.get("text"):  # diagnostika: mikrofonsiz, matn bilan
+                            await session.send_realtime_input(text=str(ev["text"])[:500])
+                        elif t == "close":
                             return
 
             async def to_browser():
@@ -108,19 +122,29 @@ async def live_ws(ws: WebSocket, token: str = "", patient: str = "buvi", model: 
                     got = False
                     async for m in session.receive():
                         got = True
+                        if m.setup_complete:
+                            count("setup")
+                            await ws.send_json({"type": "setup"})
                         sc = m.server_content
                         if sc:
                             if sc.model_turn:
                                 for part in sc.model_turn.parts or []:
                                     if part.inline_data and part.inline_data.data:
+                                        stats["out_audio_bytes"] += len(part.inline_data.data)
+                                        count("audio")
                                         await ws.send_bytes(part.inline_data.data)
+                                    elif getattr(part, "text", None) and not getattr(part, "thought", False):
+                                        count("text")
+                                        await ws.send_json({"type": "out", "text": part.text})
                             if sc.input_transcription and sc.input_transcription.text:
+                                count("in_transcript")
                                 await ws.send_json({"type": "in", "text": sc.input_transcription.text})
                             if sc.output_transcription and sc.output_transcription.text:
                                 await ws.send_json({"type": "out", "text": sc.output_transcription.text})
                             if sc.interrupted:
                                 await ws.send_json({"type": "interrupted"})
                             if sc.turn_complete:
+                                count("turn_complete")
                                 await ws.send_json({"type": "turn_complete"})
                         um = m.usage_metadata
                         if um:
@@ -131,7 +155,13 @@ async def live_ws(ws: WebSocket, token: str = "", patient: str = "buvi", model: 
                     if not got:
                         await asyncio.sleep(0.1)
 
-            tasks = [asyncio.create_task(from_browser()), asyncio.create_task(to_browser())]
+            async def reporter():  # har 2 soniyada hisobot: brauzerda ham, Render loglarida ham ko'rinadi
+                while True:
+                    await asyncio.sleep(2)
+                    await ws.send_json({"type": "stats", **stats})
+                    log.info("live %s/%s stats=%s", patient, model, stats)
+
+            tasks = [asyncio.create_task(from_browser()), asyncio.create_task(to_browser()), asyncio.create_task(reporter())]
             done, pending = await asyncio.wait(tasks, timeout=MAX_SESSION_S, return_when=asyncio.FIRST_COMPLETED)
             for t in pending:
                 t.cancel()
@@ -168,12 +198,17 @@ code{background:#e4eceb;padding:2px 6px;border-radius:6px}.s{color:#475569;font-
  <label>Bemor</label><select id="patient"><option value="buvi">Salomat buvi</option><option value="homilador">Nilufar (homilador)</option><option value="bola">Jasurbek (bola)</option></select>
  <label>Live modeli (ro'yxat serverdan olinadi)</label><select id="model"><option value="">yuklanmoqda…</option></select>
  <label>Gemini ovozi</label><select id="voice"></select>
- <label>Gapirish rejimi</label><select id="mode"><option value="1">Tugmani bosib turib gapirish (tavsiya)</option><option value="0">Avtomatik (o'zi eshitadi, quloqchin kerak)</option></select>
+ <label>Gapirish rejimi</label><select id="mode"><option value="1">Tugmani bosib turib gapirish (tavsiya)</option><option value="0">Avtomatik (o'zi eshitadi, quloqchin kerak)</option><option value="2">Qo'lda signal (tajribaviy)</option></select>
  <button id="conn">Ulanish</button><button id="stop" disabled>To'xtatish</button>
  <p class="s" id="status">Ulanmagan</p>
 </div>
 <div class="card"><button id="talk" disabled>🎤 Bosib turing va gapiring</button>
- <p class="s" id="lat"></p><p class="s" id="usage"></p></div>
+ <div style="background:#e4eceb;border-radius:8px;height:10px;margin-top:10px"><div id="lvl" style="background:#15803d;height:10px;width:0%;border-radius:8px"></div></div>
+ <p class="s">Mikrofon darajasi (gapirganda yashil chiziq o'sishi kerak)</p>
+ <p class="s" id="lat"></p><p class="s" id="usage"></p><p class="s" id="diag"></p>
+ <label>Mikrofonsiz sinov: matn yozib yuboring (javob ovozda chiqsa, model va ovoz ishlayapti)</label>
+ <input id="txt" style="width:100%;padding:8px;font-size:15px;box-sizing:border-box" value="Assalomu alaykum buvi, ahvollaringiz qanday?">
+ <button id="sendtxt" disabled>Matnni yuborish</button></div>
 <div class="card"><b>Suhbat</b><div id="log"></div></div>
 <script>
 const token=new URLSearchParams(location.search).get('token')||'';
@@ -185,7 +220,7 @@ fetch('/live_models?token='+encodeURIComponent(token)).then(r=>{if(!r.ok)throw n
  .then(l=>{$('model').innerHTML=l.map(m=>`<option>${m}</option>`).join('');const i=l.findIndex(m=>m.includes('3.8')&&m.includes('live'));if(i>=0)$('model').selectedIndex=i;})
  .catch(e=>{$('model').innerHTML='<option value="">model roʻyxati yuklanmadi: '+e+'</option>';});
 let ws=null,mic=null,actx=null,node=null,pctx=null,nextT=0,sending=false,tEnd=0,waitFirst=false,srcs=[],cur=null;
-let rbuf=[],pos=0;
+let rbuf=[],pos=0,bytesSent=0,bytesRecv=0,srvStats='';
 const status=t=>$('status').textContent=t;
 function line(cls,t){cur=document.createElement('div');cur.innerHTML=`<span class="${cls==='n'?'n':'p'}">${cls==='n'?'Hamshira':'Bemor'}:</span> <span class="t"></span>`;$('log').appendChild(cur);cur.dataset.k=cls;}
 function addText(cls,t){if(!cur||cur.dataset.k!==cls)line(cls);cur.querySelector('.t').textContent+=t;}
@@ -197,12 +232,14 @@ function playPcm(buf){
  if(waitFirst){waitFirst=false;$('lat').textContent='Birinchi ovozgacha: '+((performance.now()-tEnd)/1000).toFixed(1)+' s (tugmani qo’yib yuborganingizdan)';}
 }
 function stopPlay(){srcs.forEach(s=>{try{s.stop();}catch(e){}});srcs=[];nextT=0;}
+function diag(){$('diag').textContent='Yuborilgan ovoz: '+(bytesSent/1024).toFixed(0)+' KB · Qabul qilingan ovoz: '+(bytesRecv/1024).toFixed(0)+' KB'+srvStats;}
 function sendPcm(f32,rate){
+ let sum=0;for(const v of f32)sum+=v*v;$('lvl').style.width=Math.min(100,Math.sqrt(sum/f32.length)*600)+'%';
  for(const v of f32)rbuf.push(v);
  const ratio=rate/16000,out=[];
  while(pos+1<rbuf.length){const i=Math.floor(pos),fr=pos-i;out.push(rbuf[i]*(1-fr)+rbuf[i+1]*fr);pos+=ratio;}
  const drop=Math.floor(pos);rbuf=rbuf.slice(drop);pos-=drop;
- if(out.length&&ws&&ws.readyState===1&&sending){const i16=new Int16Array(out.length);for(let i=0;i<out.length;i++)i16[i]=Math.max(-1,Math.min(1,out[i]))*32767;ws.send(i16.buffer);}
+ if(out.length&&ws&&ws.readyState===1&&sending){const i16=new Int16Array(out.length);for(let i=0;i<out.length;i++)i16[i]=Math.max(-1,Math.min(1,out[i]))*32767;ws.send(i16.buffer);bytesSent+=i16.buffer.byteLength;diag();}
 }
 const WORKLET='class Cap extends AudioWorkletProcessor{process(inputs){const c=inputs[0][0];if(c)this.port.postMessage(c.slice(0));return true;}}registerProcessor("cap",Cap);';
 async function connect(){
@@ -210,17 +247,19 @@ async function connect(){
  try{
   pctx=new AudioContext({sampleRate:24000});
   mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,channelCount:1}});
-  actx=new AudioContext();await actx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET],{type:'application/javascript'})));
+  actx=new AudioContext();await actx.resume();await pctx.resume();await actx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET],{type:'application/javascript'})));
   node=new AudioWorkletNode(actx,'cap');node.port.onmessage=e=>sendPcm(e.data,actx.sampleRate);
   const src=actx.createMediaStreamSource(mic);const mute=actx.createGain();mute.gain.value=0;src.connect(node);node.connect(mute);mute.connect(actx.destination);
  }catch(e){status('Mikrofon xatosi: '+e);$('conn').disabled=false;return;}
- const ptt=$('mode').value==='1';
- const u=(location.protocol==='https:'?'wss':'ws')+'://'+location.host+'/live_ws?token='+encodeURIComponent(token)+'&patient='+$('patient').value+'&model='+encodeURIComponent($('model').value)+'&voice='+$('voice').value+'&ptt='+(ptt?1:0);
+ const mode=$('mode').value,ptt=mode!=='0';
+ const u=(location.protocol==='https:'?'wss':'ws')+'://'+location.host+'/live_ws?token='+encodeURIComponent(token)+'&patient='+$('patient').value+'&model='+encodeURIComponent($('model').value)+'&voice='+$('voice').value+'&ptt='+mode;
  ws=new WebSocket(u);ws.binaryType='arraybuffer';
  ws.onmessage=ev=>{
-  if(typeof ev.data!=='string'){playPcm(ev.data);return;}
+  if(typeof ev.data!=='string'){bytesRecv+=ev.data.byteLength;diag();playPcm(ev.data);return;}
   const m=JSON.parse(ev.data);
-  if(m.type==='ready'){status('Ulandi. '+(ptt?'Tugmani bosib turib gapiring.':'Gapiravering.'));$('talk').disabled=!ptt;$('stop').disabled=false;if(!ptt){sending=true;}}
+  if(m.type==='ready'){status('Ulandi. '+(ptt?'Tugmani bosib turib gapiring.':'Gapiravering.'));$('talk').disabled=!ptt;$('sendtxt').disabled=false;$('stop').disabled=false;if(!ptt){sending=true;}}
+  else if(m.type==='setup'){status('Model sozlandi (setup). Gapiring.');}
+  else if(m.type==='stats'){srvStats=' · Server: kirgan ovoz '+(m.in_audio_bytes/1024).toFixed(0)+' KB, hodisalar '+JSON.stringify(m.events);diag();}
   else if(m.type==='in')addText('n',m.text);
   else if(m.type==='out')addText('p',m.text);
   else if(m.type==='interrupted'){stopPlay();}
@@ -229,13 +268,14 @@ async function connect(){
   else if(m.type==='error'){status('Xato: '+m.message);}
   else if(m.type==='go_away'){status('Server sessiyani yopmoqda');}
  };
- ws.onclose=()=>{status('Ulanish yopildi');$('talk').disabled=true;$('stop').disabled=true;$('conn').disabled=false;sending=false;};
+ ws.onclose=()=>{status('Ulanish yopildi');$('talk').disabled=true;$('sendtxt').disabled=true;$('stop').disabled=true;$('conn').disabled=false;sending=false;};
  ws.onerror=()=>status('WebSocket xatosi');
 }
-function pttStart(e){e.preventDefault();if(!ws||ws.readyState!==1)return;stopPlay();sending=true;ws.send(JSON.stringify({type:'start'}));$('talk').textContent='🔴 Gapiring… (qo’yib yuboring)';}
-function pttEnd(e){e.preventDefault();if(!sending||!ws)return;sending=false;setTimeout(()=>{ws.send(JSON.stringify({type:'end'}));tEnd=performance.now();waitFirst=true;},150);$('talk').textContent='🎤 Bosib turing va gapiring';}
+function pttStart(e){e.preventDefault();if(!ws||ws.readyState!==1)return;stopPlay();sending=true;if($('mode').value==='2')ws.send(JSON.stringify({type:'start'}));$('talk').textContent='🔴 Gapiring… (qo’yib yuboring)';}
+function pttEnd(e){e.preventDefault();if(!sending||!ws)return;sending=false;setTimeout(()=>{if($('mode').value==='2'){ws.send(JSON.stringify({type:'end'}));}else{ws.send(new Int16Array(12800).buffer);ws.send(JSON.stringify({type:'flush'}));}tEnd=performance.now();waitFirst=true;},150);$('talk').textContent='🎤 Bosib turing va gapiring';}
 const tb=$('talk');['mousedown','touchstart'].forEach(n=>tb.addEventListener(n,pttStart));['mouseup','mouseleave','touchend','touchcancel'].forEach(n=>tb.addEventListener(n,pttEnd));
 $('conn').onclick=connect;
+$('sendtxt').onclick=()=>{if(!ws||ws.readyState!==1)return;stopPlay();addText('n',$('txt').value);cur=null;ws.send(JSON.stringify({type:'text',text:$('txt').value}));tEnd=performance.now();waitFirst=true;};
 $('stop').onclick=()=>{if(ws){try{ws.send(JSON.stringify({type:'close'}));ws.close();}catch(e){}}stopPlay();if(mic)mic.getTracks().forEach(t=>t.stop());if(actx)actx.close();status('To’xtatildi');};
 </script></body></html>"""
 

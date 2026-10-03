@@ -31,8 +31,22 @@ STYLE = {
 LIVE_RULES = (
     "\n\nOVOZLI SUHBAT: faqat o'zbek tilida gapir. Butun suhbat davomida aynan bir xil ovoz, ohang va tezlikda gapir. "
     "Faqat bemor rolida, juda qisqa (1-2 gap) javob ber. Hech qachon 'Bemor:' deb yozma va o'zingni AI deb aytma. "
+    "Senariyda yo'q ma'lumotni o'zingdan to'qima: bilmasang 'bilmayman' de. Medsestra gapi tushunarsiz bo'lsa, qisqa qilib qaytadan so'ra. "
 )
+VOCAB = ["assalomu alaykum", "qandli diabet", "qon bosimi", "shifokor", "dori", "ukol", "homilador", "bosh og'rig'i",
+         "qand", "insulin", "temperatura", "tomir urishi", "ahvolingiz qanday", "yurak", "oyoq", "qorin"]
 MAX_SESSION_S = 600
+
+
+class _Wrap:
+    def __init__(self, cm, session):
+        self.cm, self.session = cm, session
+
+    async def __aenter__(self):
+        return self.session
+
+    async def __aexit__(self, *a):
+        return await self.cm.__aexit__(*a)
 
 
 def _check(token: str):
@@ -58,7 +72,7 @@ async def live_models(token: str = ""):
     return out
 
 
-def build_config(patient_id: str, voice: str, ptt: int) -> types.LiveConnectConfig:
+def build_config(patient_id: str, voice: str, ptt: int, hints: bool = True) -> types.LiveConnectConfig:
     p = PATIENTS[patient_id]
     voice = voice if voice in VOICES else DEFAULT_VOICE.get(patient_id, "Kore")
     system = p.system_prompt() + LIVE_RULES + STYLE.get(patient_id, "")
@@ -67,7 +81,8 @@ def build_config(patient_id: str, voice: str, ptt: int) -> types.LiveConnectConf
         speech_config=types.SpeechConfig(
             voice_config=types.VoiceConfig(prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice))),
         system_instruction=system,
-        input_audio_transcription=types.AudioTranscriptionConfig(),
+        input_audio_transcription=(types.AudioTranscriptionConfig(language_codes=["uz-UZ"], custom_vocabulary=VOCAB)
+                                   if hints else types.AudioTranscriptionConfig()),
         output_audio_transcription=types.AudioTranscriptionConfig(),
         realtime_input_config=types.RealtimeInputConfig(
             automatic_activity_detection=(
@@ -88,7 +103,15 @@ async def live_ws(ws: WebSocket, token: str = "", patient: str = "buvi", model: 
         return
     client = genai.Client(api_key=settings.gemini_api_key)
     try:
-        async with client.aio.live.connect(model=model, config=build_config(patient, voice, ptt)) as session:
+        cm = client.aio.live.connect(model=model, config=build_config(patient, voice, ptt))
+        try:
+            session = await cm.__aenter__()
+        except Exception as e:
+            log.warning("live: til sozlamalari rad etildi (%s), ularsiz qayta ulanyapman", e)
+            await ws.send_json({"type": "note", "message": "Til sozlamalari qabul qilinmadi, ularsiz ulandi"})
+            cm = client.aio.live.connect(model=model, config=build_config(patient, voice, ptt, hints=False))
+            session = await cm.__aenter__()
+        async with _Wrap(cm, session):
             await ws.send_json({"type": "ready"})
             stats = {"in_audio_bytes": 0, "out_audio_bytes": 0, "events": {}}
 
@@ -272,6 +295,7 @@ async function connect(){
   else if(m.type==='turn_complete'){cur=null;}
   else if(m.type==='usage')$('usage').textContent='Tokenlar: kirish '+m.prompt+' · chiqish '+m.response+' · o’ylash '+(m.thoughts||0)+' · jami '+m.total+' · keshdan '+(m.cached||0)+' | kirish turlari '+JSON.stringify(m.prompt_by||{})+' | chiqish turlari '+JSON.stringify(m.response_by||{});
   else if(m.type==='error'){status('Xato: '+m.message);}
+  else if(m.type==='note'){status(m.message);}
   else if(m.type==='go_away'){status('Server sessiyani yopmoqda');}
  };
  ws.onclose=()=>{status('Ulanish yopildi');$('talk').disabled=true;$('sendtxt').disabled=true;$('stop').disabled=true;$('conn').disabled=false;sending=false;};

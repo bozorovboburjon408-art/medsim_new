@@ -127,9 +127,6 @@ async def _gemini(text: str, p: Patient) -> bytes:
     voice = p.gemini_voice or "Aoede"
     
     body = {
-        "systemInstruction": {
-            "parts": [{"text": "You are a pure text-to-speech engine. Read the user's text exactly as provided, with a consistent, calm, and steady rhythm. Do not read any instructions, do not add any intro words or emotions, just output the audio of the text."}]
-        },
         "contents": [{"role": "user", "parts": [{"text": text}]}],
         "generationConfig": {
             "responseModalities": ["AUDIO"],

@@ -209,13 +209,6 @@ fun SettingsDialog(server: String, model: String, tts: String, onDismiss: () -> 
                         FilterChip(mdl == id, { mdl = id }, { Text(label) }, modifier = Modifier.padding(end = 8.dp))
                     }
                 }
-                Spacer(Modifier.height(10.dp))
-                Text("Ovoz (sinov uchun)", style = MaterialTheme.typography.labelLarge)
-                Row {
-                    listOf("" to "Avto", "edge" to "Edge (oddiy)", "gemini" to "Gemini (jonli)").forEach { (id, label) ->
-                        FilterChip(tt == id, { tt = id }, { Text(label) }, modifier = Modifier.padding(end = 8.dp))
-                    }
-                }
             }
         },
         confirmButton = { Button({ onSave(text, mdl, tt) }) { Text("Saqlash") } },

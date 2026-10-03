@@ -26,7 +26,7 @@ class ChatRequest(BaseModel):
     patient_id: str
     history: list[Turn]  # oxirgisi hamshiraning yangi gapi bo'lishi kerak
     model: str | None = None  # ixtiyoriy: shu model birinchi sinaladi
-    tts: str | None = None  # ixtiyoriy: 'edge' | 'gemini' | 'azure'
+    tts: str | None = None  # eski ilovalar yuboradi; e'tiborga olinmaydi (ovoz doim Edge)
 
 
 class ChatResponse(BaseModel):
@@ -55,7 +55,7 @@ async def chat(req: ChatRequest):
         raise HTTPException(502, f"AI xatosi: {e}"[:400])
     t1 = time.perf_counter()
     try:
-        audio, _fmt, _used = await tts.synthesize(text, p)
+        audio, _used = await tts.synthesize(text, p)
     except Exception as e:
         raise HTTPException(502, f"Ovoz (TTS) xatosi: {e} | javob: {text}"[:400])
     t2 = time.perf_counter()
@@ -79,133 +79,12 @@ async def chat_stream(req: ChatRequest):
         t0 = time.perf_counter()
         info: dict = {}
 
-        wanted = req.tts or settings.tts_provider
-        use_gemini = wanted == "gemini" and tts.gemini_budget_ok()
-        gem_off = wanted == "gemini" and not use_gemini  # Gemini ovozi qimmat: o'chiq yoki limit tugagan
-        prov = "edge" if gem_off else req.tts
-
-        if use_gemini:
-            # Gemini ovozi: javob to'liq yoziladi, so'ng butun matn bitta oqimli so'rovda ovozlashtiriladi
-            # (bir ohang, birinchi bo'lak ~0.5 s da keladi); bo'laklar darrov ilovaga uzatiladi.
-            try:
-                async def collect():
-                    return [s async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model)]
-                sents = await asyncio.wait_for(collect(), timeout=22)
-            except asyncio.TimeoutError:
-                yield json.dumps({"error": "AI vaqtida javob bermadi, qayta urinib ko'ring"}) + "\n"
-                return
-            except Exception as e:
-                yield json.dumps({"error": f"AI xatosi: {e}"[:400]}) + "\n"
-                return
-            if not sents:
-                yield json.dumps({"error": "AI bo'sh javob qaytardi"}) + "\n"
-                return
-            full = " ".join(sents)
-            t_llm = int((time.perf_counter() - t0) * 1000)
-            t_tts0 = time.perf_counter()
-            first = True
-            try:
-                total_pcm = 0
-                async for pcm in tts.gemini_stream(full, p):
-                    total_pcm += len(pcm)
-                    tts_ms = int((time.perf_counter() - t_tts0) * 1000) if first else 0
-                    if first:
-                        log.info("gemini-stream patient=%s llm=%dms first_chunk=%dms model=%s",
-                                 p.id, t_llm, tts_ms, info.get("model", ""))
-                    yield json.dumps({
-                        "pcm_b64": base64.b64encode(pcm).decode(), "rate": 24000,
-                        "text": full if first else "", "ms": int((time.perf_counter() - t0) * 1000),
-                        "llm_ms": t_llm, "tts_ms": tts_ms, "tts": "gemini-stream",
-                        "model": info.get("model", ""), "usage": info.get("usage", ""), "tries": ", ".join(info.get("tries", [])),
-                    }) + "\n"
-                    first = False
-                # Juda qisqa/bo'sh ovoz (jim qolish): shu matn Edge bilan aytiladi
-                if total_pcm / 48000 >= max(0.6, len(full) * 0.03):
-                    return
-                log.warning("Gemini TTS ovozi juda qisqa (%.2fs, matn %d belgi): Edge zaxirasi", total_pcm / 48000, len(full))
-                audio = await tts._edge(full, p)
-                yield json.dumps({
-                    "text": "" if not first else full, "audio_b64": base64.b64encode(audio).decode(), "fmt": "mp3",
-                    "ms": int((time.perf_counter() - t0) * 1000), "llm_ms": t_llm, "tts_ms": 0,
-                    "tts": "edge (Gemini jim)", "model": info.get("model", ""), "usage": info.get("usage", ""),
-                    "tries": ", ".join(info.get("tries", [])),
-                }) + "\n"
-                return
-            except Exception as e:
-                if not first:  # ovoz yarmigacha chalingan: Edge'ga o'tib bo'lmaydi
-                    yield json.dumps({"error": f"Ovoz oqimi uzildi: {e}"[:400]}) + "\n"
-                    return
-                log.warning("Gemini TTS oqimi xato, Edge'ga o'tildi: %s", e)
-            try:  # zaxira: Edge
-                audio = await tts._edge(full, p)
-                yield json.dumps({
-                    "text": full, "audio_b64": base64.b64encode(audio).decode(), "fmt": "mp3",
-                    "ms": int((time.perf_counter() - t0) * 1000), "llm_ms": t_llm,
-                    "tts_ms": int((time.perf_counter() - t_tts0) * 1000), "tts": "edge (gemini xato)",
-                    "model": info.get("model", ""), "usage": info.get("usage", ""), "tries": ", ".join(info.get("tries", [])),
-                }) + "\n"
-            except Exception as e:
-                yield json.dumps({"error": f"Ovoz (TTS) xatosi: {e}"[:400]}) + "\n"
-            return
-
-        vl_cfg = tts.voicelab_cfg(p.id) if wanted == "voicelab" else {}
-        if vl_cfg.get("voice_id"):
-            # VoiceLab oqimi: bitta ochiq WebSocket, har gap tayyor bo'lishi bilan ovozlashtiriladi
-            # (ulanish AI javob yozayotgan paytda parallel ochiladi). Xatoda Edge'ga o'tiladi.
-            open_task = asyncio.create_task(tts.voicelab_open())
-            ws, rate, vl_ok = None, 24000, True
-            try:
-                async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model):
-                    t_llm = int((time.perf_counter() - t0) * 1000)
-                    got_first = False
-                    if vl_ok:
-                        try:
-                            if ws is None:
-                                ws, rate = await open_task
-                            t_s = time.perf_counter()
-                            async for pcm in tts.voicelab_synth(ws, s, vl_cfg["voice_id"], vl_cfg.get("speed")):
-                                yield json.dumps({
-                                    "pcm_b64": base64.b64encode(pcm).decode(), "rate": rate,
-                                    "text": s if not got_first else "", "ms": int((time.perf_counter() - t0) * 1000),
-                                    "llm_ms": t_llm, "tts_ms": int((time.perf_counter() - t_s) * 1000) if not got_first else 0,
-                                    "tts": "voicelab-stream", "model": info.get("model", ""),
-                                    "usage": info.get("usage", ""), "tries": ", ".join(info.get("tries", [])),
-                                }) + "\n"
-                                got_first = True
-                            if got_first:
-                                continue
-                            raise RuntimeError("VoiceLab audio qaytarmadi")
-                        except Exception as e:
-                            if got_first:  # gap yarmida uzildi: Edge'ga o'tib bo'lmaydi
-                                yield json.dumps({"error": f"Ovoz oqimi uzildi: {e}"[:400]}) + "\n"
-                                return
-                            vl_ok = False
-                            log.warning("VoiceLab oqimi xato, Edge'ga o'tildi: %s", e)
-                    t_e = time.perf_counter()
-                    audio, fmt, _used = await tts.synthesize(s, p, "edge")
-                    yield json.dumps({
-                        "text": s, "audio_b64": base64.b64encode(audio).decode(), "fmt": fmt,
-                        "ms": int((time.perf_counter() - t0) * 1000), "llm_ms": t_llm,
-                        "tts_ms": int((time.perf_counter() - t_e) * 1000), "tts": "edge (VoiceLab xato)",
-                        "model": info.get("model", ""), "usage": info.get("usage", ""),
-                        "tries": ", ".join(info.get("tries", [])),
-                    }) + "\n"
-            except Exception as e:
-                yield json.dumps({"error": f"AI xatosi: {e}"[:400]}) + "\n"
-            finally:
-                open_task.cancel()
-                if ws is not None:
-                    await ws.close()
-            return
-
         q: asyncio.Queue = asyncio.Queue()
 
         async def synth(s: str, t_llm: int):
             t = time.perf_counter()
-            audio, fmt, used = await tts.synthesize(s, p, prov)
-            if gem_off:
-                used += " (Gemini o'chiq)"
-            return s, audio, fmt, used, t_llm, int((time.perf_counter() - t) * 1000)
+            audio, used = await tts.synthesize(s, p)
+            return s, audio, "mp3", used, t_llm, int((time.perf_counter() - t) * 1000)
 
         async def producer():
             try:
@@ -262,14 +141,6 @@ async def evaluate(req: EvalRequest):
         raise HTTPException(502, f"Baholash xatosi: {e}"[:400])
 
 
-@app.get("/tts_test")
-async def tts_test(token: str = "", text: str = "Assalomu alaykum, qizim. Kelganing yaxshi bo'ldi, oxirgi paytlarda juda holsizlanib qolayapman."):
-    """Ovoz tezligini o'lchash (faqat DEBUG_TOKEN sozlangan bo'lsa)."""
-    if not settings.debug_token or token != settings.debug_token:
-        raise HTTPException(403, "Ruxsat yo'q")
-    return await tts.benchmark(text[:300])
-
-
 VOICES = ("uz-UZ-MadinaNeural", "uz-UZ-SardorNeural")
 SAMPLES = {
     "buvi": "Og'zim tinmay qurib, suv ichganim-ichgan. Kechasi bilan hojatxonaga qatnayman, uyqu yo'q. Oyoqlarim ham uvishib, muzlaydi.",
@@ -284,33 +155,13 @@ def _check_token(token: str):
 
 
 @app.get("/voice_demo")
-async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", rate: str = "", pitch: str = "", text: str = "",
-                     provider: str = "edge", gvoice: str = "", style: str = "", vid: str = "", speed: str = ""):
-    """Ovozni eshittiradi (sozlash uchun): Edge (bepul) yoki Gemini (pullik, kunlik limitga kiradi)."""
+async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", rate: str = "", pitch: str = "", text: str = ""):
+    """Edge ovozini berilgan tezlik/ohang bilan eshittiradi (ovozni sozlash uchun)."""
     _check_token(token)
     import edge_tts
     p = PATIENTS.get(patient)
     if not p:
         raise HTTPException(404, "Bemor topilmadi")
-    if provider == "voicelab":
-        try:
-            try:
-                spd = float(speed) if speed else None
-            except ValueError:
-                spd = None
-            audio, ct = await tts.voicelab_tts(text[:300] or SAMPLES.get(patient, "Assalomu alaykum."), vid, spd)
-        except Exception as e:
-            raise HTTPException(502, f"VoiceLab xatosi: {e}"[:500])
-        return Response(audio, media_type=ct)
-    if provider == "gemini":
-        if not tts.gemini_budget_ok():
-            raise HTTPException(429, "Gemini ovozi o'chiq yoki kunlik limit tugagan")
-        try:
-            wav = await tts.gemini_once(text[:300] or SAMPLES.get(patient, "Assalomu alaykum."),
-                                        gvoice or p.gemini_voice, style or p.tts_style)
-        except Exception as e:
-            raise HTTPException(502, f"Gemini ovoz xatosi: {e}"[:300])
-        return Response(wav, media_type="audio/wav")
     v = voice if voice in VOICES else p.voice
     r = rate if re.fullmatch(r"[+-]\d{1,3}%", rate) else p.rate
     pt = pitch if re.fullmatch(r"[+-]\d{1,3}Hz", pitch) else p.pitch
@@ -332,8 +183,7 @@ code{background:#e4eceb;padding:2px 6px;border-radius:6px}</style></head><body>
 <h1>Ovoz laboratoriyasi (Edge)</h1><p>Chizg'ichlarni suring va "Tinglash" ni bosing. Yoqqan qiymatlarni menga yozing.</p><div id="c"></div>
 <script>
 const token=new URLSearchParams(location.search).get('token')||'';
-const P=__DATA__;const G=__VOICES__;
-const VOICES=fetch('/voicelab_voice_list?token='+encodeURIComponent(token)).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
+const P=__DATA__;
 const box=document.getElementById('c');
 for(const [id,d] of Object.entries(P)){
  const r=parseInt(d.rate), pt=parseInt(d.pitch);
@@ -342,18 +192,7 @@ for(const [id,d] of Object.entries(P)){
  <label>Tezlik: <span class="rv">${r}</span>%</label><input class="r" type="range" min="-50" max="50" value="${r}">
  <label>Ohang (balandlik): <span class="pv">${pt}</span> Hz</label><input class="p" type="range" min="-60" max="90" value="${pt}">
  <label>Matn</label><textarea class="t" rows="3">${d.sample}</textarea>
- <button>▶ Tinglash (Edge, bepul)</button><p>Qiymat: <code class="o"></code></p>
- <hr><b>Gemini (pullik, ~4 sent)</b>
- <label>Gemini ovozi</label><select class="gv">${G.map(n=>`<option ${n===d.gvoice?'selected':''}>${n}</option>`).join('')}</select>
- <label>Xarakter tavsifi (inglizcha)</label><textarea class="gs" rows="3">${d.gstyle}</textarea>
- <button class="gb" style="background:#7c3aed">▶ Gemini bilan tinglash</button>
- <hr><b>VoiceLab (o'zbekcha)</b> — <a href="/voicelab_voices?token=${token}" target="_blank">ovozlar ro'yxati</a>
- <label>Ovoz (VoiceLab ro'yxatidan)</label><select class="vsel"><option value="">yuklanmoqda…</option></select>
- <label>voice_id (tanlanganda o'zi to'ladi)</label><input class="vid" style="width:100%;padding:6px;box-sizing:border-box">
- <label>Tezlik (speed): <span class="sv">1.0</span></label><input class="sp" type="range" min="0.5" max="2" step="0.05" value="1">
- <p>Render uchun: <code class="vo"></code></p>
- <button class="vb" style="background:#0369a1">▶ VoiceLab bilan tinglash</button>
- <audio controls style="width:100%"></audio></div>`);
+ <button>▶ Tinglash</button><p>Qiymat: <code class="o"></code></p><audio controls style="width:100%"></audio></div>`);
 }
 document.querySelectorAll('.card').forEach(c=>{
  const v=c.querySelector('.v'),r=c.querySelector('.r'),p=c.querySelector('.p'),t=c.querySelector('.t'),a=c.querySelector('audio');
@@ -361,54 +200,19 @@ document.querySelectorAll('.card').forEach(c=>{
  const upd=()=>{c.querySelector('.rv').textContent=r.value;c.querySelector('.pv').textContent=p.value;
   c.querySelector('.o').textContent=`${c.id}: ${v.value.split('-')[2]}, tezlik ${sg(+r.value)}%, ohang ${sg(+p.value)}Hz`;};
  [v,r,p].forEach(e=>e.oninput=upd);upd();
- c.querySelector('.sp').oninput=e=>{c.querySelector('.sv').textContent=e.target.value;};
  c.querySelector('button').onclick=()=>{
   const q=new URLSearchParams({token,patient:c.id,voice:v.value,rate:sg(+r.value)+'%',pitch:sg(+p.value)+'Hz',text:t.value});
-  a.src='/voice_demo?'+q.toString();a.play();};
- const vsel=c.querySelector('.vsel'),vid=c.querySelector('.vid');
- vsel.onchange=()=>{vid.value=vsel.value;};
- VOICES.then(list=>{
-  vsel.innerHTML='<option value="">— ovozni tanlang —</option>'+list.map(v=>`<option value="${v.id}">${v.name} — ${v.desc}</option>`).join('');
- }).catch(e=>{vsel.innerHTML='<option value="">royxat yuklanmadi: '+e+'</option>';});
- c.querySelector('.vb').onclick=()=>{
-  const vid=c.querySelector('.vid').value,spd=c.querySelector('.sp').value;
-  c.querySelector('.sv').textContent=spd;
-  c.querySelector('.vo').textContent=`"${c.id}":{"voice_id":"${vid}","speed":${spd}}`;
-  const q=new URLSearchParams({token,patient:c.id,provider:'voicelab',vid,speed:spd,text:t.value});
-  a.src='/voice_demo?'+q.toString();a.play();};
- c.querySelector('.gb').onclick=()=>{
-  const q=new URLSearchParams({token,patient:c.id,provider:'gemini',gvoice:c.querySelector('.gv').value,style:c.querySelector('.gs').value,text:t.value});
   a.src='/voice_demo?'+q.toString();a.play();};
 });
 </script></body></html>"""
 
 
-@app.get("/voicelab_voice_list")
-async def voicelab_voice_list(token: str = ""):
-    _check_token(token)
-    try:
-        return await tts.voicelab_voice_list()
-    except Exception as e:
-        raise HTTPException(502, f"VoiceLab xatosi: {e}"[:400])
-
-
-@app.get("/voicelab_voices")
-async def voicelab_voices(token: str = ""):
-    """VoiceLab ovozlari ro'yxatining xom javobi (voice_id larni topish uchun)."""
-    _check_token(token)
-    try:
-        return Response(await tts.voicelab_voices(), media_type="text/plain; charset=utf-8")
-    except Exception as e:
-        raise HTTPException(502, f"VoiceLab xatosi: {e}"[:500])
-
-
 @app.get("/voice_lab", response_class=HTMLResponse)
 async def voice_lab(token: str = ""):
     _check_token(token)
-    data = {pid: {"title": p.title, "voice": p.voice, "rate": p.rate, "pitch": p.pitch, "sample": SAMPLES.get(pid, ""),
-                "gvoice": p.gemini_voice, "gstyle": p.tts_style}
+    data = {pid: {"title": p.title, "voice": p.voice, "rate": p.rate, "pitch": p.pitch, "sample": SAMPLES.get(pid, "")}
             for pid, p in PATIENTS.items()}
-    return _LAB.replace("__DATA__", json.dumps(data, ensure_ascii=False)).replace("__VOICES__", json.dumps(tts.GEMINI_VOICES))
+    return _LAB.replace("__DATA__", json.dumps(data, ensure_ascii=False))
 
 
 @app.get("/models")

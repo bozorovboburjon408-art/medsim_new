@@ -221,13 +221,23 @@ def _check_token(token: str):
 
 
 @app.get("/voice_demo")
-async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", rate: str = "", pitch: str = "", text: str = ""):
-    """Edge ovozini berilgan tezlik/ohang bilan eshittiradi (sozlash uchun)."""
+async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", rate: str = "", pitch: str = "", text: str = "",
+                     provider: str = "edge", gvoice: str = "", style: str = ""):
+    """Ovozni eshittiradi (sozlash uchun): Edge (bepul) yoki Gemini (pullik, kunlik limitga kiradi)."""
     _check_token(token)
     import edge_tts
     p = PATIENTS.get(patient)
     if not p:
         raise HTTPException(404, "Bemor topilmadi")
+    if provider == "gemini":
+        if not tts.gemini_budget_ok():
+            raise HTTPException(429, "Gemini ovozi o'chiq yoki kunlik limit tugagan")
+        try:
+            wav = await tts.gemini_once(text[:300] or SAMPLES.get(patient, "Assalomu alaykum."),
+                                        gvoice or p.gemini_voice, style or p.tts_style)
+        except Exception as e:
+            raise HTTPException(502, f"Gemini ovoz xatosi: {e}"[:300])
+        return Response(wav, media_type="audio/wav")
     v = voice if voice in VOICES else p.voice
     r = rate if re.fullmatch(r"[+-]\d{1,3}%", rate) else p.rate
     pt = pitch if re.fullmatch(r"[+-]\d{1,3}Hz", pitch) else p.pitch
@@ -249,7 +259,7 @@ code{background:#e4eceb;padding:2px 6px;border-radius:6px}</style></head><body>
 <h1>Ovoz laboratoriyasi (Edge)</h1><p>Chizg'ichlarni suring va "Tinglash" ni bosing. Yoqqan qiymatlarni menga yozing.</p><div id="c"></div>
 <script>
 const token=new URLSearchParams(location.search).get('token')||'';
-const P=__DATA__;
+const P=__DATA__;const G=__VOICES__;
 const box=document.getElementById('c');
 for(const [id,d] of Object.entries(P)){
  const r=parseInt(d.rate), pt=parseInt(d.pitch);
@@ -258,7 +268,12 @@ for(const [id,d] of Object.entries(P)){
  <label>Tezlik: <span class="rv">${r}</span>%</label><input class="r" type="range" min="-50" max="50" value="${r}">
  <label>Ohang (balandlik): <span class="pv">${pt}</span> Hz</label><input class="p" type="range" min="-60" max="90" value="${pt}">
  <label>Matn</label><textarea class="t" rows="3">${d.sample}</textarea>
- <button>▶ Tinglash</button><p>Qiymat: <code class="o"></code></p><audio controls style="width:100%"></audio></div>`);
+ <button>▶ Tinglash (Edge, bepul)</button><p>Qiymat: <code class="o"></code></p>
+ <hr><b>Gemini (pullik, ~4 sent)</b>
+ <label>Gemini ovozi</label><select class="gv">${G.map(n=>`<option ${n===d.gvoice?'selected':''}>${n}</option>`).join('')}</select>
+ <label>Xarakter tavsifi (inglizcha)</label><textarea class="gs" rows="3">${d.gstyle}</textarea>
+ <button class="gb" style="background:#7c3aed">▶ Gemini bilan tinglash</button>
+ <audio controls style="width:100%"></audio></div>`);
 }
 document.querySelectorAll('.card').forEach(c=>{
  const v=c.querySelector('.v'),r=c.querySelector('.r'),p=c.querySelector('.p'),t=c.querySelector('.t'),a=c.querySelector('audio');
@@ -269,6 +284,9 @@ document.querySelectorAll('.card').forEach(c=>{
  c.querySelector('button').onclick=()=>{
   const q=new URLSearchParams({token,patient:c.id,voice:v.value,rate:sg(+r.value)+'%',pitch:sg(+p.value)+'Hz',text:t.value});
   a.src='/voice_demo?'+q.toString();a.play();};
+ c.querySelector('.gb').onclick=()=>{
+  const q=new URLSearchParams({token,patient:c.id,provider:'gemini',gvoice:c.querySelector('.gv').value,style:c.querySelector('.gs').value,text:t.value});
+  a.src='/voice_demo?'+q.toString();a.play();};
 });
 </script></body></html>"""
 
@@ -276,9 +294,10 @@ document.querySelectorAll('.card').forEach(c=>{
 @app.get("/voice_lab", response_class=HTMLResponse)
 async def voice_lab(token: str = ""):
     _check_token(token)
-    data = {pid: {"title": p.title, "voice": p.voice, "rate": p.rate, "pitch": p.pitch, "sample": SAMPLES.get(pid, "")}
+    data = {pid: {"title": p.title, "voice": p.voice, "rate": p.rate, "pitch": p.pitch, "sample": SAMPLES.get(pid, ""),
+                "gvoice": p.gemini_voice, "gstyle": p.tts_style}
             for pid, p in PATIENTS.items()}
-    return _LAB.replace("__DATA__", json.dumps(data, ensure_ascii=False))
+    return _LAB.replace("__DATA__", json.dumps(data, ensure_ascii=False)).replace("__VOICES__", json.dumps(tts.GEMINI_VOICES))
 
 
 @app.get("/models")

@@ -41,16 +41,16 @@ PATIENTS = {
                 "Salomat Xolmatova, 75 yoshli nafaqadagi buvi. Faqat o'zing gapirasan (kelining gapirmaydi). "
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan.",
                 "buvi.txt", gemini_voice="Gacrux",
-                tts_style="Say in Uzbek, in the weak, slow, gentle, warm voice of a 75-year-old grandmother, naturally and conversationally"),
+                tts_style="Salomat, a 75-year-old Uzbek grandmother. Weak, slightly husky, slow, warm and gentle elderly woman's voice, a little tired."),
         Patient("homilador", "Nilufar (32 haftalik homilador)", "uz-UZ-MadinaNeural", "-5%", "+0Hz",
                 "Nilufar Rahimova, 33 yoshli, 32 haftalik homilador ayol. Hamshirani 'hamshira opa' deb ataysan.",
                 "homilador.txt", gemini_voice="Kore",
-                tts_style="Say in Uzbek, in the tired but warm, natural conversational voice of a 33-year-old pregnant woman"),
+                tts_style="Nilufar, a 33-year-old Uzbek pregnant woman. Natural, warm, slightly tired adult woman's voice, calm conversational pace."),
         Patient("bola", "Jasurbek (5 yosh, gijja)", "uz-UZ-MadinaNeural", "+12%", "+55Hz",
                 "Jasurbek, 5 yoshli bola. Sen bolaning o'zisan: juda oddiy, qisqa (1-2 gap), bolalarcha so'zlar bilan gapir, "
                 "ba'zan injiqlik qil, tushunmasang 'nima?' deb so'ra. Murakkab tibbiy so'zlarni bilmaysan; "
                 "qichishish, qorin og'rig'i, uyqu yo'qligi haqida o'zingcha aytasan.",
                 "bola.txt", gemini_voice="Leda",
-                tts_style="Say in Uzbek, in the high, cute, slightly whiny voice of a 5-year-old child, with lively childlike intonation"),
+                tts_style="Jasurbek, a 5-year-old Uzbek boy. High, small, cute, slightly whiny child's voice with lively childlike intonation."),
     ]
 }

@@ -255,3 +255,56 @@ async def gemini_stream(text: str, p: Patient) -> AsyncIterator[bytes]:
         last = f"{model}: audio qaytmadi"
         _tts_bad[model] = time.monotonic() + 60
     raise RuntimeError(last)
+
+
+GEMINI_VOICES = [
+    "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede", "Callirrhoe", "Autonoe",
+    "Enceladus", "Iapetus", "Umbriel", "Algieba", "Despina", "Erinome", "Algenib", "Rasalgethi",
+    "Laomedeia", "Achernar", "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird",
+    "Zubenelgenubi", "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat",
+]
+
+
+def structured_prompt(text: str, style: str) -> str:
+    """Gemini TTS uchun tavsiya etilgan format: profil va ko'rsatmalar alohida, o'qiladigani faqat TRANSCRIPT."""
+    if not style.strip():
+        return text
+    return (
+        f"# AUDIO PROFILE\n{style.strip()}\n\n"
+        "### DIRECTOR'S NOTES\n"
+        "Keep exactly the same voice, pitch, pace and mood from the first word to the last. "
+        "Speak natural conversational Uzbek. Read ONLY the transcript below. "
+        "Never read the profile or these notes aloud.\n\n"
+        f"#### TRANSCRIPT\n{text}"
+    )
+
+
+async def gemini_once(text: str, voice: str, style: str = "", deterministic: bool = True) -> bytes:
+    """Sinov (laboratoriya) uchun: butun javobni bir so'rovda ovozlashtiradi, WAV qaytaradi."""
+    voice = voice if voice in GEMINI_VOICES else "Kore"
+    cfg = {
+        "responseModalities": ["AUDIO"],
+        "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}},
+    }
+    variants = [{**cfg, "temperature": 0.2, "seed": 7}, cfg] if deterministic else [cfg]
+    prompt = structured_prompt(clean_for_tts(text), style)
+    last = "model ro'yxati bo'sh"
+    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=40, write=5, pool=5)) as c:
+        for model in [m.strip() for m in settings.gemini_tts_models.split(",") if m.strip()]:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+            for gc in variants:
+                r = await c.post(url, json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": gc},
+                                 headers={"x-goog-api-key": settings.gemini_api_key})
+                if r.status_code == 400 and gc is not cfg:
+                    continue  # temperature/seed qabul qilinmadi: ularsiz urinib ko'ramiz
+                if r.status_code >= 400:
+                    last = f"{model}: {r.status_code} {r.text[:150]}"
+                    break
+                try:
+                    part = r.json()["candidates"][0]["content"]["parts"][0]["inlineData"]
+                    rate = int(part["mimeType"].split("rate=")[1].split(";")[0]) if "rate=" in part.get("mimeType", "") else 24000
+                    return _pcm_to_wav(base64.b64decode(part["data"]), rate)
+                except (KeyError, IndexError, ValueError):
+                    last = f"{model}: audio qaytmadi"
+                    break
+    raise RuntimeError(last)

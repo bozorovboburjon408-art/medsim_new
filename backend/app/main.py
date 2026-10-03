@@ -2,10 +2,11 @@ import asyncio
 import base64
 import json
 import logging
+import re
 import time
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
 from . import evaluator, llm, tts
@@ -197,6 +198,80 @@ async def tts_test(token: str = "", text: str = "Assalomu alaykum, qizim. Kelgan
     if not settings.debug_token or token != settings.debug_token:
         raise HTTPException(403, "Ruxsat yo'q")
     return await tts.benchmark(text[:300])
+
+
+VOICES = ("uz-UZ-MadinaNeural", "uz-UZ-SardorNeural")
+SAMPLES = {
+    "buvi": "Og'zim tinmay qurib, suv ichganim-ichgan. Kechasi bilan hojatxonaga qatnayman, uyqu yo'q. Oyoqlarim ham uvishib, muzlaydi.",
+    "homilador": "Belim simillab og'riyapti, boshim aylanib, tez charchab qolayapman. Siydigimning rangi ham to'qroq bo'lib qoldi.",
+    "bola": "Qornim og'riyapti, kechasi orqamni qashlayman. Uxlay olmayman, ovqat yegim kelmayapti.",
+}
+
+
+def _check_token(token: str):
+    if not settings.debug_token or token != settings.debug_token:
+        raise HTTPException(403, "Ruxsat yo'q")
+
+
+@app.get("/voice_demo")
+async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", rate: str = "", pitch: str = "", text: str = ""):
+    """Edge ovozini berilgan tezlik/ohang bilan eshittiradi (sozlash uchun)."""
+    _check_token(token)
+    import edge_tts
+    p = PATIENTS.get(patient)
+    if not p:
+        raise HTTPException(404, "Bemor topilmadi")
+    v = voice if voice in VOICES else p.voice
+    r = rate if re.fullmatch(r"[+-]\d{1,3}%", rate) else p.rate
+    pt = pitch if re.fullmatch(r"[+-]\d{1,3}Hz", pitch) else p.pitch
+    txt = tts.clean_for_tts(text[:300]) or SAMPLES.get(patient, "Assalomu alaykum.")
+    audio = b""
+    async for ch in edge_tts.Communicate(txt, v, rate=r, pitch=pt).stream():
+        if ch["type"] == "audio":
+            audio += ch["data"]
+    return Response(audio, media_type="audio/mpeg")
+
+
+_LAB = """<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MedSim ovoz laboratoriyasi</title><style>
+body{font-family:system-ui,sans-serif;background:#f3f7f6;margin:0;padding:16px;color:#0f172a}
+h1{color:#0f766e;font-size:22px}.card{background:#fff;border-radius:18px;padding:16px;margin:14px 0;box-shadow:0 1px 4px #0002}
+label{display:block;margin:10px 0 2px;font-size:14px;color:#475569}input[type=range]{width:100%}select,textarea{width:100%;font-size:15px;padding:6px;box-sizing:border-box}
+button{background:#0f766e;color:#fff;border:0;border-radius:12px;padding:12px 22px;font-size:16px;margin-top:10px}
+code{background:#e4eceb;padding:2px 6px;border-radius:6px}</style></head><body>
+<h1>Ovoz laboratoriyasi (Edge)</h1><p>Chizg'ichlarni suring va "Tinglash" ni bosing. Yoqqan qiymatlarni menga yozing.</p><div id="c"></div>
+<script>
+const token=new URLSearchParams(location.search).get('token')||'';
+const P=__DATA__;
+const box=document.getElementById('c');
+for(const [id,d] of Object.entries(P)){
+ const r=parseInt(d.rate), pt=parseInt(d.pitch);
+ box.insertAdjacentHTML('beforeend',`<div class="card" id="${id}"><b>${d.title}</b>
+ <label>Ovoz</label><select class="v"><option ${d.voice.includes('Madina')?'selected':''} value="uz-UZ-MadinaNeural">Madina (ayol)</option><option ${d.voice.includes('Sardor')?'selected':''} value="uz-UZ-SardorNeural">Sardor (erkak)</option></select>
+ <label>Tezlik: <span class="rv">${r}</span>%</label><input class="r" type="range" min="-50" max="50" value="${r}">
+ <label>Ohang (balandlik): <span class="pv">${pt}</span> Hz</label><input class="p" type="range" min="-60" max="90" value="${pt}">
+ <label>Matn</label><textarea class="t" rows="3">${d.sample}</textarea>
+ <button>▶ Tinglash</button><p>Qiymat: <code class="o"></code></p><audio controls style="width:100%"></audio></div>`);
+}
+document.querySelectorAll('.card').forEach(c=>{
+ const v=c.querySelector('.v'),r=c.querySelector('.r'),p=c.querySelector('.p'),t=c.querySelector('.t'),a=c.querySelector('audio');
+ const sg=n=>(n>=0?'+':'')+n;
+ const upd=()=>{c.querySelector('.rv').textContent=r.value;c.querySelector('.pv').textContent=p.value;
+  c.querySelector('.o').textContent=`${c.id}: ${v.value.split('-')[2]}, tezlik ${sg(+r.value)}%, ohang ${sg(+p.value)}Hz`;};
+ [v,r,p].forEach(e=>e.oninput=upd);upd();
+ c.querySelector('button').onclick=()=>{
+  const q=new URLSearchParams({token,patient:c.id,voice:v.value,rate:sg(+r.value)+'%',pitch:sg(+p.value)+'Hz',text:t.value});
+  a.src='/voice_demo?'+q.toString();a.play();};
+});
+</script></body></html>"""
+
+
+@app.get("/voice_lab", response_class=HTMLResponse)
+async def voice_lab(token: str = ""):
+    _check_token(token)
+    data = {pid: {"title": p.title, "voice": p.voice, "rate": p.rate, "pitch": p.pitch, "sample": SAMPLES.get(pid, "")}
+            for pid, p in PATIENTS.items()}
+    return _LAB.replace("__DATA__", json.dumps(data, ensure_ascii=False))
 
 
 @app.get("/models")

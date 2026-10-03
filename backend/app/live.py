@@ -148,8 +148,14 @@ async def live_ws(ws: WebSocket, token: str = "", patient: str = "buvi", model: 
                                 await ws.send_json({"type": "turn_complete"})
                         um = m.usage_metadata
                         if um:
+                            def by_modality(items):
+                                return {str(getattr(getattr(x, "modality", None), "name", getattr(x, "modality", "?"))):
+                                        getattr(x, "token_count", 0) for x in (items or [])}
                             await ws.send_json({"type": "usage", "prompt": um.prompt_token_count, "response": um.response_token_count,
-                                                "thoughts": um.thoughts_token_count, "total": um.total_token_count})
+                                                "thoughts": um.thoughts_token_count, "total": um.total_token_count,
+                                                "cached": um.cached_content_token_count,
+                                                "prompt_by": by_modality(um.prompt_tokens_details),
+                                                "response_by": by_modality(um.response_tokens_details)})
                         if m.go_away:
                             await ws.send_json({"type": "go_away"})
                     if not got:
@@ -264,7 +270,7 @@ async function connect(){
   else if(m.type==='out')addText('p',m.text);
   else if(m.type==='interrupted'){stopPlay();}
   else if(m.type==='turn_complete'){cur=null;}
-  else if(m.type==='usage')$('usage').textContent='Tokenlar: kirish '+m.prompt+' · chiqish '+m.response+' · o’ylash '+(m.thoughts||0)+' · jami '+m.total;
+  else if(m.type==='usage')$('usage').textContent='Tokenlar: kirish '+m.prompt+' · chiqish '+m.response+' · o’ylash '+(m.thoughts||0)+' · jami '+m.total+' · keshdan '+(m.cached||0)+' | kirish turlari '+JSON.stringify(m.prompt_by||{})+' | chiqish turlari '+JSON.stringify(m.response_by||{});
   else if(m.type==='error'){status('Xato: '+m.message);}
   else if(m.type==='go_away'){status('Server sessiyani yopmoqda');}
  };

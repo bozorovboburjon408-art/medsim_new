@@ -22,11 +22,11 @@ VOICES = [
     "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi", "Vindemiatrix", "Sadachbia",
     "Sadaltager", "Sulafat",
 ]
-DEFAULT_VOICE = {"buvi": "Gacrux", "homilador": "Kore", "bola": "Leda"}
+DEFAULT_VOICE = {"buvi": "Gacrux", "homilador": "Kore", "bola": "Puck"}
 STYLE = {
     "buvi": "Speak slowly, in a weak, gentle, warm, slightly tired elderly woman's voice.",
     "homilador": "Speak in a warm, slightly tired adult woman's voice at a calm pace.",
-    "bola": "Speak in a high, small, cute, slightly whiny 5-year-old child's voice, in very short childlike sentences.",
+    "bola": "You are Jasurbek, a 5-year-old BOY. Speak in a high-pitched, small, cute, slightly whiny little boy's voice (never a girl's voice), in very short childlike sentences.",
 }
 LIVE_RULES = (
     "\n\nOVOZLI SUHBAT: faqat o'zbek tilida gapir. Butun suhbat davomida aynan bir xil ovoz, ohang va tezlikda gapir. "

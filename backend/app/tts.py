@@ -128,11 +128,11 @@ async def _gemini(text: str, p: Patient) -> bytes:
 
     voice = p.gemini_voice or "Aoede"
     
-    # Gemini o'zicha ro'lga kirib har xil ritmda o'qimasligi uchun qat'iy buyruq:
-    strict_prompt = f"Sen diktorsan. Quyidagi matnni mutlaqo bitta maromda, bir xil ritmda va sokin o'qib ber. Matnga hech narsa qo'shma va o'zgartirma:\n\n{text}"
-    
     body = {
-        "contents": [{"role": "user", "parts": [{"text": strict_prompt}]}],
+        "systemInstruction": {
+            "parts": [{"text": "You are a pure text-to-speech engine. Read the user's text exactly as provided, with a consistent, calm, and steady rhythm. Do not read any instructions, do not add any intro words or emotions, just output the audio of the text."}]
+        },
+        "contents": [{"role": "user", "parts": [{"text": text}]}],
         "generationConfig": {
             "responseModalities": ["AUDIO"],
             "speechConfig": {

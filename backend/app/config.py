@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     tts_provider: str = "edge"
     # Gemini TTS qimmat (~90% xarajat shundan chiqdi): 0 = o'chiq, N = bir kunda ko'pi bilan N ta so'rov (hozir yoqilgan, himoya chegarasi 200)
     gemini_tts_daily_limit: int = 200
+    # Ovoz profili + rejissyor ko'rsatmalari + past temperature/seed (bir xil ohang uchun). Agar Gemini ko'rsatmani
+    # ovoz chiqarib o'qib yuborsa, Render'da GEMINI_TTS_STYLE=0 qiling.
+    gemini_tts_style: bool = True
     # VoiceLab (o'zbekcha TTS/STT). Manzillar rasmiy SDK (voicelab-sdk 0.1.0) manba kodidan olingan
     voicelab_api_key: str = ""
     voicelab_base: str = "https://api.voicelab.uz"

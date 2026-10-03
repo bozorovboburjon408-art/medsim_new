@@ -212,15 +212,18 @@ async def benchmark(text: str) -> dict:
     return out
 
 
+_gem_nodet = False  # temperature/seed qabul qilinmasa, ularsiz davom etamiz
+
+
 async def gemini_stream(text: str, p: Patient) -> AsyncIterator[bytes]:
-    """Gemini TTS oqimi: 24 kHz, 16-bit, mono PCM bo'laklari (juft uzunlikda) kelishi bilan qaytariladi."""
+    """Gemini TTS oqimi: 24 kHz, 16-bit, mono PCM bo'laklari (juft uzunlikda) kelishi bilan qaytariladi.
+    Bir xil ohang uchun: tuzilgan prompt (profil + ko'rsatmalar + transcript), past temperature va qat'iy seed."""
+    global _gem_nodet
     text = clean_for_tts(text)
-    body = {
-        "contents": [{"parts": [{"text": text}]}],
-        "generationConfig": {
-            "responseModalities": ["AUDIO"],
-            "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": p.gemini_voice}}},
-        },
+    prompt = structured_prompt(text, p.tts_style) if settings.gemini_tts_style else text
+    cfg = {
+        "responseModalities": ["AUDIO"],
+        "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": p.gemini_voice}}},
     }
     hdr = {"x-goog-api-key": settings.gemini_api_key}
     last = "model ro'yxati bo'sh"
@@ -234,38 +237,51 @@ async def gemini_stream(text: str, p: Patient) -> AsyncIterator[bytes]:
             last = f"{last} | vaqt chegarasi"
             break
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse"
-        got, carry = False, b""
-        try:
-            async with httpx.AsyncClient(timeout=tmo) as c:
-                async with c.stream("POST", url, json=body, headers=hdr) as r:
-                    if r.status_code != 200:
-                        last = f"{model}: {r.status_code} {(await r.aread()).decode()[:150]}"
-                        _tts_bad[model] = time.monotonic() + 60
-                        continue
-                    async for line in r.aiter_lines():
-                        if not line.startswith("data:"):
-                            continue
-                        try:
-                            raw = base64.b64decode(
-                                json.loads(line[5:])["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
-                        except (KeyError, IndexError, ValueError):
-                            continue
-                        raw = carry + raw
-                        carry = raw[len(raw) // 2 * 2:]
-                        raw = raw[:len(raw) // 2 * 2]
-                        if raw:
-                            got = True
-                            yield raw
-        except httpx.TimeoutException:
-            if got:
-                return
-            last = f"{model}: timeout"
-            _tts_bad[model] = time.monotonic() + 120
-            continue
+        got, carry, failed = False, b"", False
+        for det in ([True, False] if not _gem_nodet else [False]):
+            gc = {**cfg, "temperature": 0.2, "seed": 7} if det else cfg
+            body = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": gc}
+            retry_plain = False
+            try:
+                async with httpx.AsyncClient(timeout=tmo) as c:
+                    async with c.stream("POST", url, json=body, headers=hdr) as r:
+                        if r.status_code == 400 and det:
+                            _gem_nodet = True
+                            log.warning("Gemini TTS temperature/seed ni qabul qilmadi, ularsiz davom etiladi")
+                            retry_plain = True
+                        elif r.status_code != 200:
+                            last = f"{model}: {r.status_code} {(await r.aread()).decode()[:150]}"
+                            _tts_bad[model] = time.monotonic() + 60
+                            failed = True
+                        else:
+                            async for line in r.aiter_lines():
+                                if not line.startswith("data:"):
+                                    continue
+                                try:
+                                    raw = base64.b64decode(
+                                        json.loads(line[5:])["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
+                                except (KeyError, IndexError, ValueError):
+                                    continue
+                                raw = carry + raw
+                                carry = raw[len(raw) // 2 * 2:]
+                                raw = raw[:len(raw) // 2 * 2]
+                                if raw:
+                                    got = True
+                                    yield raw
+            except httpx.TimeoutException:
+                if got:
+                    return
+                last = f"{model}: timeout"
+                _tts_bad[model] = time.monotonic() + 120
+                failed = True
+            if retry_plain:
+                continue
+            break
         if got:
             return
-        last = f"{model}: audio qaytmadi"
-        _tts_bad[model] = time.monotonic() + 60
+        if not failed:
+            last = f"{model}: audio qaytmadi"
+            _tts_bad[model] = time.monotonic() + 60
     raise RuntimeError(last)
 
 
@@ -284,7 +300,8 @@ def structured_prompt(text: str, style: str) -> str:
     return (
         f"# AUDIO PROFILE\n{style.strip()}\n\n"
         "### DIRECTOR'S NOTES\n"
-        "Keep exactly the same voice, pitch, pace and mood from the first word to the last. "
+        "Keep exactly the same voice, pitch, pace and mood from the first word to the last, "
+        "and use the same calm, steady delivery regardless of the emotion of the words. "
         "Speak natural conversational Uzbek. Read ONLY the transcript below. "
         "Never read the profile or these notes aloud.\n\n"
         f"#### TRANSCRIPT\n{text}"

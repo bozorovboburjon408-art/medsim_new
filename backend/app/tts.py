@@ -121,8 +121,6 @@ async def _gemini(text: str, p: Patient) -> bytes:
     if not models:
         models = [
             "gemini-2.5-flash-preview-tts",
-            "gemini-3.8-flash-lite-tts",
-            "gemini-3.8-flash-tts",
             "gemini-3.1-flash-tts-preview",
         ]
 

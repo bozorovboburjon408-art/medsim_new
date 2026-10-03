@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-5-5"
     tts_provider: str = "edge"  # "edge" (bepul va asosiy), "gemini" (pullik audio), "azure"
-    gemini_tts_models: str = "gemini-2.5-flash-preview-tts,gemini-3.8-flash-lite-tts,gemini-3.8-flash-tts,gemini-3.1-flash-tts-preview"  # audio output modellar
+    gemini_tts_models: str = "gemini-2.5-flash-preview-tts,gemini-3.1-flash-tts-preview"  # audio output modellar (qimmat 3.8 modellar o'chirildi)
     debug_token: str = ""  # /voice_lab (ovoz sozlash sahifasi) uchun; bo'sh bo'lsa o'chiq
     azure_speech_key: str = ""
     azure_speech_region: str = ""

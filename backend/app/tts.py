@@ -52,7 +52,17 @@ _tts_bad: dict[str, float] = {}  # sekin/xato TTS modellari vaqtincha oxiriga o'
 async def synthesize(text: str, p: Patient, provider: str | None = None) -> tuple[bytes, str, str]:
     """Matnni ovozga aylantiradi. Qaytaradi: (audio baytlari, format 'mp3'|'wav', ishlatilgan provayder)."""
     text = clean_for_tts(text)
-    prov = provider if provider in ("edge", "gemini", "azure") else settings.tts_provider
+    prov = provider if provider in ("edge", "gemini", "azure", "voicelab") else settings.tts_provider
+    if prov == "voicelab":
+        cfg = voicelab_cfg(p.id)
+        if not cfg.get("voice_id"):  # bu bemor uchun VoiceLab ovozi tanlanmagan (masalan bola): Edge
+            return await _edge(text, p), "mp3", "edge"
+        try:
+            audio, ct = await voicelab_tts(text, cfg["voice_id"], cfg.get("speed"))
+            return audio, ("wav" if "wav" in ct or "wave" in ct else "mp3"), "voicelab"
+        except Exception as e:  # ovoz to'xtab qolmasin
+            log.warning("VoiceLab xatosi, Edge'ga o'tildi: %s", e)
+            return await _edge(text, p), "mp3", "edge (voicelab xato)"
     if prov == "gemini":
         try:
             return await _gemini(text, p), "wav", "gemini"
@@ -310,7 +320,14 @@ async def gemini_once(text: str, voice: str, style: str = "", deterministic: boo
     raise RuntimeError(last)
 
 
-async def voicelab_tts(text: str, voice_id: str = "") -> tuple[bytes, str]:
+def voicelab_cfg(patient_id: str) -> dict:
+    try:
+        return json.loads(settings.voicelab_voices or "{}").get(patient_id, {}) or {}
+    except ValueError:
+        return {}
+
+
+async def voicelab_tts(text: str, voice_id: str = "", speed: float | None = None) -> tuple[bytes, str]:
     """VoiceLab TTS (tasvirga ko'ra: POST /tts, JSON {text, language, voice_id}, Bearer kalit).
     Qaytaradi: (audio baytlari, content-type). Xatoda VoiceLab javobini ko'rsatuvchi RuntimeError."""
     if not settings.voicelab_api_key:
@@ -318,6 +335,8 @@ async def voicelab_tts(text: str, voice_id: str = "") -> tuple[bytes, str]:
     body = {"text": clean_for_tts(text), "language": "uz"}
     if voice_id:
         body["voice_id"] = voice_id
+    if speed:
+        body["speed"] = max(0.5, min(2.0, float(speed)))
     async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=30, write=5, pool=5)) as c:
         r = await c.post(settings.voicelab_base.rstrip("/") + settings.voicelab_tts_path, json=body,
                          headers={"Authorization": f"Bearer {settings.voicelab_api_key}"})

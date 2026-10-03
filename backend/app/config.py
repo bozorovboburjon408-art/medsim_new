@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     # VoiceLab (o'zbekcha TTS/STT). Manzillar tasdiqlanmagan, shuning uchun o'zgartirish mumkin
     voicelab_api_key: str = ""
     voicelab_base: str = "https://api.voicelab.uz/v1"
+    # Bemor -> ovoz xaritasi (JSON), masalan {"buvi":{"voice_id":"...","speed":0.9}}. Bo'sh bemor Edge'da gapiradi
+    voicelab_voices: str = "{}"
     voicelab_tts_path: str = "/tts"
     voicelab_voices_path: str = "/voices"
     debug_token: str = ""  # /tts_test uchun; bo'sh bo'lsa sinov yo'li o'chiq

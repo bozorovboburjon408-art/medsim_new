@@ -222,7 +222,7 @@ def _check_token(token: str):
 
 @app.get("/voice_demo")
 async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", rate: str = "", pitch: str = "", text: str = "",
-                     provider: str = "edge", gvoice: str = "", style: str = "", vid: str = ""):
+                     provider: str = "edge", gvoice: str = "", style: str = "", vid: str = "", speed: str = ""):
     """Ovozni eshittiradi (sozlash uchun): Edge (bepul) yoki Gemini (pullik, kunlik limitga kiradi)."""
     _check_token(token)
     import edge_tts
@@ -231,7 +231,11 @@ async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", ra
         raise HTTPException(404, "Bemor topilmadi")
     if provider == "voicelab":
         try:
-            audio, ct = await tts.voicelab_tts(text[:300] or SAMPLES.get(patient, "Assalomu alaykum."), vid)
+            try:
+                spd = float(speed) if speed else None
+            except ValueError:
+                spd = None
+            audio, ct = await tts.voicelab_tts(text[:300] or SAMPLES.get(patient, "Assalomu alaykum."), vid, spd)
         except Exception as e:
             raise HTTPException(502, f"VoiceLab xatosi: {e}"[:500])
         return Response(audio, media_type=ct)
@@ -281,6 +285,8 @@ for(const [id,d] of Object.entries(P)){
  <button class="gb" style="background:#7c3aed">▶ Gemini bilan tinglash</button>
  <hr><b>VoiceLab (o'zbekcha)</b> — <a href="/voicelab_voices?token=${token}" target="_blank">ovozlar ro'yxati</a>
  <label>voice_id (ro'yxatdan oling; bo'sh = standart)</label><input class="vid" style="width:100%;padding:6px;box-sizing:border-box">
+ <label>Tezlik (speed): <span class="sv">1.0</span></label><input class="sp" type="range" min="0.5" max="2" step="0.05" value="1">
+ <p>Render uchun: <code class="vo"></code></p>
  <button class="vb" style="background:#0369a1">▶ VoiceLab bilan tinglash</button>
  <audio controls style="width:100%"></audio></div>`);
 }
@@ -290,11 +296,15 @@ document.querySelectorAll('.card').forEach(c=>{
  const upd=()=>{c.querySelector('.rv').textContent=r.value;c.querySelector('.pv').textContent=p.value;
   c.querySelector('.o').textContent=`${c.id}: ${v.value.split('-')[2]}, tezlik ${sg(+r.value)}%, ohang ${sg(+p.value)}Hz`;};
  [v,r,p].forEach(e=>e.oninput=upd);upd();
+ c.querySelector('.sp').oninput=e=>{c.querySelector('.sv').textContent=e.target.value;};
  c.querySelector('button').onclick=()=>{
   const q=new URLSearchParams({token,patient:c.id,voice:v.value,rate:sg(+r.value)+'%',pitch:sg(+p.value)+'Hz',text:t.value});
   a.src='/voice_demo?'+q.toString();a.play();};
  c.querySelector('.vb').onclick=()=>{
-  const q=new URLSearchParams({token,patient:c.id,provider:'voicelab',vid:c.querySelector('.vid').value,text:t.value});
+  const vid=c.querySelector('.vid').value,spd=c.querySelector('.sp').value;
+  c.querySelector('.sv').textContent=spd;
+  c.querySelector('.vo').textContent=`"${c.id}":{"voice_id":"${vid}","speed":${spd}}`;
+  const q=new URLSearchParams({token,patient:c.id,provider:'voicelab',vid,speed:spd,text:t.value});
   a.src='/voice_demo?'+q.toString();a.play();};
  c.querySelector('.gb').onclick=()=>{
   const q=new URLSearchParams({token,patient:c.id,provider:'gemini',gvoice:c.querySelector('.gv').value,style:c.querySelector('.gs').value,text:t.value});

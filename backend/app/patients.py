@@ -26,6 +26,7 @@ class Patient:
     pitch: str     # edge-tts: "-5Hz"
     role: str
     scenario_file: str
+    gemini_voice: str = "Gacrux"
 
     def system_prompt(self) -> str:
         scenario = (SCENARIO_DIR / self.scenario_file).read_text(encoding="utf-8")
@@ -35,17 +36,21 @@ class Patient:
 PATIENTS = {
     p.id: p
     for p in [
-        Patient("buvi", "Salomat buvi (75 yosh, diabet)", "uz-UZ-MadinaNeural", "-22%", "-18Hz",
+        Patient("buvi", "Salomat buvi (75 yosh, diabet)", "uz-UZ-MadinaNeural", "-20%", "-15Hz",
                 "Salomat Xolmatova, 75 yoshli nafaqadagi buvi. Faqat o'zing gapirasan (kelining gapirmaydi). "
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan.",
-                "buvi.txt"),
+                "buvi.txt", gemini_voice="Gacrux"),
+        Patient("bobo", "Hikmatilla ota (78 yosh, skrining)", "uz-UZ-SardorNeural", "-18%", "-12Hz",
+                "Hikmatilla ota, 78 yoshli nuroniy otaxon (nafaqada). Faqat o'zing gapirasan (kelining gapirmaydi). "
+                "Hamshirani 'qizim' yoki 'bolam' deb ataysan, sekin, vazmin va mehribon gapirasan.",
+                "bobo.txt", gemini_voice="Fenrir"),
         Patient("homilador", "Nilufar (32 haftalik homilador)", "uz-UZ-MadinaNeural", "-5%", "+0Hz",
                 "Nilufar Rahimova, 33 yoshli, 32 haftalik homilador ayol. Hamshirani 'hamshira opa' deb ataysan.",
-                "homilador.txt"),
+                "homilador.txt", gemini_voice="Kore"),
         Patient("bola", "Jasurbek (5 yosh, gijja)", "uz-UZ-MadinaNeural", "+12%", "+55Hz",
                 "Jasurbek, 5 yoshli bola. Sen bolaning o'zisan: juda oddiy, qisqa (1-2 gap), bolalarcha so'zlar bilan gapir, "
                 "ba'zan injiqlik qil, tushunmasang 'nima?' deb so'ra. Murakkab tibbiy so'zlarni bilmaysan; "
                 "qichishish, qorin og'rig'i, uyqu yo'qligi haqida o'zingcha aytasan.",
-                "bola.txt"),
+                "bola.txt", gemini_voice="Puck"),
     ]
 }

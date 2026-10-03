@@ -13,7 +13,8 @@ class Settings(BaseSettings):
     gemini_eval_models: str = "gemini-3.8-flash,gemini-3.5-flash-lite"
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-5-5"
-    tts_provider: str = "edge"
+    tts_provider: str = "gemini"  # "gemini" (asosiy), "edge" (bepul/zaxira), "azure"
+    gemini_tts_models: str = "gemini-2.5-flash,gemini-2.0-flash"  # audio output modellar
     debug_token: str = ""  # /voice_lab (ovoz sozlash sahifasi) uchun; bo'sh bo'lsa o'chiq
     azure_speech_key: str = ""
     azure_speech_region: str = ""

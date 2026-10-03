@@ -145,6 +145,7 @@ async def evaluate(req: EvalRequest):
 VOICES = ("uz-UZ-MadinaNeural", "uz-UZ-SardorNeural")
 SAMPLES = {
     "buvi": "Og'zim tinmay qurib, suv ichganim-ichgan. Kechasi bilan hojatxonaga qatnayman, uyqu yo'q. Oyoqlarim ham uvishib, muzlaydi.",
+    "bobo": "Oxirgi paytlarda biroz holsizlik, xotiram susayishi sezilyapti. Kechalari uxlashim ham qiyinlashgan, tez-tez hojatxonaga qatnayman.",
     "homilador": "Belim simillab og'riyapti, boshim aylanib, tez charchab qolayapman. Siydigimning rangi ham to'qroq bo'lib qoldi.",
     "bola": "Qornim og'riyapti, kechasi orqamni qashlayman. Uxlay olmayman, ovqat yegim kelmayapti.",
 }

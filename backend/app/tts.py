@@ -1,8 +1,11 @@
-"""Matnni o'zbekcha ovozga aylantirish. Ovoz faqat Edge (bepul) yoki Azure (ixtiyoriy) orqali.
-Gemini faqat matn (suhbat va baholash) uchun ishlatiladi, ovoz uchun emas."""
+"""Matnni o'zbekcha ovozga aylantirish.
+Asosiy: Gemini Audio (tabiiy Gemini ovozlari).
+Zaxira / bepul: Edge TTS (uz-UZ Madina/Sardor) yoki Azure."""
 import asyncio
+import base64
 import logging
 import re
+import struct
 from xml.sax.saxutils import escape
 
 import edge_tts
@@ -28,12 +31,105 @@ def clean_for_tts(text: str) -> str:
     return re.sub(r"\s+([.,!?])", r"\1", t)
 
 
+def pcm_to_wav(pcm_data: bytes, sample_rate: int = 24000, channels: int = 1, bits_per_sample: int = 16) -> bytes:
+    """24kHz 16-bit mono PCM ma'lumotiga WAV sarlavhasini (RIFF header) qo'shadi."""
+    byte_rate = sample_rate * channels * (bits_per_sample // 8)
+    block_align = channels * (bits_per_sample // 8)
+    header = struct.pack(
+        "<4sI4s4sIHHIIHH4sI",
+        b"RIFF",
+        36 + len(pcm_data),
+        b"WAVE",
+        b"fmt ",
+        16,
+        1,  # PCM format
+        channels,
+        sample_rate,
+        byte_rate,
+        block_align,
+        bits_per_sample,
+        b"data",
+        len(pcm_data),
+    )
+    return header + pcm_data
+
+
 async def synthesize(text: str, p: Patient) -> tuple[bytes, str]:
-    """Matnni ovozga aylantiradi. Qaytaradi: (mp3 baytlari, ishlatilgan xizmat nomi)."""
+    """Matnni ovozga aylantiradi. Qaytaradi: (audio_baytlari, ishlatilgan xizmat nomi).
+    Asosiy: Gemini Audio (tts_provider == 'gemini').
+    Xato yoki limit yuz bersa, uzilishsiz Edge TTS zaxirasiga o'tadi."""
     text = clean_for_tts(text)
+    if not text:
+        return b"", "none"
+
     if settings.tts_provider == "azure" and settings.azure_speech_key:
-        return await _azure(text, p), "azure"
+        try:
+            return await _azure(text, p), "azure"
+        except Exception as e:
+            log.warning("Azure TTS xatosi (%s), Edge ga o'tilmoqda", e)
+
+    if settings.tts_provider == "gemini" and settings.gemini_api_key:
+        try:
+            audio = await _gemini(text, p)
+            if audio:
+                return audio, "gemini"
+        except Exception as e:
+            log.warning("Gemini TTS xatosi (%s), zaxira Edge TTS ga o'tilmoqda", e)
+
+    # Edge TTS (zaxira va tejamkor/bepul provayder)
     return await _edge(text, p), "edge"
+
+
+async def _gemini(text: str, p: Patient) -> bytes:
+    """Gemini audio chiqish modalligi orqali o'zbekcha ovoz sintez qiladi."""
+    if not settings.gemini_api_key:
+        raise ValueError("GEMINI_API_KEY sozlanmagan")
+
+    models = [m.strip() for m in settings.gemini_tts_models.split(",") if m.strip()]
+    if not models:
+        models = ["gemini-2.5-flash", "gemini-2.0-flash"]
+
+    voice = p.gemini_voice or "Gacrux"
+    body = {
+        "contents": [{"parts": [{"text": f"Quyidagi matnni tabiiy o'zbek tilida o'qi:\n{text}"}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {
+                    "prebuiltVoiceConfig": {"voiceName": voice}
+                }
+            },
+            "temperature": 0.2,
+        },
+    }
+    hdr = {"x-goog-api-key": settings.gemini_api_key}
+
+    async with httpx.AsyncClient(timeout=10) as c:
+        for m in models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
+            try:
+                r = await c.post(url, json=body, headers=hdr)
+            except Exception as e:
+                log.warning("Gemini TTS %s xatosi: %s", m, e)
+                continue
+            if r.status_code != 200:
+                log.warning("Gemini TTS %s status %d: %s", m, r.status_code, r.text[:120])
+                continue
+            try:
+                data = r.json()
+                parts = data["candidates"][0]["content"]["parts"]
+                for pt in parts:
+                    if "inlineData" in pt:
+                        raw = base64.b64decode(pt["inlineData"]["data"])
+                        mime = pt["inlineData"].get("mimeType", "").lower()
+                        if "pcm" in mime or not mime:
+                            return pcm_to_wav(raw, 24000)
+                        return raw
+            except Exception as e:
+                log.warning("Gemini TTS %s tahlil xatosi: %s", m, e)
+                continue
+
+    raise RuntimeError("Gemini TTS modellaridan ovoz olinmadi")
 
 
 async def _edge(text: str, p: Patient) -> bytes:
@@ -64,3 +160,4 @@ async def _azure(text: str, p: Patient) -> bytes:
             "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3"})
         r.raise_for_status()
     return r.content
+

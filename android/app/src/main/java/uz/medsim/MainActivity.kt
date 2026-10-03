@@ -57,6 +57,7 @@ data class PatientInfo(
 
 val PATIENTS = listOf(
     PatientInfo("buvi", "Salomat buvi", "75 yosh · 2-tip qandli diabet", "👵"),
+    PatientInfo("bobo", "Hikmatilla ota", "78 yosh · profilaktik skrining", "👴"),
     PatientInfo("homilador", "Nilufar opa", "33 yosh · 32 haftalik homiladorlik", "🤰"),
     PatientInfo("bola", "Jasurbek", "5 yosh · gijja kasalligi", "👦"),
     PatientInfo("chaqaloq", "Chaqaloq", "Yig'laydi, tebratilsa tinchiydi", "👶", isBaby = true),
@@ -75,10 +76,10 @@ class MainActivity : ComponentActivity() {
 fun App() {
     val ctx = LocalContext.current
     val prefs = remember { ctx.getSharedPreferences("medsim", Context.MODE_PRIVATE) }
-    var server by remember { mutableStateOf(prefs.getString("server", "") ?: "") }
+    var server by remember { mutableStateOf(prefs.getString("server", "https://medsim-backend-oyfd.onrender.com") ?: "https://medsim-backend-oyfd.onrender.com") }
     var model by remember { mutableStateOf(prefs.getString("model", "") ?: "") }
     var tts by remember { mutableStateOf(prefs.getString("tts", "") ?: "") }
-    var showSettings by remember { mutableStateOf(server.isBlank()) }
+    var showSettings by remember { mutableStateOf(false) }
     var current by remember { mutableStateOf<PatientInfo?>(null) }
     // manikenga biriktirilgan kalonka: patient.id -> AudioDeviceInfo.id
     val speakers = remember { mutableStateMapOf<String, Int>() }
@@ -522,10 +523,18 @@ fun BabyScreen(p: PatientInfo, deviceId: Int?, onBack: () -> Unit, picker: @Comp
 
     DisposableEffect(Unit) {
         val sm = ctx.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val isLinear = sm.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION) != null
         val sensor = sm.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
+            ?: sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         val l = object : SensorEventListener {
             override fun onSensorChanged(e: SensorEvent) {
-                val a2 = e.values[0] * e.values[0] + e.values[1] * e.values[1] + e.values[2] * e.values[2]
+                val a2 = if (isLinear) {
+                    e.values[0] * e.values[0] + e.values[1] * e.values[1] + e.values[2] * e.values[2]
+                } else {
+                    val mag = sqrt(e.values[0] * e.values[0] + e.values[1] * e.values[1] + e.values[2] * e.values[2])
+                    val lin = kotlin.math.abs(mag - 9.81f)
+                    lin * lin
+                }
                 level[0] = level[0] * 0.98f + a2 * 0.02f
             }
             override fun onAccuracyChanged(s: Sensor?, a: Int) {}

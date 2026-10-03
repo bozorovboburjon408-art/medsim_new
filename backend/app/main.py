@@ -224,6 +224,42 @@ async def models():
     return await llm.list_gemini_models()
 
 
+@app.get("/debug_tts")
+async def debug_tts(text: str = "Salom, qandaysiz?", voice: str = "Aoede"):
+    """Gemini TTS modellarini sinovdan o'tkazish va statuslarini ko'rish uchun."""
+    if not settings.gemini_api_key:
+        return {"error": "gemini_api_key sozlanmagan"}
+    models = [m.strip() for m in settings.gemini_tts_models.split(",") if m.strip()]
+    results = []
+    body = {
+        "contents": [{"role": "user", "parts": [{"text": text}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {
+                    "prebuiltVoiceConfig": {"voiceName": voice}
+                }
+            },
+        },
+    }
+    hdr = {"x-goog-api-key": settings.gemini_api_key}
+    async with httpx.AsyncClient(timeout=10) as c:
+        for m in models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
+            try:
+                r = await c.post(url, json=body, headers=hdr)
+                if r.status_code == 200:
+                    data = r.json()
+                    parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                    has_audio = any("inlineData" in pt for pt in parts)
+                    results.append({"model": m, "status": 200, "has_audio": has_audio, "parts_count": len(parts)})
+                else:
+                    results.append({"model": m, "status": r.status_code, "detail": r.text[:250]})
+            except Exception as e:
+                results.append({"model": m, "error": str(e)})
+    return {"voice": voice, "results": results}
+
+
 @app.get("/health")
 def health():
     return {"ok": True}

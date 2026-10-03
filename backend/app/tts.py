@@ -91,11 +91,16 @@ async def _gemini(text: str, p: Patient) -> bytes:
 
     models = [m.strip() for m in settings.gemini_tts_models.split(",") if m.strip()]
     if not models:
-        models = ["gemini-2.5-flash", "gemini-2.0-flash"]
+        models = [
+            "gemini-2.5-flash-preview-tts",
+            "gemini-3.8-flash-lite-tts",
+            "gemini-3.8-flash-tts",
+            "gemini-3.1-flash-tts-preview",
+        ]
 
-    voice = p.gemini_voice or "Gacrux"
+    voice = p.gemini_voice or "Aoede"
     body = {
-        "contents": [{"parts": [{"text": f"Quyidagi matnni tabiiy o'zbek tilida o'qi:\n{text}"}]}],
+        "contents": [{"role": "user", "parts": [{"text": text}]}],
         "generationConfig": {
             "responseModalities": ["AUDIO"],
             "speechConfig": {
@@ -103,21 +108,23 @@ async def _gemini(text: str, p: Patient) -> bytes:
                     "prebuiltVoiceConfig": {"voiceName": voice}
                 }
             },
-            "temperature": 0.2,
         },
     }
     hdr = {"x-goog-api-key": settings.gemini_api_key}
 
-    async with httpx.AsyncClient(timeout=10) as c:
+    last_err: Exception | None = None
+    async with httpx.AsyncClient(timeout=12) as c:
         for m in models:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
             try:
                 r = await c.post(url, json=body, headers=hdr)
             except Exception as e:
-                log.warning("Gemini TTS %s xatosi: %s", m, e)
+                log.warning("Gemini TTS %s tarmoq xatosi: %s", m, e)
+                last_err = e
                 continue
             if r.status_code != 200:
-                log.warning("Gemini TTS %s status %d: %s", m, r.status_code, r.text[:120])
+                log.warning("Gemini TTS %s status %d: %s", m, r.status_code, r.text[:200])
+                last_err = RuntimeError(f"{m} status {r.status_code}: {r.text[:200]}")
                 continue
             try:
                 data = r.json()
@@ -126,14 +133,16 @@ async def _gemini(text: str, p: Patient) -> bytes:
                     if "inlineData" in pt:
                         raw = base64.b64decode(pt["inlineData"]["data"])
                         mime = pt["inlineData"].get("mimeType", "").lower()
-                        if "pcm" in mime or not mime:
+                        # PCM / L16 bo'lsa WAV sarlavha qo'shamiz, aks holda tayyor audio
+                        if "pcm" in mime or not mime or "l16" in mime:
                             return pcm_to_wav(raw, 24000)
                         return raw
             except Exception as e:
                 log.warning("Gemini TTS %s tahlil xatosi: %s", m, e)
+                last_err = e
                 continue
 
-    raise RuntimeError("Gemini TTS modellaridan ovoz olinmadi")
+    raise RuntimeError(f"Gemini TTS modellaridan ovoz olinmadi: {last_err}")
 
 
 async def _edge(text: str, p: Patient) -> bytes:

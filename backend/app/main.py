@@ -27,12 +27,12 @@ class ChatRequest(BaseModel):
     patient_id: str
     history: list[Turn]  # oxirgisi hamshiraning yangi gapi bo'lishi kerak
     model: str | None = None  # ixtiyoriy: shu model birinchi sinaladi
-    tts: str | None = None  # eski ilovalar yuboradi; e'tiborga olinmaydi (ovoz doim Edge)
+    tts: str | None = None  # ovoz provayderi: 'gemini', 'edge', 'azure' yoki None (avto)
 
 
 class ChatResponse(BaseModel):
     text: str
-    audio_b64: str  # mp3
+    audio_b64: str  # mp3 / wav
     llm_ms: int = 0
     tts_ms: int = 0
 
@@ -56,7 +56,7 @@ async def chat(req: ChatRequest):
         raise HTTPException(502, f"AI xatosi: {e}"[:400])
     t1 = time.perf_counter()
     try:
-        audio, _used = await tts.synthesize(text, p)
+        audio, _used = await tts.synthesize(text, p, req.tts)
     except Exception as e:
         raise HTTPException(502, f"Ovoz (TTS) xatosi: {e} | javob: {text}"[:400])
     t2 = time.perf_counter()
@@ -84,7 +84,7 @@ async def chat_stream(req: ChatRequest):
 
         async def synth(s: str, t_llm: int):
             t = time.perf_counter()
-            audio, used = await tts.synthesize(s, p)
+            audio, used = await tts.synthesize(s, p, req.tts)
             return s, audio, "mp3", used, t_llm, int((time.perf_counter() - t) * 1000)
 
         async def producer():

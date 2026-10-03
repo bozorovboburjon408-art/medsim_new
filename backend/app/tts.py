@@ -54,29 +54,33 @@ def pcm_to_wav(pcm_data: bytes, sample_rate: int = 24000, channels: int = 1, bit
     return header + pcm_data
 
 
-async def synthesize(text: str, p: Patient) -> tuple[bytes, str]:
+async def synthesize(text: str, p: Patient, provider: str | None = None) -> tuple[bytes, str]:
     """Matnni ovozga aylantiradi. Qaytaradi: (audio_baytlari, ishlatilgan xizmat nomi).
-    Asosiy: Gemini Audio (tts_provider == 'gemini').
-    Xato yoki limit yuz bersa, uzilishsiz Edge TTS zaxirasiga o'tadi."""
+    provider: 'gemini', 'edge', 'azure' yoki None (config bo'yicha)."""
     text = clean_for_tts(text)
     if not text:
         return b"", "none"
 
-    if settings.tts_provider == "azure" and settings.azure_speech_key:
+    prov = (provider or settings.tts_provider).strip().lower()
+
+    if prov == "azure" and settings.azure_speech_key:
         try:
             return await _azure(text, p), "azure"
         except Exception as e:
             log.warning("Azure TTS xatosi (%s), Edge ga o'tilmoqda", e)
 
-    if settings.tts_provider == "gemini" and settings.gemini_api_key:
-        try:
-            audio = await _gemini(text, p)
-            if audio:
-                return audio, "gemini"
-        except Exception as e:
-            log.warning("Gemini TTS xatosi (%s), zaxira Edge TTS ga o'tilmoqda", e)
+    if prov in ("gemini", "auto", ""):
+        if settings.gemini_api_key:
+            try:
+                audio = await _gemini(text, p)
+                if audio:
+                    return audio, "gemini"
+            except Exception as e:
+                log.warning("Gemini TTS xatosi (%s), zaxira Edge TTS ga o'tilmoqda", e)
+        else:
+            log.warning("GEMINI_API_KEY sozlanmagan, Edge TTS ga o'tilmoqda")
 
-    # Edge TTS (zaxira va tejamkor/bepul provayder)
+    # Edge TTS (bepul va zaxira)
     return await _edge(text, p), "edge"
 
 

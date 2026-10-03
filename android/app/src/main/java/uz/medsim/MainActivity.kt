@@ -210,6 +210,18 @@ fun SettingsDialog(server: String, model: String, tts: String, onDismiss: () -> 
                         FilterChip(mdl == id, { mdl = id }, { Text(label) }, modifier = Modifier.padding(end = 8.dp))
                     }
                 }
+                Spacer(Modifier.height(14.dp))
+                Text("Ovoz (TTS) provayderi", style = MaterialTheme.typography.labelLarge)
+                Row(Modifier.horizontalScroll(rememberScrollState())) {
+                    listOf(
+                        "gemini" to "✨ Gemini Audio",
+                        "edge" to "🔊 Edge TTS (Zaxira)",
+                        "" to "Avto",
+                        "azure" to "☁ Azure TTS",
+                    ).forEach { (id, label) ->
+                        FilterChip((tt == id) || (id == "" && tt.isEmpty()), { tt = id }, { Text(label) }, modifier = Modifier.padding(end = 8.dp))
+                    }
+                }
             }
         },
         confirmButton = { Button({ onSave(text, mdl, tt) }) { Text("Saqlash") } },
@@ -312,6 +324,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val history = remember(p.id) { mutableStateListOf<Turn>() }
+    var currentTts by remember { mutableStateOf(if (tts.isEmpty()) "gemini" else tts) }
     var phase by remember { mutableStateOf(Phase.IDLE) }
     var error by remember { mutableStateOf("") }
     var firstAudio by remember { mutableStateOf("") }
@@ -330,7 +343,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
             while (true) {
                 try {
                     Speaker.beginStream(deviceId) { phase = Phase.IDLE }
-                    Api.chatStream(server, p.id, history.toList(), model, tts) { seg ->
+                    Api.chatStream(server, p.id, history.toList(), model, currentTts) { seg ->
                         if (parts.isEmpty() && seg.text.isNotEmpty()) {
                             firstAudio = "Birinchi ovozgacha: %.1f s\nAI %.1f s · ovoz %.1f s (%s)\n%s%s\n%s".format(
                                 (System.currentTimeMillis() - t0) / 1000.0, seg.llmMs / 1000.0, seg.ttsMs / 1000.0, seg.tts,
@@ -414,9 +427,13 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
             }
             Spacer(Modifier.width(20.dp))
             Column(
-                Modifier.width(210.dp).fillMaxHeight(),
+                Modifier.width(220.dp).fillMaxHeight(),
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
             ) {
+                Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.Center) {
+                    FilterChip(currentTts == "gemini", { currentTts = "gemini" }, { Text("✨ Gemini", fontSize = 12.sp) }, modifier = Modifier.padding(end = 4.dp))
+                    FilterChip(currentTts == "edge", { currentTts = "edge" }, { Text("🔊 Edge", fontSize = 12.sp) })
+                }
                 Text(
                     phase.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,

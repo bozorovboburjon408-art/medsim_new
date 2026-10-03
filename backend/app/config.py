@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     tts_provider: str = "edge"
     # Gemini TTS qimmat (~90% xarajat shundan chiqdi): 0 = o'chiq, N = bir kunda ko'pi bilan N ta so'rov (hozir yoqilgan, himoya chegarasi 200)
     gemini_tts_daily_limit: int = 200
+    # VoiceLab (o'zbekcha TTS/STT). Manzillar tasdiqlanmagan, shuning uchun o'zgartirish mumkin
+    voicelab_api_key: str = ""
+    voicelab_base: str = "https://api.voicelab.uz/v1"
+    voicelab_tts_path: str = "/tts"
+    voicelab_voices_path: str = "/voices"
     debug_token: str = ""  # /tts_test uchun; bo'sh bo'lsa sinov yo'li o'chiq
     gemini_tts_models: str = "gemini-3.8-flash-lite-tts,gemini-3.8-flash-tts"
     azure_speech_key: str = ""

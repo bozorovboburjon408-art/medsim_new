@@ -308,3 +308,44 @@ async def gemini_once(text: str, voice: str, style: str = "", deterministic: boo
                     last = f"{model}: audio qaytmadi"
                     break
     raise RuntimeError(last)
+
+
+async def voicelab_tts(text: str, voice_id: str = "") -> tuple[bytes, str]:
+    """VoiceLab TTS (tasvirga ko'ra: POST /tts, JSON {text, language, voice_id}, Bearer kalit).
+    Qaytaradi: (audio baytlari, content-type). Xatoda VoiceLab javobini ko'rsatuvchi RuntimeError."""
+    if not settings.voicelab_api_key:
+        raise RuntimeError("VOICELAB_API_KEY sozlanmagan")
+    body = {"text": clean_for_tts(text), "language": "uz"}
+    if voice_id:
+        body["voice_id"] = voice_id
+    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=30, write=5, pool=5)) as c:
+        r = await c.post(settings.voicelab_base.rstrip("/") + settings.voicelab_tts_path, json=body,
+                         headers={"Authorization": f"Bearer {settings.voicelab_api_key}"})
+    ct = r.headers.get("content-type", "")
+    if r.status_code >= 400:
+        raise RuntimeError(f"VoiceLab {r.status_code}: {r.text[:300]}")
+    if ct.startswith("audio/") or ct == "application/octet-stream":
+        return r.content, ("audio/wav" if "octet" in ct else ct)
+    try:  # ba'zi API'lar JSON ichida base64 yoki havola qaytaradi
+        j = r.json()
+        for k in ("audio_base64", "audio", "data"):
+            if isinstance(j.get(k), str) and len(j[k]) > 100:
+                return base64.b64decode(j[k]), "audio/wav"
+        for k in ("url", "audio_url"):
+            if isinstance(j.get(k), str):
+                async with httpx.AsyncClient(timeout=30) as c2:
+                    r2 = await c2.get(j[k])
+                return r2.content, r2.headers.get("content-type", "audio/wav")
+    except ValueError:
+        pass
+    raise RuntimeError(f"VoiceLab kutilmagan javob ({ct}): {r.text[:300]}")
+
+
+async def voicelab_voices() -> str:
+    """VoiceLab ovozlar ro'yxatini xom ko'rinishda qaytaradi (tuzilmasini ko'rish uchun)."""
+    if not settings.voicelab_api_key:
+        raise RuntimeError("VOICELAB_API_KEY sozlanmagan")
+    async with httpx.AsyncClient(timeout=20) as c:
+        r = await c.get(settings.voicelab_base.rstrip("/") + settings.voicelab_voices_path,
+                        headers={"Authorization": f"Bearer {settings.voicelab_api_key}"})
+    return f"HTTP {r.status_code}\n{r.text[:6000]}"

@@ -222,13 +222,19 @@ def _check_token(token: str):
 
 @app.get("/voice_demo")
 async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", rate: str = "", pitch: str = "", text: str = "",
-                     provider: str = "edge", gvoice: str = "", style: str = ""):
+                     provider: str = "edge", gvoice: str = "", style: str = "", vid: str = ""):
     """Ovozni eshittiradi (sozlash uchun): Edge (bepul) yoki Gemini (pullik, kunlik limitga kiradi)."""
     _check_token(token)
     import edge_tts
     p = PATIENTS.get(patient)
     if not p:
         raise HTTPException(404, "Bemor topilmadi")
+    if provider == "voicelab":
+        try:
+            audio, ct = await tts.voicelab_tts(text[:300] or SAMPLES.get(patient, "Assalomu alaykum."), vid)
+        except Exception as e:
+            raise HTTPException(502, f"VoiceLab xatosi: {e}"[:500])
+        return Response(audio, media_type=ct)
     if provider == "gemini":
         if not tts.gemini_budget_ok():
             raise HTTPException(429, "Gemini ovozi o'chiq yoki kunlik limit tugagan")
@@ -273,6 +279,9 @@ for(const [id,d] of Object.entries(P)){
  <label>Gemini ovozi</label><select class="gv">${G.map(n=>`<option ${n===d.gvoice?'selected':''}>${n}</option>`).join('')}</select>
  <label>Xarakter tavsifi (inglizcha)</label><textarea class="gs" rows="3">${d.gstyle}</textarea>
  <button class="gb" style="background:#7c3aed">▶ Gemini bilan tinglash</button>
+ <hr><b>VoiceLab (o'zbekcha)</b> — <a href="/voicelab_voices?token=${token}" target="_blank">ovozlar ro'yxati</a>
+ <label>voice_id (ro'yxatdan oling; bo'sh = standart)</label><input class="vid" style="width:100%;padding:6px;box-sizing:border-box">
+ <button class="vb" style="background:#0369a1">▶ VoiceLab bilan tinglash</button>
  <audio controls style="width:100%"></audio></div>`);
 }
 document.querySelectorAll('.card').forEach(c=>{
@@ -284,11 +293,24 @@ document.querySelectorAll('.card').forEach(c=>{
  c.querySelector('button').onclick=()=>{
   const q=new URLSearchParams({token,patient:c.id,voice:v.value,rate:sg(+r.value)+'%',pitch:sg(+p.value)+'Hz',text:t.value});
   a.src='/voice_demo?'+q.toString();a.play();};
+ c.querySelector('.vb').onclick=()=>{
+  const q=new URLSearchParams({token,patient:c.id,provider:'voicelab',vid:c.querySelector('.vid').value,text:t.value});
+  a.src='/voice_demo?'+q.toString();a.play();};
  c.querySelector('.gb').onclick=()=>{
   const q=new URLSearchParams({token,patient:c.id,provider:'gemini',gvoice:c.querySelector('.gv').value,style:c.querySelector('.gs').value,text:t.value});
   a.src='/voice_demo?'+q.toString();a.play();};
 });
 </script></body></html>"""
+
+
+@app.get("/voicelab_voices")
+async def voicelab_voices(token: str = ""):
+    """VoiceLab ovozlari ro'yxatining xom javobi (voice_id larni topish uchun)."""
+    _check_token(token)
+    try:
+        return Response(await tts.voicelab_voices(), media_type="text/plain; charset=utf-8")
+    except Exception as e:
+        raise HTTPException(502, f"VoiceLab xatosi: {e}"[:500])
 
 
 @app.get("/voice_lab", response_class=HTMLResponse)

@@ -287,6 +287,7 @@ HTML_PAGE = r"""<!doctype html>
       <select id="ttsSelect">
         <option value="edge" selected>🔊 Edge TTS (Tavsiya - Bepul)</option>
         <option value="gemini">✨ Gemini Audio (Pullik API)</option>
+        <option value="elevenlabs">🎙 ElevenLabs (Realistik)</option>
       </select>
       <button class="btn-secondary" id="evalBtn" title="Hamshira ishini baholash">📋 Baholash</button>
       <button class="btn-secondary" id="clearBtn" title="Suhbatni tozalash">↻ Yangi</button>

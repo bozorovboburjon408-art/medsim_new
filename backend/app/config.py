@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     debug_token: str = ""  # /voice_lab (ovoz sozlash sahifasi) uchun; bo'sh bo'lsa o'chiq
     azure_speech_key: str = ""
     azure_speech_region: str = ""
+    elevenlabs_api_key: str = ""
 
 
 settings = Settings()

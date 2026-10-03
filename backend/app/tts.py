@@ -63,6 +63,12 @@ async def synthesize(text: str, p: Patient, provider: str | None = None) -> tupl
 
     prov = (provider or settings.tts_provider).strip().lower()
 
+    if prov == "elevenlabs" and settings.elevenlabs_api_key:
+        try:
+            return await _elevenlabs(text, p), "elevenlabs"
+        except Exception as e:
+            log.warning("ElevenLabs TTS xatosi (%s), Edge ga o'tilmoqda", e)
+
     if prov == "azure" and settings.azure_speech_key:
         try:
             return await _azure(text, p), "azure"
@@ -173,4 +179,35 @@ async def _azure(text: str, p: Patient) -> bytes:
             "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3"})
         r.raise_for_status()
     return r.content
+
+
+async def _elevenlabs(text: str, p: Patient) -> bytes:
+    """ElevenLabs orqali MP3 audio qaytaradi."""
+    if not settings.elevenlabs_api_key:
+        raise ValueError("ELEVENLABS_API_KEY sozlanmagan")
+    
+    voice_id = p.elevenlabs_voice
+    if not voice_id:
+        raise ValueError(f"Bemor '{p.id}' uchun elevenlabs_voice kiritilmagan")
+        
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}?output_format=mp3_44100_128"
+    headers = {
+        "xi-api-key": settings.elevenlabs_api_key,
+        "Content-Type": "application/json"
+    }
+    body = {
+        "text": text,
+        "model_id": "eleven_multilingual_v2",
+        "voice_settings": {
+            "stability": 0.5,
+            "similarity_boost": 0.75
+        }
+    }
+    
+    async with httpx.AsyncClient(timeout=30) as c:
+        r = await c.post(url, json=body, headers=headers)
+        if r.status_code != 200:
+            log.warning("ElevenLabs xatosi: %s", r.text[:200])
+            r.raise_for_status()
+        return r.content
 

@@ -27,6 +27,7 @@ class Patient:
     role: str
     scenario_file: str
     gemini_voice: str = "Gacrux"
+    elevenlabs_voice: str = ""  # ID lar kelgach to'ldiriladi
 
     def system_prompt(self) -> str:
         scenario = (SCENARIO_DIR / self.scenario_file).read_text(encoding="utf-8")

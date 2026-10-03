@@ -28,6 +28,11 @@ STYLE = {
     "homilador": "Speak in a warm, slightly tired adult woman's voice at a calm pace.",
     "bola": "You are Jasurbek, a 5-year-old BOY. Speak in a high-pitched, small, cute, slightly whiny little boy's voice (never a girl's voice), in very short childlike sentences.",
 }
+IDENT = {
+    "buvi": "SEN: Salomat buvi, 75 yoshli kampir (ayol). ",
+    "homilador": "SEN: Nilufar, 32 haftalik homilador ayol. ",
+    "bola": "SEN: Jasurbek, 5 yoshli O'G'IL BOLA (buvi emas, kattalar emas). Hamshira senga 'Jasurbek' yoki 'bolajon' deydi; o'zingni hech qachon buvi yoki Salomat deb tanishtirma. Kattalardek emas, bolalarcha qisqa gapir. ",
+}
 LIVE_RULES = (
     "\n\nOVOZLI SUHBAT: faqat o'zbek tilida gapir. Butun suhbat davomida aynan bir xil ovoz, ohang va tezlikda gapir. "
     "Faqat bemor rolida, juda qisqa (1-2 gap) javob ber. Hech qachon 'Bemor:' deb yozma va o'zingni AI deb aytma. "
@@ -76,7 +81,7 @@ async def live_models(token: str = ""):
 def build_config(patient_id: str, voice: str, ptt: int, hints: bool = True) -> types.LiveConnectConfig:
     p = PATIENTS[patient_id]
     voice = voice if voice in VOICES else DEFAULT_VOICE.get(patient_id, "Kore")
-    system = p.system_prompt() + LIVE_RULES + STYLE.get(patient_id, "")
+    system = IDENT.get(patient_id, "") + p.system_prompt() + LIVE_RULES + STYLE.get(patient_id, "")
     return types.LiveConnectConfig(
         response_modalities=["AUDIO"],
         speech_config=types.SpeechConfig(
@@ -236,7 +241,7 @@ code{background:#e4eceb;padding:2px 6px;border-radius:6px}.s{color:#475569;font-
  <p class="s">Mikrofon darajasi (gapirganda yashil chiziq o'sishi kerak)</p>
  <p class="s" id="lat"></p><p class="s" id="usage"></p><p class="s" id="diag"></p>
  <label>Mikrofonsiz sinov: matn yozib yuboring (javob ovozda chiqsa, model va ovoz ishlayapti)</label>
- <input id="txt" style="width:100%;padding:8px;font-size:15px;box-sizing:border-box" value="Assalomu alaykum buvi, ahvollaringiz qanday?">
+ <input id="txt" style="width:100%;padding:8px;font-size:15px;box-sizing:border-box" value="Assalomu alaykum, ahvolingiz qanday?">
  <button id="sendtxt" disabled>Matnni yuborish</button></div>
 <div class="card"><b>Suhbat</b><div id="log"></div></div>
 <script>

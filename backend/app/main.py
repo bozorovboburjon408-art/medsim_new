@@ -79,7 +79,12 @@ async def chat_stream(req: ChatRequest):
         t0 = time.perf_counter()
         info: dict = {}
 
-        if (req.tts or settings.tts_provider) == "gemini":
+        wanted = req.tts or settings.tts_provider
+        use_gemini = wanted == "gemini" and tts.gemini_budget_ok()
+        gem_off = wanted == "gemini" and not use_gemini  # Gemini ovozi qimmat: o'chiq yoki limit tugagan
+        prov = "edge" if gem_off else req.tts
+
+        if use_gemini:
             # Gemini ovozi: javob to'liq yoziladi, so'ng butun matn bitta oqimli so'rovda ovozlashtiriladi
             # (bir ohang, birinchi bo'lak ~0.5 s da keladi); bo'laklar darrov ilovaga uzatiladi.
             try:
@@ -134,7 +139,9 @@ async def chat_stream(req: ChatRequest):
 
         async def synth(s: str, t_llm: int):
             t = time.perf_counter()
-            audio, fmt, used = await tts.synthesize(s, p, req.tts)
+            audio, fmt, used = await tts.synthesize(s, p, prov)
+            if gem_off:
+                used += " (Gemini o'chiq)"
             return s, audio, fmt, used, t_llm, int((time.perf_counter() - t) * 1000)
 
         async def producer():

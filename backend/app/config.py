@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-5-5"
     tts_provider: str = "edge"
+    # Gemini TTS qimmat (~90% xarajat shundan chiqdi): 0 = o'chiq, N = bir kunda ko'pi bilan N ta so'rov
+    gemini_tts_daily_limit: int = 0
     debug_token: str = ""  # /tts_test uchun; bo'sh bo'lsa sinov yo'li o'chiq
     gemini_tts_models: str = "gemini-3.8-flash-lite-tts,gemini-3.8-flash-tts"
     azure_speech_key: str = ""

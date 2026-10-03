@@ -18,6 +18,20 @@ from .patients import Patient
 log = logging.getLogger("uvicorn.error")
 
 
+def gemini_budget_ok() -> bool:
+    """Gemini TTS kunlik limiti: 0 bo'lsa o'chiq. Ruxsat berilsa hisoblagichni oshiradi."""
+    limit = settings.gemini_tts_daily_limit
+    if limit <= 0:
+        return False
+    day = time.strftime("%Y-%m-%d", time.gmtime())
+    if _gem_count["day"] != day:
+        _gem_count["day"], _gem_count["n"] = day, 0
+    if _gem_count["n"] >= limit:
+        return False
+    _gem_count["n"] += 1
+    return True
+
+
 def clean_for_tts(text: str) -> str:
     """Ovozga berilmaydigan belgilarni olib tashlaydi. Ayniqsa ikki nuqta va qo'shtirnoq: Gemini TTS ularni
     'spiker: gap' deb o'qib, boshqa ovozga o'tib ketishi mumkin. O'zbekcha tutuq belgilari (o', g', ʻ, ’) saqlanadi."""
@@ -31,6 +45,7 @@ def clean_for_tts(text: str) -> str:
     t = re.sub(r"\s+", " ", t).strip()
     return re.sub(r"\s+([.,!?])", r"\1", t)
 
+_gem_count = {"day": "", "n": 0}
 _tts_bad: dict[str, float] = {}  # sekin/xato TTS modellari vaqtincha oxiriga o'tkaziladi
 
 

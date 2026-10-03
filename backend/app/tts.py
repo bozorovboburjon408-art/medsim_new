@@ -3,7 +3,9 @@ import base64
 import re
 import json
 import time
+import uuid
 from typing import AsyncIterator
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 import io
 import logging
 import wave
@@ -339,7 +341,8 @@ async def voicelab_tts(text: str, voice_id: str = "", speed: float | None = None
         body["speed"] = max(0.5, min(2.0, float(speed)))
     async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=30, write=5, pool=5)) as c:
         r = await c.post(settings.voicelab_base.rstrip("/") + settings.voicelab_tts_path, json=body,
-                         headers={"Authorization": f"Bearer {settings.voicelab_api_key}"})
+                         headers={"Authorization": f"Bearer {settings.voicelab_api_key}",
+                                  "Idempotency-Key": uuid.uuid4().hex})
     ct = r.headers.get("content-type", "")
     if r.status_code >= 400:
         raise RuntimeError(f"VoiceLab {r.status_code}: {r.text[:300]}")
@@ -366,5 +369,60 @@ async def voicelab_voices() -> str:
         raise RuntimeError("VOICELAB_API_KEY sozlanmagan")
     async with httpx.AsyncClient(timeout=20) as c:
         r = await c.get(settings.voicelab_base.rstrip("/") + settings.voicelab_voices_path,
+                        params={"language": "uz"},
                         headers={"Authorization": f"Bearer {settings.voicelab_api_key}"})
     return f"HTTP {r.status_code}\n{r.text[:6000]}"
+
+
+async def voicelab_open():
+    """Realtime TTS: ticket olinadi (POST /v1/ticket), WebSocket ochiladi, 'ready' hodisasi kutiladi.
+    Qaytaradi: (websocket, sample_rate). Format 16-bit mono PCM bo'lmasa, xato (REST zaxirasi ishlaydi)."""
+    from websockets.asyncio.client import connect
+    if not settings.voicelab_api_key:
+        raise RuntimeError("VOICELAB_API_KEY sozlanmagan")
+    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=10, write=5, pool=5)) as c:
+        r = await c.post(settings.voicelab_base.rstrip("/") + settings.voicelab_ticket_path,
+                         json={"transport": "websocket", "service": "tts"},
+                         headers={"Authorization": f"Bearer {settings.voicelab_api_key}"})
+    if r.status_code >= 400:
+        raise RuntimeError(f"VoiceLab ticket {r.status_code}: {r.text[:200]}")
+    j = r.json()
+    u = urlparse(j["websocket_url"])
+    url = urlunparse(u._replace(query=urlencode(parse_qsl(u.query, keep_blank_values=True) + [("ticket", j["ticket"])])))
+    ws = await connect(url, open_timeout=5, max_size=None)
+    try:
+        ev = json.loads(await asyncio.wait_for(ws.recv(), 8))
+        if ev.get("event") == "error":
+            raise RuntimeError(f"VoiceLab realtime xatosi: {ev.get('message')}")
+        if ev.get("event") != "ready":
+            raise RuntimeError(f"VoiceLab 'ready' o'rniga: {str(ev)[:150]}")
+        fmt = str(ev.get("format", "")).lower()
+        if int(ev.get("channels", 1)) != 1 or not ("pcm" in fmt or "s16" in fmt or "l16" in fmt):
+            raise RuntimeError(f"Realtime format qo'llab-quvvatlanmaydi: {ev}")
+        return ws, int(ev.get("sample_rate", 24000))
+    except Exception:
+        await ws.close()
+        raise
+
+
+async def voicelab_synth(ws, text: str, voice_id: str, speed: float | None = None) -> AsyncIterator[bytes]:
+    """Ochiq WebSocket orqali bitta matnni ovozlashtiradi: PCM bo'laklarini (juft uzunlikda) qaytaradi."""
+    msg = {"text": clean_for_tts(text), "language": "uz", "voice_id": voice_id}
+    if speed:
+        msg["speed"] = max(0.5, min(2.0, float(speed)))
+    await ws.send(json.dumps(msg))
+    carry = b""
+    while True:
+        m = await asyncio.wait_for(ws.recv(), 15)
+        if isinstance(m, bytes):
+            raw = carry + m
+            carry = raw[len(raw) // 2 * 2:]
+            raw = raw[:len(raw) // 2 * 2]
+            if raw:
+                yield raw
+            continue
+        ev = json.loads(m)
+        if ev.get("event") == "done":
+            return
+        if ev.get("event") == "error":
+            raise RuntimeError(f"VoiceLab: {ev.get('message')} ({ev.get('code')})")

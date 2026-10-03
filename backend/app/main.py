@@ -135,6 +135,56 @@ async def chat_stream(req: ChatRequest):
                 yield json.dumps({"error": f"Ovoz (TTS) xatosi: {e}"[:400]}) + "\n"
             return
 
+        vl_cfg = tts.voicelab_cfg(p.id) if wanted == "voicelab" else {}
+        if vl_cfg.get("voice_id"):
+            # VoiceLab oqimi: bitta ochiq WebSocket, har gap tayyor bo'lishi bilan ovozlashtiriladi
+            # (ulanish AI javob yozayotgan paytda parallel ochiladi). Xatoda Edge'ga o'tiladi.
+            open_task = asyncio.create_task(tts.voicelab_open())
+            ws, rate, vl_ok = None, 24000, True
+            try:
+                async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model):
+                    t_llm = int((time.perf_counter() - t0) * 1000)
+                    got_first = False
+                    if vl_ok:
+                        try:
+                            if ws is None:
+                                ws, rate = await open_task
+                            t_s = time.perf_counter()
+                            async for pcm in tts.voicelab_synth(ws, s, vl_cfg["voice_id"], vl_cfg.get("speed")):
+                                yield json.dumps({
+                                    "pcm_b64": base64.b64encode(pcm).decode(), "rate": rate,
+                                    "text": s if not got_first else "", "ms": int((time.perf_counter() - t0) * 1000),
+                                    "llm_ms": t_llm, "tts_ms": int((time.perf_counter() - t_s) * 1000) if not got_first else 0,
+                                    "tts": "voicelab-stream", "model": info.get("model", ""),
+                                    "usage": info.get("usage", ""), "tries": ", ".join(info.get("tries", [])),
+                                }) + "\n"
+                                got_first = True
+                            if got_first:
+                                continue
+                            raise RuntimeError("VoiceLab audio qaytarmadi")
+                        except Exception as e:
+                            if got_first:  # gap yarmida uzildi: Edge'ga o'tib bo'lmaydi
+                                yield json.dumps({"error": f"Ovoz oqimi uzildi: {e}"[:400]}) + "\n"
+                                return
+                            vl_ok = False
+                            log.warning("VoiceLab oqimi xato, Edge'ga o'tildi: %s", e)
+                    t_e = time.perf_counter()
+                    audio, fmt, _used = await tts.synthesize(s, p, "edge")
+                    yield json.dumps({
+                        "text": s, "audio_b64": base64.b64encode(audio).decode(), "fmt": fmt,
+                        "ms": int((time.perf_counter() - t0) * 1000), "llm_ms": t_llm,
+                        "tts_ms": int((time.perf_counter() - t_e) * 1000), "tts": "edge (VoiceLab xato)",
+                        "model": info.get("model", ""), "usage": info.get("usage", ""),
+                        "tries": ", ".join(info.get("tries", [])),
+                    }) + "\n"
+            except Exception as e:
+                yield json.dumps({"error": f"AI xatosi: {e}"[:400]}) + "\n"
+            finally:
+                open_task.cancel()
+                if ws is not None:
+                    await ws.close()
+            return
+
         q: asyncio.Queue = asyncio.Queue()
 
         async def synth(s: str, t_llm: int):

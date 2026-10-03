@@ -44,6 +44,28 @@ def patients():
     return [{"id": p.id, "title": p.title} for p in PATIENTS.values()]
 
 
+class SynthRequest(BaseModel):
+    text: str
+    patient_id: str = "buvi"
+    provider: str = "gemini"
+
+
+@app.post("/synthesize")
+async def synth_endpoint(req: SynthRequest):
+    """Matnni to'g'ridan-to'g'ri berilgan bemor ovozida sintez qiladi (LLMsiz, tez va tejamkor)."""
+    p = PATIENTS.get(req.patient_id)
+    if not p:
+        raise HTTPException(404, "Bemor topilmadi")
+    audio, used = await tts.synthesize(req.text, p, req.provider)
+    if not audio:
+        raise HTTPException(502, "Audio generatsiya qilinmadi")
+    return {
+        "used": used,
+        "format": "wav" if used == "gemini" else "mp3",
+        "audio_b64": base64.b64encode(audio).decode(),
+    }
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
     p = PATIENTS.get(req.patient_id)

@@ -320,6 +320,7 @@ code{background:#e4eceb;padding:2px 6px;border-radius:6px}</style></head><body>
 <script>
 const token=new URLSearchParams(location.search).get('token')||'';
 const P=__DATA__;const G=__VOICES__;
+const VOICES=fetch('/voicelab_voice_list?token='+encodeURIComponent(token)).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
 const box=document.getElementById('c');
 for(const [id,d] of Object.entries(P)){
  const r=parseInt(d.rate), pt=parseInt(d.pitch);
@@ -334,7 +335,8 @@ for(const [id,d] of Object.entries(P)){
  <label>Xarakter tavsifi (inglizcha)</label><textarea class="gs" rows="3">${d.gstyle}</textarea>
  <button class="gb" style="background:#7c3aed">▶ Gemini bilan tinglash</button>
  <hr><b>VoiceLab (o'zbekcha)</b> — <a href="/voicelab_voices?token=${token}" target="_blank">ovozlar ro'yxati</a>
- <label>voice_id (ro'yxatdan oling; bo'sh = standart)</label><input class="vid" style="width:100%;padding:6px;box-sizing:border-box">
+ <label>Ovoz (VoiceLab ro'yxatidan)</label><select class="vsel"><option value="">yuklanmoqda…</option></select>
+ <label>voice_id (tanlanganda o'zi to'ladi)</label><input class="vid" style="width:100%;padding:6px;box-sizing:border-box">
  <label>Tezlik (speed): <span class="sv">1.0</span></label><input class="sp" type="range" min="0.5" max="2" step="0.05" value="1">
  <p>Render uchun: <code class="vo"></code></p>
  <button class="vb" style="background:#0369a1">▶ VoiceLab bilan tinglash</button>
@@ -350,6 +352,11 @@ document.querySelectorAll('.card').forEach(c=>{
  c.querySelector('button').onclick=()=>{
   const q=new URLSearchParams({token,patient:c.id,voice:v.value,rate:sg(+r.value)+'%',pitch:sg(+p.value)+'Hz',text:t.value});
   a.src='/voice_demo?'+q.toString();a.play();};
+ const vsel=c.querySelector('.vsel'),vid=c.querySelector('.vid');
+ vsel.onchange=()=>{vid.value=vsel.value;};
+ VOICES.then(list=>{
+  vsel.innerHTML='<option value="">— ovozni tanlang —</option>'+list.map(v=>`<option value="${v.id}">${v.name} — ${v.desc}</option>`).join('');
+ }).catch(e=>{vsel.innerHTML='<option value="">ro\'yxat yuklanmadi: '+e+'</option>';});
  c.querySelector('.vb').onclick=()=>{
   const vid=c.querySelector('.vid').value,spd=c.querySelector('.sp').value;
   c.querySelector('.sv').textContent=spd;
@@ -361,6 +368,15 @@ document.querySelectorAll('.card').forEach(c=>{
   a.src='/voice_demo?'+q.toString();a.play();};
 });
 </script></body></html>"""
+
+
+@app.get("/voicelab_voice_list")
+async def voicelab_voice_list(token: str = ""):
+    _check_token(token)
+    try:
+        return await tts.voicelab_voice_list()
+    except Exception as e:
+        raise HTTPException(502, f"VoiceLab xatosi: {e}"[:400])
 
 
 @app.get("/voicelab_voices")

@@ -426,3 +426,18 @@ async def voicelab_synth(ws, text: str, voice_id: str, speed: float | None = Non
             return
         if ev.get("event") == "error":
             raise RuntimeError(f"VoiceLab: {ev.get('message')} ({ev.get('code')})")
+
+
+async def voicelab_voice_list() -> list[dict]:
+    """Ovozlar ro'yxati (laboratoriyadagi tanlov uchun): [{id, name, desc}]."""
+    if not settings.voicelab_api_key:
+        raise RuntimeError("VOICELAB_API_KEY sozlanmagan")
+    async with httpx.AsyncClient(timeout=20) as c:
+        r = await c.get(settings.voicelab_base.rstrip("/") + settings.voicelab_voices_path,
+                        params={"language": "uz"},
+                        headers={"Authorization": f"Bearer {settings.voicelab_api_key}"})
+    if r.status_code >= 400:
+        raise RuntimeError(f"VoiceLab {r.status_code}: {r.text[:200]}")
+    return [{"id": v.get("id", ""), "name": v.get("display_name") or v.get("name", ""),
+             "desc": (v.get("short_description") or "")[:60], "gender": v.get("gender") or ""}
+            for v in r.json().get("data", [])]

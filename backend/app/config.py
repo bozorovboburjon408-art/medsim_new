@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     debug_token: str = ""  # /voice_lab (ovoz sozlash sahifasi) uchun; bo'sh bo'lsa o'chiq
     azure_speech_key: str = ""
     azure_speech_region: str = ""
+    google_tts_api_key: str = ""  # Google Cloud Text-to-Speech API kaliti ($300 Cloud krediti uchun); faqat laboratoriya
 
 
 settings = Settings()

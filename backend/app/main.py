@@ -165,6 +165,17 @@ async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", ra
     p = PATIENTS.get(patient)
     if not p:
         raise HTTPException(404, "Bemor topilmadi")
+    if engine == "cloud":
+        txt = tts.clean_for_tts(text[:300]) or SAMPLES.get(patient, "Assalomu alaykum.")
+        gv = gvoice if gvoice in tts.GEMINI_VOICES else tts.GEMINI_DEFAULT_VOICE.get(patient, "Kore")
+        if not settings.google_tts_api_key:
+            raise HTTPException(400, "GOOGLE_TTS_API_KEY Render muhitida o'rnatilmagan")
+        if not re.fullmatch(r"[A-Za-z0-9._-]{3,60}", gmodel):
+            raise HTTPException(400, "Cloud TTS modeli noto'g'ri")
+        try:
+            return Response(await tts.cloud_tts_lab(txt, gv, gmodel, gstyle), media_type="audio/mpeg")
+        except Exception as e:
+            raise HTTPException(502, f"Cloud TTS: {e}")
     if engine == "gemini":
         txt = tts.clean_for_tts(text[:300]) or SAMPLES.get(patient, "Assalomu alaykum.")
         gv = gvoice if gvoice in tts.GEMINI_VOICES else tts.GEMINI_DEFAULT_VOICE.get(patient, "Kore")
@@ -203,12 +214,18 @@ code{background:#e4eceb;padding:2px 6px;border-radius:6px}.m{font-size:13px;colo
 <h1>Ovoz laboratoriyasi: Edge va Gemini</h1>
 <p>Har bemor uchun Edge (bepul) va Gemini (pulli, har bosish ~bir necha sent) ovozini yonma-yon eshiting. "Ketma-ket" tugmasi ikkalasini birin-ketin chaladi.</p>
 <div class="card"><label>Gemini TTS modeli (serverdan olinadi)</label><select id="gm"><option value="">yuklanmoqda...</option></select><div class="m" id="gmnote"></div></div>
+<div class="card"><label>Google Cloud TTS modeli ($300 kredit; GOOGLE_TTS_API_KEY kerak)</label>
+<select id="cm"><option>gemini-2.5-flash-tts</option><option>gemini-2.5-pro-tts</option><option value="Chirp3-HD">Chirp3-HD</option></select>
+<button class="c" id="cv">O\u2018zbekcha ovozlarni tekshirish</button><div class="m" id="cvnote"></div></div>
 <div id="c"></div>
 <script>
 const token=new URLSearchParams(location.search).get('token')||'';
 const P=__DATA__, GV=__GV__, GD=__GD__, GS=__GS__;
 const box=document.getElementById('c');
 const sg=n=>(n>=0?'+':'')+n;
+document.getElementById('cv').onclick=async()=>{const n=document.getElementById('cvnote');n.textContent='tekshirilmoqda...';
+ try{const r=await fetch('/cloud_voices?token='+encodeURIComponent(token));const t=await r.text();
+  n.textContent=r.ok?(JSON.parse(t).length+' ta uz-UZ ovozi: '+t.slice(0,300)):'Xato: '+t.slice(0,300);}catch(e){n.textContent='Xato: '+e;}};
 fetch('/tts_models?token='+encodeURIComponent(token)).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(l=>{
  const s=document.getElementById('gm');
  s.innerHTML=l.map(m=>'<option>'+m+'</option>').join('')||'<option value="">TTS modeli topilmadi</option>';
@@ -226,7 +243,7 @@ for(const [id,d] of Object.entries(P)){
  '<label>Uslub shakli</label><select class="gmo"><option value="none">Uslubsiz (tavsiya)</option><option value="say">Say ...: matn</option><option value="director">Rejissyor yozuvi</option></select>'+
  '<label>Balandlik (oʻynatish tezligi): <span class="pbv">1.00</span>x (bolaga: 1.15\u20131.35)</label><input class="pb" type="range" min="80" max="160" value="100">'+
  '<label>Matn</label><textarea class="t" rows="3">'+d.sample+'</textarea>'+
- '<button class="e">▶ Edge</button><button class="g">▶ Gemini</button><button class="c">⇄ Ketma-ket</button>'+
+ '<button class="e">▶ Edge</button><button class="g">▶ Gemini</button><button class="c">⇄ Ketma-ket</button><button class="k" style="background:#0369a1">☁ Cloud</button>'+
  '<div class="m">Qiymat: <code class="o"></code></div><div class="m st"></div><audio controls style="width:100%"></audio></div>');
 }
 document.querySelectorAll('.card[id]').forEach(c=>{
@@ -236,17 +253,19 @@ document.querySelectorAll('.card[id]').forEach(c=>{
  [v,r,p,gv].forEach(e=>e.oninput=upd);pb.oninput=()=>{c.querySelector('.pbv').textContent=(pb.value/100).toFixed(2);a.preservesPitch=false;a.playbackRate=pb.value/100;};upd();
  const url=eng=>{const q=new URLSearchParams({token:token,patient:c.id,text:t.value,engine:eng});
   if(eng==='edge'){q.set('voice',v.value);q.set('rate',sg(+r.value)+'%');q.set('pitch',sg(+p.value)+'Hz');}
+  else if(eng==='cloud'){q.set('gvoice',gv.value);q.set('gmodel',document.getElementById('cm').value);q.set('gstyle',gs.value);}
   else{q.set('gvoice',gv.value);q.set('gmodel',document.getElementById('gm').value);q.set('gstyle',gs.value);q.set('gmode',gmo.value);}
   return '/voice_demo?'+q.toString();};
- const play=async eng=>{st.textContent=(eng==='edge'?'Edge':'Gemini')+' tayyorlanmoqda...';const t0=performance.now();
+ const play=async eng=>{const nm={edge:'Edge',gemini:'Gemini',cloud:'Cloud'}[eng];st.textContent=nm+' tayyorlanmoqda...';const t0=performance.now();
   try{const res=await fetch(url(eng));if(!res.ok)throw new Error('HTTP '+res.status+' '+(await res.text()).slice(0,200));
    const blob=await res.blob();const sec=((performance.now()-t0)/1000).toFixed(1);
-   st.textContent=(eng==='edge'?'Edge':'Gemini')+': '+sec+' s da tayyor boʻldi';a.src=URL.createObjectURL(blob);
-   a.preservesPitch=false;a.playbackRate=eng==='gemini'?pb.value/100:1;
+   st.textContent=nm+': '+sec+' s da tayyor boʻldi';a.src=URL.createObjectURL(blob);
+   a.preservesPitch=false;a.playbackRate=eng==='edge'?1:pb.value/100;
    await a.play();await new Promise(ok=>{a.onended=ok;a.onerror=ok;});}
   catch(e){st.textContent='Xato: '+e;}};
  c.querySelector('.e').onclick=()=>play('edge');
  c.querySelector('.g').onclick=()=>play('gemini');
+ c.querySelector('.k').onclick=()=>play('cloud');
  c.querySelector('.c').onclick=async()=>{await play('edge');await play('gemini');};
 });
 </script></body></html>"""
@@ -259,6 +278,19 @@ async def voice_lab(token: str = ""):
             for pid, p in PATIENTS.items()}
     return (_LAB.replace("__DATA__", json.dumps(data, ensure_ascii=False))
             .replace("__GV__", json.dumps(tts.GEMINI_VOICES)).replace("__GD__", json.dumps(tts.GEMINI_DEFAULT_VOICE)).replace("__GS__", json.dumps(GEMINI_STYLES)))
+
+
+@app.get("/cloud_voices")
+async def cloud_voices_ep(token: str = "", lang: str = "uz-UZ"):
+    _check_token(token)
+    if not settings.google_tts_api_key:
+        raise HTTPException(400, "GOOGLE_TTS_API_KEY Render muhitida o'rnatilmagan")
+    if not re.fullmatch(r"[a-z]{2,3}-[A-Z]{2}", lang):
+        raise HTTPException(400, "Til kodi noto'g'ri")
+    try:
+        return [{"name": v.get("name"), "gender": v.get("ssmlGender")} for v in await tts.cloud_voices(lang)]
+    except Exception as e:
+        raise HTTPException(502, f"Cloud TTS: {e}")
 
 
 @app.get("/tts_models")

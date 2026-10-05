@@ -118,3 +118,33 @@ async def gemini_tts_lab(text: str, voice: str, model: str, style: str = "", mod
     if "rate=" in part.get("mimeType", ""):
         rate = int(part["mimeType"].split("rate=")[1].split(";")[0])
     return _pcm_to_wav(base64.b64decode(part["data"]), rate)
+
+
+CLOUD_TTS = "https://texttospeech.googleapis.com/v1"
+
+
+async def cloud_voices(lang: str = "uz-UZ") -> list[dict]:
+    """Google Cloud TTS: berilgan til uchun ovozlar ro'yxati (o'zbekcha qo'llab-quvvatlanishini tekshirish uchun)."""
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.get(f"{CLOUD_TTS}/voices", params={"languageCode": lang, "key": settings.google_tts_api_key})
+    if r.status_code >= 400:
+        raise RuntimeError(f"{r.status_code} {r.text[:300]}")
+    return r.json().get("voices", [])
+
+
+async def cloud_tts_lab(text: str, voice: str, model: str, style: str = "") -> bytes:
+    """Google Cloud TTS (Gemini-TTS yoki Chirp3-HD). Uslub ko'rsatmasi matndan alohida 'prompt' maydonida: ovozda o'qilmaydi."""
+    inp: dict = {"text": text}
+    if style.strip() and model.startswith("gemini"):
+        inp["prompt"] = style.strip()[:300]
+    v = {"languageCode": "uz-UZ", "name": voice}
+    if model.startswith("gemini"):
+        v["modelName"] = model
+    else:  # masalan Chirp3-HD: to'liq ovoz nomi (uz-UZ-Chirp3-HD-Kore)
+        v["name"] = f"uz-UZ-{model}-{voice}"
+    body = {"input": inp, "voice": v, "audioConfig": {"audioEncoding": "MP3"}}
+    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=40, write=5, pool=5)) as c:
+        r = await c.post(f"{CLOUD_TTS}/text:synthesize", json=body, params={"key": settings.google_tts_api_key})
+    if r.status_code >= 400:
+        raise RuntimeError(f"{r.status_code} {r.text[:300]}")
+    return base64.b64decode(r.json()["audioContent"])

@@ -284,11 +284,7 @@ HTML_PAGE = r"""<!doctype html>
         <option value="homilador">🤰 Nilufar opa (33 yosh)</option>
         <option value="bola">👦 Jasurbek (5 yosh)</option>
       </select>
-      <select id="ttsSelect">
-        <option value="edge" selected>🔊 Edge TTS (Tavsiya - Bepul)</option>
-        <option value="gemini">✨ Gemini Audio (Pullik API)</option>
-        <option value="elevenlabs">🎙 ElevenLabs (Realistik)</option>
-      </select>
+      <input type="hidden" id="ttsSelect" value="elevenlabs" />
       <button class="btn-secondary" id="evalBtn" title="Hamshira ishini baholash">📋 Baholash</button>
       <button class="btn-secondary" id="clearBtn" title="Suhbatni tozalash">↻ Yangi</button>
     </div>
@@ -298,7 +294,7 @@ HTML_PAGE = r"""<!doctype html>
     <div class="msg assistant">
       <div class="sender-name">Simulyator</div>
       <div class="bubble">
-        Assalomu alaykum! Bemorni va ovozni tanlang. Pastdagi mikrofondan gapiring yoki matn yozib <b>Enter</b> bosing. Bemorning ovozli javobi to'g'ridan-to'g'ri yangraydi.
+        Assalomu alaykum! Kerakli bemorni tanlang va unga murojaat qiling. Bemor ovozli tarzda javob qaytaradi.
       </div>
     </div>
   </div>
@@ -434,7 +430,7 @@ HTML_PAGE = r"""<!doctype html>
           if (seg.error) throw new Error(seg.error);
           if (seg.text) {
             replyParts.push(seg.text);
-            const stats = `AI: ${seg.llm_ms}ms · Ovoz: ${seg.tts_ms}ms (${seg.tts || tts})`;
+            const stats = `AI: ${seg.llm_ms}ms · Ovoz: ${seg.tts_ms}ms`;
             appendMessage('assistant', seg.text, stats, seg.audio_b64, seg.fmt);
             if (seg.audio_b64) queueAudio(seg.audio_b64, seg.fmt);
           }

@@ -20,6 +20,13 @@ _bad: dict[str, float] = {}
 def get_gemini_endpoint(model: str, stream: bool = False) -> tuple[str, dict[str, str]]:
     """Vertex AI sozlangan bo'lsa Vertex AI orqali (300$ bonusdan), aks holda AI Studio (API Key) orqali."""
     method = "streamGenerateContent?alt=sse" if stream else "generateContent"
+    
+    # Maxsus TTS modellari (preview-tts) Vertex AI da bo'lmasa, AI Studio orqali to'g'ridan-to'g'ri ishlaydi
+    if "tts" in model and settings.gemini_api_key:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:{method}"
+        headers = {"x-goog-api-key": settings.gemini_api_key}
+        return url, headers
+
     if vertex_auth.is_vertex_configured():
         project = vertex_auth.get_project_id()
         location = settings.vertex_location

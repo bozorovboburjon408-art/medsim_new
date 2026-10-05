@@ -147,6 +147,7 @@ SAMPLES = {
     "buvi": "Og'zim tinmay qurib, suv ichganim-ichgan. Kechasi bilan hojatxonaga qatnayman, uyqu yo'q. Oyoqlarim ham uvishib, muzlaydi.",
     "homilador": "Belim simillab og'riyapti, boshim aylanib, tez charchab qolayapman. Siydigimning rangi ham to'qroq bo'lib qoldi.",
     "bola": "Qornim og'riyapti, kechasi orqamni qashlayman. Uxlay olmayman, ovqat yegim kelmayapti.",
+    "bobo": "Vaalaykum assalom, qizim. Oxirgi paytlarda holsizlik, kechalari uxlashim qiyin, tez-tez hojatxonaga qatnayman.",
 }
 
 

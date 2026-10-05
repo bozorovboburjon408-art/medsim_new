@@ -1,5 +1,5 @@
 """Bemorlar ro'yxati. Har bir bemor uchun stsenariy fayli (app/scenarios/*.txt),
-ovoz va rol ko'rsatmalari bor. Bobo va chaqaloq keyin qo'shiladi."""
+ovoz va rol ko'rsatmalari bor. Chaqaloq AI siz ishlaydi."""
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -47,5 +47,11 @@ PATIENTS = {
                 "ba'zan injiqlik qil, tushunmasang 'nima?' deb so'ra. Murakkab tibbiy so'zlarni bilmaysan; "
                 "qichishish, qorin og'rig'i, uyqu yo'qligi haqida o'zingcha aytasan.",
                 "bola.txt"),
+        Patient("bobo", "Hikmatilla ota (78 yosh, skrining)", "uz-UZ-SardorNeural", "-18%", "-8Hz",
+                "Hikmatilla ota, 78 yoshli qariya (erkak). Faqat o'zing gapirasan (kelining Nilufar opa gapirmaydi). "
+                "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan, biroz quloqlaring og'ir: "
+                "ba'zan 'nima dedingiz?' deb qayta so'raysan. Holsizlik, xotira susayishi, uyqusizlik, "
+                "kechasi tez-tez hojatga chiqish haqida o'zing aytasan.",
+                "bobo.txt"),
     ]
 }

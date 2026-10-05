@@ -8,7 +8,7 @@ Bemorlar (`backend/app/patients.py`, ssenariylar `backend/app/scenarios/*.txt`):
 - `homilador` — Nilufar, 32 haftalik homilador
 - `bola` — Jasurbek, 5 yoshli o'g'il bola (o'zi gapiradi; gelmintoz)
 - `chaqaloq` — AI yo'q: yig'laydi (assets/baby_cry.mp3), planshetni beshikdek tebratsa (akselerometr) tinchlanadi
-- `bobo` — ssenariysi hali berilmagan (foydalanuvchi docx beradi, keyin qo'shiladi)
+- `bobo` — Hikmatilla ota, 78 yosh, yoshga doir skrining (ssenariy qo'shildi; faqat o'zi gapiradi, Edge Sardor ovozi)
 
 ## 2. Arxitektura (production)
 ```
@@ -37,7 +37,6 @@ Natijalar:
 
 ## 4. Ochiq vazifalar
 1. `/live_lab` ni haqiqiy mikrofon bilan sinash (agent buni qila olmagan; foydalanuvchi sinab natija beradi) va yuqoridagi (a)(b)(c) ni yopish yoki Live'dan voz kechish.
-2. `bobo` ssenariysini qo'shish (docx kelgach).
 3. Edge ovozlarni `/voice_lab` da sozlash (foydalanuvchi qiymat beradi).
 4. UI qayta dizayni (foydalanuvchi generatsiya qilgan mockup/portretlarni beradi).
 5. Ssenariy promptlarini qisqartirish (~10K belgi; hamshiraga tavsiyalar qismi bemorga kerak emas) — token tejash.

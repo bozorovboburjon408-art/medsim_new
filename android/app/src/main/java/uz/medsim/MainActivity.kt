@@ -59,6 +59,7 @@ val PATIENTS = listOf(
     PatientInfo("buvi", "Salomat buvi", "75 yosh · 2-tip qandli diabet", "👵"),
     PatientInfo("homilador", "Nilufar opa", "33 yosh · 32 haftalik homiladorlik", "🤰"),
     PatientInfo("bola", "Jasurbek", "5 yosh · gijja kasalligi", "👦"),
+    PatientInfo("bobo", "Hikmatilla ota", "78 yosh · yoshga doir skrining", "👴"),
     PatientInfo("chaqaloq", "Chaqaloq", "Yig'laydi, tebratilsa tinchiydi", "👶", isBaby = true),
 )
 

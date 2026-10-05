@@ -223,7 +223,7 @@ for(const [id,d] of Object.entries(P)){
  '<label>Edge ohang: <span class="pv">'+pt+'</span> Hz</label><input class="p" type="range" min="-60" max="90" value="'+pt+'">'+
  '<label>Gemini ovozi</label><select class="gv">'+GV.map(v=>'<option'+(v===GD[id]?' selected':'')+'>'+v+'</option>').join('')+'</select>'+
  '<label>Gemini uslub ko\u2018rsatmasi (ingliz tilida yozing)</label><textarea class="gs" rows="2">'+(GS[id]||'')+'</textarea>'+
- '<label>Uslub shakli</label><select class="gmo"><option value="say">Say ...: matn</option><option value="director">Rejissyor yozuvi</option><option value="none">Uslubsiz</option></select>'+
+ '<label>Uslub shakli</label><select class="gmo"><option value="none">Uslubsiz (tavsiya)</option><option value="say">Say ...: matn</option><option value="director">Rejissyor yozuvi</option></select>'+
  '<label>Balandlik (oʻynatish tezligi): <span class="pbv">1.00</span>x (bolaga: 1.15\u20131.35)</label><input class="pb" type="range" min="80" max="160" value="100">'+
  '<label>Matn</label><textarea class="t" rows="3">'+d.sample+'</textarea>'+
  '<button class="e">▶ Edge</button><button class="g">▶ Gemini</button><button class="c">⇄ Ketma-ket</button>'+

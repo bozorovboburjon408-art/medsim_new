@@ -92,9 +92,20 @@ async def list_gemini_tts_models() -> list[str]:
     return sorted(m["name"].removeprefix("models/") for m in r.json().get("models", []) if "tts" in m["name"].lower())
 
 
-async def gemini_tts_lab(text: str, voice: str, model: str) -> bytes:
-    """Faqat laboratoriya uchun: Gemini TTS bilan bitta gapni wav qilib qaytaradi. Uslub ko'rsatmasi qo'shilmaydi."""
-    body = {"contents": [{"parts": [{"text": text}]}],
+def gemini_prompt(text: str, style: str = "", mode: str = "none") -> str:
+    """Uslub ko'rsatmasini matnga qo'shish: say = 'Say ...: matn', director = rejissyor yozuvlari bloki."""
+    style = style.strip()[:300]
+    if not style or mode == "none":
+        return text
+    if mode == "say":
+        return f"Say {style}: {text}"
+    return (f"# AUDIO PROFILE\n## DIRECTOR'S NOTES\nStyle: {style}\nPace: natural, unhurried.\n"
+            f"Do not read these notes aloud; speak only the transcript.\n\n#### TRANSCRIPT\n{text}")
+
+
+async def gemini_tts_lab(text: str, voice: str, model: str, style: str = "", mode: str = "none") -> bytes:
+    """Faqat laboratoriya uchun: Gemini TTS bilan bitta gapni wav qilib qaytaradi."""
+    body = {"contents": [{"parts": [{"text": gemini_prompt(text, style, mode)}]}],
             "generationConfig": {"responseModalities": ["AUDIO"],
                                  "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}}}
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"

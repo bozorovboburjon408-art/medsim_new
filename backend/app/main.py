@@ -158,7 +158,7 @@ def _check_token(token: str):
 
 @app.get("/voice_demo")
 async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", rate: str = "", pitch: str = "", text: str = "",
-                     engine: str = "edge", gvoice: str = "", gmodel: str = ""):
+                     engine: str = "edge", gvoice: str = "", gmodel: str = "", gstyle: str = "", gmode: str = "none"):
     """Ovozni eshittiradi: engine=edge (tezlik/ohang bilan) yoki engine=gemini (faqat laboratoriya, pulli)."""
     _check_token(token)
     import edge_tts
@@ -171,7 +171,7 @@ async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", ra
         if not re.fullmatch(r"[A-Za-z0-9._-]{3,80}", gmodel):
             raise HTTPException(400, "Gemini TTS modeli tanlanmagan")
         try:
-            return Response(await tts.gemini_tts_lab(txt, gv, gmodel), media_type="audio/wav")
+            return Response(await tts.gemini_tts_lab(txt, gv, gmodel, gstyle, gmode if gmode in ('say', 'director') else 'none'), media_type="audio/wav")
         except Exception as e:
             raise HTTPException(502, f"Gemini TTS: {e}")
     v = voice if voice in VOICES else p.voice
@@ -184,6 +184,13 @@ async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", ra
             audio += ch["data"]
     return Response(audio, media_type="audio/mpeg")
 
+
+GEMINI_STYLES = {
+    "buvi": "slowly, in a weak, warm, slightly tired voice of a 75-year-old Uzbek grandmother",
+    "homilador": "naturally and conversationally, like a real 32-year-old pregnant woman talking to her nurse, slightly tired, soft, with natural pauses, small breaths and varied intonation, not like a reader",
+    "bola": "in the high, small, playful voice of a 5-year-old Uzbek child, slightly whiny, with childlike intonation and short breaths",
+    "bobo": "slowly, in a calm, warm, slightly hoarse voice of a 78-year-old Uzbek grandfather",
+}
 
 _LAB = r"""<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MedSim ovoz laboratoriyasi</title><style>
@@ -199,7 +206,7 @@ code{background:#e4eceb;padding:2px 6px;border-radius:6px}.m{font-size:13px;colo
 <div id="c"></div>
 <script>
 const token=new URLSearchParams(location.search).get('token')||'';
-const P=__DATA__, GV=__GV__, GD=__GD__;
+const P=__DATA__, GV=__GV__, GD=__GD__, GS=__GS__;
 const box=document.getElementById('c');
 const sg=n=>(n>=0?'+':'')+n;
 fetch('/tts_models?token='+encodeURIComponent(token)).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(l=>{
@@ -215,23 +222,27 @@ for(const [id,d] of Object.entries(P)){
  '<label>Edge tezlik: <span class="rv">'+r+'</span>%</label><input class="r" type="range" min="-50" max="50" value="'+r+'">'+
  '<label>Edge ohang: <span class="pv">'+pt+'</span> Hz</label><input class="p" type="range" min="-60" max="90" value="'+pt+'">'+
  '<label>Gemini ovozi</label><select class="gv">'+GV.map(v=>'<option'+(v===GD[id]?' selected':'')+'>'+v+'</option>').join('')+'</select>'+
+ '<label>Gemini uslub ko\u2018rsatmasi (ingliz tilida yozing)</label><textarea class="gs" rows="2">'+(GS[id]||'')+'</textarea>'+
+ '<label>Uslub shakli</label><select class="gmo"><option value="say">Say ...: matn</option><option value="director">Rejissyor yozuvi</option><option value="none">Uslubsiz</option></select>'+
+ '<label>Balandlik (oʻynatish tezligi): <span class="pbv">1.00</span>x (bolaga: 1.15\u20131.35)</label><input class="pb" type="range" min="80" max="160" value="100">'+
  '<label>Matn</label><textarea class="t" rows="3">'+d.sample+'</textarea>'+
  '<button class="e">▶ Edge</button><button class="g">▶ Gemini</button><button class="c">⇄ Ketma-ket</button>'+
  '<div class="m">Qiymat: <code class="o"></code></div><div class="m st"></div><audio controls style="width:100%"></audio></div>');
 }
 document.querySelectorAll('.card[id]').forEach(c=>{
- const v=c.querySelector('.v'),r=c.querySelector('.r'),p=c.querySelector('.p'),t=c.querySelector('.t'),gv=c.querySelector('.gv'),a=c.querySelector('audio'),st=c.querySelector('.st');
+ const v=c.querySelector('.v'),r=c.querySelector('.r'),p=c.querySelector('.p'),t=c.querySelector('.t'),gv=c.querySelector('.gv'),gs=c.querySelector('.gs'),gmo=c.querySelector('.gmo'),pb=c.querySelector('.pb'),a=c.querySelector('audio'),st=c.querySelector('.st');
  const upd=()=>{c.querySelector('.rv').textContent=r.value;c.querySelector('.pv').textContent=p.value;
   c.querySelector('.o').textContent=c.id+': '+v.value.split('-')[2]+', tezlik '+sg(+r.value)+'%, ohang '+sg(+p.value)+'Hz, Gemini '+gv.value;};
- [v,r,p,gv].forEach(e=>e.oninput=upd);upd();
+ [v,r,p,gv].forEach(e=>e.oninput=upd);pb.oninput=()=>{c.querySelector('.pbv').textContent=(pb.value/100).toFixed(2);a.preservesPitch=false;a.playbackRate=pb.value/100;};upd();
  const url=eng=>{const q=new URLSearchParams({token:token,patient:c.id,text:t.value,engine:eng});
   if(eng==='edge'){q.set('voice',v.value);q.set('rate',sg(+r.value)+'%');q.set('pitch',sg(+p.value)+'Hz');}
-  else{q.set('gvoice',gv.value);q.set('gmodel',document.getElementById('gm').value);}
+  else{q.set('gvoice',gv.value);q.set('gmodel',document.getElementById('gm').value);q.set('gstyle',gs.value);q.set('gmode',gmo.value);}
   return '/voice_demo?'+q.toString();};
  const play=async eng=>{st.textContent=(eng==='edge'?'Edge':'Gemini')+' tayyorlanmoqda...';const t0=performance.now();
   try{const res=await fetch(url(eng));if(!res.ok)throw new Error('HTTP '+res.status+' '+(await res.text()).slice(0,200));
    const blob=await res.blob();const sec=((performance.now()-t0)/1000).toFixed(1);
    st.textContent=(eng==='edge'?'Edge':'Gemini')+': '+sec+' s da tayyor boʻldi';a.src=URL.createObjectURL(blob);
+   a.preservesPitch=false;a.playbackRate=eng==='gemini'?pb.value/100:1;
    await a.play();await new Promise(ok=>{a.onended=ok;a.onerror=ok;});}
   catch(e){st.textContent='Xato: '+e;}};
  c.querySelector('.e').onclick=()=>play('edge');
@@ -247,7 +258,7 @@ async def voice_lab(token: str = ""):
     data = {pid: {"title": p.title, "voice": p.voice, "rate": p.rate, "pitch": p.pitch, "sample": SAMPLES.get(pid, "")}
             for pid, p in PATIENTS.items()}
     return (_LAB.replace("__DATA__", json.dumps(data, ensure_ascii=False))
-            .replace("__GV__", json.dumps(tts.GEMINI_VOICES)).replace("__GD__", json.dumps(tts.GEMINI_DEFAULT_VOICE)))
+            .replace("__GV__", json.dumps(tts.GEMINI_VOICES)).replace("__GD__", json.dumps(tts.GEMINI_DEFAULT_VOICE)).replace("__GS__", json.dumps(GEMINI_STYLES)))
 
 
 @app.get("/tts_models")

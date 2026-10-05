@@ -1,8 +1,11 @@
 """Matnni o'zbekcha ovozga aylantirish. Ovoz faqat Edge (bepul) yoki Azure (ixtiyoriy) orqali.
 Gemini faqat matn (suhbat va baholash) uchun ishlatiladi, ovoz uchun emas."""
 import asyncio
+import base64
+import io
 import logging
 import re
+import wave
 from xml.sax.saxutils import escape
 
 import edge_tts
@@ -64,3 +67,43 @@ async def _azure(text: str, p: Patient) -> bytes:
             "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3"})
         r.raise_for_status()
     return r.content
+
+
+def _pcm_to_wav(pcm: bytes, rate: int = 24000) -> bytes:
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(rate)
+        w.writeframes(pcm)
+    return buf.getvalue()
+
+
+GEMINI_VOICES = ["Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede", "Callirrhoe", "Autonoe",
+                 "Enceladus", "Iapetus", "Umbriel", "Algieba", "Despina", "Erinome", "Algenib", "Rasalgethi",
+                 "Laomedeia", "Achernar", "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
+                 "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"]
+GEMINI_DEFAULT_VOICE = {"buvi": "Gacrux", "homilador": "Kore", "bola": "Puck", "bobo": "Charon"}
+
+
+async def list_gemini_tts_models() -> list[str]:
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.get("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",
+                        headers={"x-goog-api-key": settings.gemini_api_key})
+        r.raise_for_status()
+    return sorted(m["name"].removeprefix("models/") for m in r.json().get("models", []) if "tts" in m["name"].lower())
+
+
+async def gemini_tts_lab(text: str, voice: str, model: str) -> bytes:
+    """Faqat laboratoriya uchun: Gemini TTS bilan bitta gapni wav qilib qaytaradi. Uslub ko'rsatmasi qo'shilmaydi."""
+    body = {"contents": [{"parts": [{"text": text}]}],
+            "generationConfig": {"responseModalities": ["AUDIO"],
+                                 "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}}}
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=40, write=5, pool=5)) as c:
+        r = await c.post(url, json=body, headers={"x-goog-api-key": settings.gemini_api_key})
+    if r.status_code >= 400:
+        raise RuntimeError(f"{r.status_code} {r.text[:200]}")
+    part = r.json()["candidates"][0]["content"]["parts"][0]["inlineData"]
+    rate = 24000
+    if "rate=" in part.get("mimeType", ""):
+        rate = int(part["mimeType"].split("rate=")[1].split(";")[0])
+    return _pcm_to_wav(base64.b64decode(part["data"]), rate)

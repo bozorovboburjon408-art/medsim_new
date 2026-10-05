@@ -157,13 +157,23 @@ def _check_token(token: str):
 
 
 @app.get("/voice_demo")
-async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", rate: str = "", pitch: str = "", text: str = ""):
-    """Edge ovozini berilgan tezlik/ohang bilan eshittiradi (ovozni sozlash uchun)."""
+async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", rate: str = "", pitch: str = "", text: str = "",
+                     engine: str = "edge", gvoice: str = "", gmodel: str = ""):
+    """Ovozni eshittiradi: engine=edge (tezlik/ohang bilan) yoki engine=gemini (faqat laboratoriya, pulli)."""
     _check_token(token)
     import edge_tts
     p = PATIENTS.get(patient)
     if not p:
         raise HTTPException(404, "Bemor topilmadi")
+    if engine == "gemini":
+        txt = tts.clean_for_tts(text[:300]) or SAMPLES.get(patient, "Assalomu alaykum.")
+        gv = gvoice if gvoice in tts.GEMINI_VOICES else tts.GEMINI_DEFAULT_VOICE.get(patient, "Kore")
+        if not re.fullmatch(r"[A-Za-z0-9._-]{3,80}", gmodel):
+            raise HTTPException(400, "Gemini TTS modeli tanlanmagan")
+        try:
+            return Response(await tts.gemini_tts_lab(txt, gv, gmodel), media_type="audio/wav")
+        except Exception as e:
+            raise HTTPException(502, f"Gemini TTS: {e}")
     v = voice if voice in VOICES else p.voice
     r = rate if re.fullmatch(r"[+-]\d{1,3}%", rate) else p.rate
     pt = pitch if re.fullmatch(r"[+-]\d{1,3}Hz", pitch) else p.pitch
@@ -175,36 +185,58 @@ async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", ra
     return Response(audio, media_type="audio/mpeg")
 
 
-_LAB = """<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+_LAB = r"""<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MedSim ovoz laboratoriyasi</title><style>
 body{font-family:system-ui,sans-serif;background:#f3f7f6;margin:0;padding:16px;color:#0f172a}
 h1{color:#0f766e;font-size:22px}.card{background:#fff;border-radius:18px;padding:16px;margin:14px 0;box-shadow:0 1px 4px #0002}
 label{display:block;margin:10px 0 2px;font-size:14px;color:#475569}input[type=range]{width:100%}select,textarea{width:100%;font-size:15px;padding:6px;box-sizing:border-box}
-button{background:#0f766e;color:#fff;border:0;border-radius:12px;padding:12px 22px;font-size:16px;margin-top:10px}
-code{background:#e4eceb;padding:2px 6px;border-radius:6px}</style></head><body>
-<h1>Ovoz laboratoriyasi (Edge)</h1><p>Chizg'ichlarni suring va "Tinglash" ni bosing. Yoqqan qiymatlarni menga yozing.</p><div id="c"></div>
+button{background:#0f766e;color:#fff;border:0;border-radius:12px;padding:12px 18px;font-size:16px;margin:10px 6px 0 0}
+button.g{background:#7c3aed}button.c{background:#334155}
+code{background:#e4eceb;padding:2px 6px;border-radius:6px}.m{font-size:13px;color:#475569;margin:6px 0}</style></head><body>
+<h1>Ovoz laboratoriyasi: Edge va Gemini</h1>
+<p>Har bemor uchun Edge (bepul) va Gemini (pulli, har bosish ~bir necha sent) ovozini yonma-yon eshiting. "Ketma-ket" tugmasi ikkalasini birin-ketin chaladi.</p>
+<div class="card"><label>Gemini TTS modeli (serverdan olinadi)</label><select id="gm"><option value="">yuklanmoqda...</option></select><div class="m" id="gmnote"></div></div>
+<div id="c"></div>
 <script>
 const token=new URLSearchParams(location.search).get('token')||'';
-const P=__DATA__;
+const P=__DATA__, GV=__GV__, GD=__GD__;
 const box=document.getElementById('c');
+const sg=n=>(n>=0?'+':'')+n;
+fetch('/tts_models?token='+encodeURIComponent(token)).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(l=>{
+ const s=document.getElementById('gm');
+ s.innerHTML=l.map(m=>'<option>'+m+'</option>').join('')||'<option value="">TTS modeli topilmadi</option>';
+ const i=l.findIndex(m=>m.indexOf('lite')>=0);if(i>=0)s.selectedIndex=i;
+ document.getElementById('gmnote').textContent=l.length+' ta TTS modeli topildi';
+}).catch(e=>{document.getElementById('gm').innerHTML='<option value="">roʻyxat yuklanmadi</option>';document.getElementById('gmnote').textContent=String(e);});
 for(const [id,d] of Object.entries(P)){
  const r=parseInt(d.rate), pt=parseInt(d.pitch);
- box.insertAdjacentHTML('beforeend',`<div class="card" id="${id}"><b>${d.title}</b>
- <label>Ovoz</label><select class="v"><option ${d.voice.includes('Madina')?'selected':''} value="uz-UZ-MadinaNeural">Madina (ayol)</option><option ${d.voice.includes('Sardor')?'selected':''} value="uz-UZ-SardorNeural">Sardor (erkak)</option></select>
- <label>Tezlik: <span class="rv">${r}</span>%</label><input class="r" type="range" min="-50" max="50" value="${r}">
- <label>Ohang (balandlik): <span class="pv">${pt}</span> Hz</label><input class="p" type="range" min="-60" max="90" value="${pt}">
- <label>Matn</label><textarea class="t" rows="3">${d.sample}</textarea>
- <button>▶ Tinglash</button><p>Qiymat: <code class="o"></code></p><audio controls style="width:100%"></audio></div>`);
+ box.insertAdjacentHTML('beforeend','<div class="card" id="'+id+'"><b>'+d.title+'</b>'+
+ '<label>Edge ovozi</label><select class="v"><option '+(d.voice.includes('Madina')?'selected':'')+' value="uz-UZ-MadinaNeural">Madina (ayol)</option><option '+(d.voice.includes('Sardor')?'selected':'')+' value="uz-UZ-SardorNeural">Sardor (erkak)</option></select>'+
+ '<label>Edge tezlik: <span class="rv">'+r+'</span>%</label><input class="r" type="range" min="-50" max="50" value="'+r+'">'+
+ '<label>Edge ohang: <span class="pv">'+pt+'</span> Hz</label><input class="p" type="range" min="-60" max="90" value="'+pt+'">'+
+ '<label>Gemini ovozi</label><select class="gv">'+GV.map(v=>'<option'+(v===GD[id]?' selected':'')+'>'+v+'</option>').join('')+'</select>'+
+ '<label>Matn</label><textarea class="t" rows="3">'+d.sample+'</textarea>'+
+ '<button class="e">▶ Edge</button><button class="g">▶ Gemini</button><button class="c">⇄ Ketma-ket</button>'+
+ '<div class="m">Qiymat: <code class="o"></code></div><div class="m st"></div><audio controls style="width:100%"></audio></div>');
 }
-document.querySelectorAll('.card').forEach(c=>{
- const v=c.querySelector('.v'),r=c.querySelector('.r'),p=c.querySelector('.p'),t=c.querySelector('.t'),a=c.querySelector('audio');
- const sg=n=>(n>=0?'+':'')+n;
+document.querySelectorAll('.card[id]').forEach(c=>{
+ const v=c.querySelector('.v'),r=c.querySelector('.r'),p=c.querySelector('.p'),t=c.querySelector('.t'),gv=c.querySelector('.gv'),a=c.querySelector('audio'),st=c.querySelector('.st');
  const upd=()=>{c.querySelector('.rv').textContent=r.value;c.querySelector('.pv').textContent=p.value;
-  c.querySelector('.o').textContent=`${c.id}: ${v.value.split('-')[2]}, tezlik ${sg(+r.value)}%, ohang ${sg(+p.value)}Hz`;};
- [v,r,p].forEach(e=>e.oninput=upd);upd();
- c.querySelector('button').onclick=()=>{
-  const q=new URLSearchParams({token,patient:c.id,voice:v.value,rate:sg(+r.value)+'%',pitch:sg(+p.value)+'Hz',text:t.value});
-  a.src='/voice_demo?'+q.toString();a.play();};
+  c.querySelector('.o').textContent=c.id+': '+v.value.split('-')[2]+', tezlik '+sg(+r.value)+'%, ohang '+sg(+p.value)+'Hz, Gemini '+gv.value;};
+ [v,r,p,gv].forEach(e=>e.oninput=upd);upd();
+ const url=eng=>{const q=new URLSearchParams({token:token,patient:c.id,text:t.value,engine:eng});
+  if(eng==='edge'){q.set('voice',v.value);q.set('rate',sg(+r.value)+'%');q.set('pitch',sg(+p.value)+'Hz');}
+  else{q.set('gvoice',gv.value);q.set('gmodel',document.getElementById('gm').value);}
+  return '/voice_demo?'+q.toString();};
+ const play=async eng=>{st.textContent=(eng==='edge'?'Edge':'Gemini')+' tayyorlanmoqda...';const t0=performance.now();
+  try{const res=await fetch(url(eng));if(!res.ok)throw new Error('HTTP '+res.status+' '+(await res.text()).slice(0,200));
+   const blob=await res.blob();const sec=((performance.now()-t0)/1000).toFixed(1);
+   st.textContent=(eng==='edge'?'Edge':'Gemini')+': '+sec+' s da tayyor boʻldi';a.src=URL.createObjectURL(blob);
+   await a.play();await new Promise(ok=>{a.onended=ok;a.onerror=ok;});}
+  catch(e){st.textContent='Xato: '+e;}};
+ c.querySelector('.e').onclick=()=>play('edge');
+ c.querySelector('.g').onclick=()=>play('gemini');
+ c.querySelector('.c').onclick=async()=>{await play('edge');await play('gemini');};
 });
 </script></body></html>"""
 
@@ -214,7 +246,17 @@ async def voice_lab(token: str = ""):
     _check_token(token)
     data = {pid: {"title": p.title, "voice": p.voice, "rate": p.rate, "pitch": p.pitch, "sample": SAMPLES.get(pid, "")}
             for pid, p in PATIENTS.items()}
-    return _LAB.replace("__DATA__", json.dumps(data, ensure_ascii=False))
+    return (_LAB.replace("__DATA__", json.dumps(data, ensure_ascii=False))
+            .replace("__GV__", json.dumps(tts.GEMINI_VOICES)).replace("__GD__", json.dumps(tts.GEMINI_DEFAULT_VOICE)))
+
+
+@app.get("/tts_models")
+async def tts_models(token: str = ""):
+    _check_token(token)
+    try:
+        return await tts.list_gemini_tts_models()
+    except Exception as e:
+        raise HTTPException(502, f"Modellar ro'yxati olinmadi: {e}")
 
 
 @app.get("/models")

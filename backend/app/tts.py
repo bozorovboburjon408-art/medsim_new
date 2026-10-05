@@ -130,6 +130,7 @@ async def _gemini(text: str, p: Patient) -> bytes:
     body = {
         "contents": [{"role": "user", "parts": [{"text": text}]}],
         "generationConfig": {
+            "temperature": 0.0,  # Ovoz va ritm tasodifiy o'zgarib ketmasligi, har doim bir xil barqaror chiqishi uchun
             "responseModalities": ["AUDIO"],
             "speechConfig": {
                 "voiceConfig": {

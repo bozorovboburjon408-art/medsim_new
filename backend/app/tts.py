@@ -13,6 +13,7 @@ import httpx
 
 from .config import settings
 from .patients import Patient
+from . import vertex_auth, llm
 
 log = logging.getLogger("uvicorn.error")
 
@@ -98,7 +99,7 @@ async def synthesize(text: str, p: Patient, provider: str | None = None) -> tupl
             log.warning("Azure TTS xatosi (%s), Edge ga o'tilmoqda", e)
 
     if prov in ("gemini", "auto", ""):
-        if settings.gemini_api_key:
+        if settings.gemini_api_key or vertex_auth.is_vertex_configured():
             try:
                 audio = await _gemini(text, p)
                 if audio:
@@ -106,7 +107,7 @@ async def synthesize(text: str, p: Patient, provider: str | None = None) -> tupl
             except Exception as e:
                 log.warning("Gemini TTS xatosi (%s), zaxira Edge TTS ga o'tilmoqda", e)
         else:
-            log.warning("GEMINI_API_KEY sozlanmagan, Edge TTS ga o'tilmoqda")
+            log.warning("GEMINI kaliti yoki Vertex AI sozlanmagan, Edge TTS ga o'tilmoqda")
 
     # Edge TTS (bepul va zaxira)
     return await _edge(text, p), "edge"
@@ -114,8 +115,8 @@ async def synthesize(text: str, p: Patient, provider: str | None = None) -> tupl
 
 async def _gemini(text: str, p: Patient) -> bytes:
     """Gemini audio chiqish modalligi orqali o'zbekcha ovoz sintez qiladi."""
-    if not settings.gemini_api_key:
-        raise ValueError("GEMINI_API_KEY sozlanmagan")
+    if not settings.gemini_api_key and not vertex_auth.is_vertex_configured():
+        raise ValueError("GEMINI_API_KEY yoki Vertex AI sozlanmagan")
 
     models = [m.strip() for m in settings.gemini_tts_models.split(",") if m.strip()]
     if not models:
@@ -137,14 +138,13 @@ async def _gemini(text: str, p: Patient) -> bytes:
             },
         },
     }
-    hdr = {"x-goog-api-key": settings.gemini_api_key}
 
     last_err: Exception | None = None
     async with httpx.AsyncClient(timeout=12) as c:
         for m in models:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
+            url, headers = llm.get_gemini_endpoint(m, stream=False)
             try:
-                r = await c.post(url, json=body, headers=hdr)
+                r = await c.post(url, json=body, headers=headers)
             except Exception as e:
                 log.warning("Gemini TTS %s tarmoq xatosi: %s", m, e)
                 last_err = e

@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     azure_speech_key: str = ""
     azure_speech_region: str = ""
     elevenlabs_api_key: str = ""
+    google_application_credentials_json: str = ""
+    vertex_project_id: str = ""
+    vertex_location: str = "us-central1"
 
 
 settings = Settings()

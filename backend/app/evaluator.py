@@ -81,9 +81,9 @@ async def evaluate(p: Patient, history: list[dict], model: str | None = None) ->
     last = "model ro'yxati bo'sh"
     async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=45, write=5, pool=5)) as c:
         for m in models:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
+            url, headers = llm.get_gemini_endpoint(m, stream=False)
             try:
-                r = await c.post(url, json=body, headers={"x-goog-api-key": settings.gemini_api_key})
+                r = await c.post(url, json=body, headers=headers)
             except httpx.TimeoutException:
                 last = f"{m}: timeout"
                 continue

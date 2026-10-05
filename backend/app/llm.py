@@ -7,6 +7,7 @@ from typing import AsyncIterator
 import httpx
 
 from .config import settings
+from . import vertex_auth
 
 TIMEOUT = 30
 log = logging.getLogger("uvicorn.error")
@@ -14,6 +15,27 @@ _no_think: set[str] = set()  # thinkingLevel'ni tanimagan modellar
 
 # Sekin yoki xato bergan model qisqa vaqtga o'tkazib yuboriladi (qayta-qayta kutib qolmaslik uchun)
 _bad: dict[str, float] = {}
+
+
+def get_gemini_endpoint(model: str, stream: bool = False) -> tuple[str, dict[str, str]]:
+    """Vertex AI sozlangan bo'lsa Vertex AI orqali (300$ bonusdan), aks holda AI Studio (API Key) orqali."""
+    method = "streamGenerateContent?alt=sse" if stream else "generateContent"
+    if vertex_auth.is_vertex_configured():
+        project = vertex_auth.get_project_id()
+        location = settings.vertex_location
+        token = vertex_auth.get_access_token()
+        # Vertex AI da model nomlari: gemini-2.5-flash, gemini-3.5-flash-lite va h.k.
+        url = f"https://{location}-aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:{method}"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        return url, headers
+
+    # Standart AI Studio
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:{method}"
+    headers = {"x-goog-api-key": settings.gemini_api_key}
+    return url, headers
 
 
 def mark_bad(model: str, seconds: float = 90) -> None:
@@ -46,8 +68,8 @@ async def _gemini(system: str, history: list[dict]) -> str:
     last = "model ro'yxati bo'sh"
     async with httpx.AsyncClient(timeout=TIMEOUT) as c:
         for model in models:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-            r = await c.post(url, json=body, headers={"x-goog-api-key": settings.gemini_api_key})
+            url, headers = get_gemini_endpoint(model, stream=False)
+            r = await c.post(url, json=body, headers=headers)
             if r.status_code in (404, 429, 500, 503):  # limit/yo'q/band: keyingi modelga o'tamiz
                 last = f"{model}: {r.status_code} {r.text[:200]}"
                 continue
@@ -125,8 +147,7 @@ async def stream_sentences(system: str, history: list[dict], info: dict | None =
     fast = httpx.Timeout(connect=4, read=6, write=5, pool=5)
     async with httpx.AsyncClient(timeout=fast) as c:
         for model in models:
-            url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-                   f"{model}:streamGenerateContent?alt=sse")
+            url, headers = get_gemini_endpoint(model, stream=True)
             got, failed = False, False
             # "O'ylash" darajasi past qilinadi (tezroq va arzonroq); model tanimasa, bir marta o'ylashsiz qayta uriniladi
             variants = [True, False] if (settings.gemini_thinking and model not in _no_think) else [False]
@@ -137,8 +158,7 @@ async def stream_sentences(system: str, history: list[dict], info: dict | None =
                                                       "thinkingConfig": {"thinkingLevel": settings.gemini_thinking}}}
                 retry_plain = False
                 try:
-                    async with c.stream("POST", url, json=b,
-                                        headers={"x-goog-api-key": settings.gemini_api_key}) as r:
+                    async with c.stream("POST", url, json=b, headers=headers) as r:
                         if r.status_code == 400 and use_think:
                             _no_think.add(model)
                             log.warning("%s thinkingLevel=%s ni qabul qilmadi, o'ylash sozlamasisiz davom etiladi",

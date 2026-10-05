@@ -24,8 +24,14 @@ def get_gemini_endpoint(model: str, stream: bool = False) -> tuple[str, dict[str
         project = vertex_auth.get_project_id()
         location = settings.vertex_location
         token = vertex_auth.get_access_token()
-        # Vertex AI da model nomlari: gemini-2.5-flash, gemini-3.5-flash-lite va h.k.
-        url = f"https://{location}-aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:{method}"
+        # Vertex AI da model nomlarini moslashtirish (masalan gemini-3.x AI Studio nomlarini rasmiy Vertex nomlariga)
+        vertex_model = model
+        if "flash-lite" in model or "3." in model:
+            vertex_model = "gemini-2.0-flash"
+        elif "3.8-flash" in model:
+            vertex_model = "gemini-2.0-flash"
+
+        url = f"https://{location}-aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/publishers/google/models/{vertex_model}:{method}"
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"

@@ -16,13 +16,31 @@ data class Reply(val text: String, val mp3: ByteArray, val llmMs: Int = 0, val t
 
 data class EvalStage(val name: String, val score: Int, val max: Int, val done: List<String>, val missed: List<String>)
 data class EvalResult(
-    val total: Int, val stages: List<EvalStage>, val strengths: List<String>, val advice: List<String>, val summary: String,
 )
 
 data class Seg(
     val text: String, val mp3: ByteArray, val ms: Int,
     val llmMs: Int = 0, val ttsMs: Int = 0, val model: String = "", val tries: String = "",
     val fmt: String = "mp3", val tts: String = "", val pcmRate: Int = 0, val usage: String = "",
+)
+
+data class BabyStatus(
+    val online: Boolean,
+    val state: String,
+    val stateUz: String,
+    val isCrying: Boolean,
+    val isSoothed: Boolean,
+    val isLaughing: Boolean,
+    val soothingProgress: Int,
+    val happyProgress: Int,
+    val holdingStatus: String,
+    val holdingText: String,
+    val shakeStatus: String,
+    val shakeText: String,
+    val motion: Float,
+    val pitch: Float,
+    val roll: Float,
+    val sensorOk: Boolean
 )
 
 object Api {
@@ -121,4 +139,43 @@ object Api {
                 )
             }
         }
+
+    /** ESP32 Chaqaloq manikeni holatini o'qish (/status) */
+    suspend fun getBabyStatus(espUrl: String): BabyStatus? = withContext(Dispatchers.IO) {
+        runCatching {
+            val req = Request.Builder().url(normalize(espUrl) + "/status").build()
+            http.newBuilder().readTimeout(2, TimeUnit.SECONDS).build().newCall(req).execute().use { r ->
+                if (!r.isSuccessful) return@use null
+                val raw = r.body?.string() ?: return@use null
+                val j = JSONObject(raw)
+                val angles = j.optJSONObject("angles")
+                BabyStatus(
+                    online = j.optBoolean("online", true),
+                    state = j.optString("state", "CALM"),
+                    stateUz = j.optString("state_uz", "Tinch"),
+                    isCrying = j.optBoolean("is_crying", false),
+                    isSoothed = j.optBoolean("is_soothed", true),
+                    isLaughing = j.optBoolean("is_laughing", false),
+                    soothingProgress = j.optInt("soothing_progress", 0),
+                    happyProgress = j.optInt("happy_progress", 0),
+                    holdingStatus = j.optString("holding_status", "LYING"),
+                    holdingText = j.optString("holding_text", "Yotqizilgan"),
+                    shakeStatus = j.optString("shake_status", "NONE"),
+                    shakeText = j.optString("shake_text", "Harakatsiz"),
+                    motion = j.optDouble("motion", 0.0).toFloat(),
+                    pitch = angles?.optDouble("pitch", 0.0)?.toFloat() ?: 0f,
+                    roll = angles?.optDouble("roll", 0.0)?.toFloat() ?: 0f,
+                    sensorOk = j.optBoolean("sensor_ok", true)
+                )
+            }
+        }.getOrNull()
+    }
+
+    suspend fun sendBabyCommand(espUrl: String, endpoint: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val req = Request.Builder().url(normalize(espUrl) + endpoint).build()
+            http.newBuilder().readTimeout(3, TimeUnit.SECONDS).build().newCall(req).execute().use { it.isSuccessful }
+        }.getOrDefault(false)
+    }
 }
+

@@ -16,6 +16,7 @@ data class Reply(val text: String, val mp3: ByteArray, val llmMs: Int = 0, val t
 
 data class EvalStage(val name: String, val score: Int, val max: Int, val done: List<String>, val missed: List<String>)
 data class EvalResult(
+    val total: Int, val stages: List<EvalStage>, val strengths: List<String>, val advice: List<String>, val summary: String,
 )
 
 data class Seg(

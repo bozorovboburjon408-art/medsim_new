@@ -18,19 +18,23 @@ button{background:#b91c1c;color:#fff;border:0;border-radius:12px;padding:18px 28
 <h1>To'liq sinov: mikrofon &rarr; Gemini &rarr; ovoz</h1>
 <div class="card">
 <label>Bemor</label><select id="p">__PATIENTS__</select>
-<label>Ovoz</label><select id="e"><option value="gemini">Gemini ovozi (oqim, xato bo'lsa Edge)</option><option value="edge">Edge ovozi</option></select>
-<label>Ovozdan matn modeli</label><select id="sm"><option value="">Avto (flash, keyin flash-lite)</option><option>gemini-2.5-flash</option><option>gemini-2.5-flash-lite</option><option>gemini-2.5-pro</option></select>
+<label>Ovoz</label><select id="e"><option value="gemini">Gemini ovozi (oqim, xato bo'lsa Edge)</option><option value="eleven">ElevenLabs ovozi (xato bo'lsa Edge)</option><option value="edge">Edge ovozi</option></select>
+<label>Ovozdan matn</label><select id="se"><option value="gemini">Gemini</option><option value="eleven">ElevenLabs Scribe</option></select>
+<label>Gemini matn modeli (faqat Gemini uchun)</label><select id="sm"><option value="">Avto (flash, keyin flash-lite)</option><option>gemini-2.5-flash</option><option>gemini-2.5-flash-lite</option><option>gemini-2.5-pro</option></select>
 <label>Gemini TTS modeli</label><select id="gm"><option>gemini-2.5-flash-tts</option><option>gemini-2.5-pro-tts</option><option>gemini-2.5-flash-preview-tts</option><option>gemini-2.5-pro-preview-tts</option></select>
 <label>Gemini ovozi</label><select id="gv"></select>
+<label>ElevenLabs: ovoz ID, model, yozuv</label><input id="ev" style="width:100%;padding:6px;box-sizing:border-box" placeholder="ovoz ID (bo'sh = standart)">
+<select id="em"><option>eleven_multilingual_v2</option><option>eleven_v3</option><option>eleven_flash_v2_5</option><option>eleven_turbo_v2_5</option></select>
+<select id="es"><option value="lat">Lotin</option><option value="cyr">Kirill</option></select>
 <button id="b">🎤 Bosib turing va gapiring</button><div class="bar"><i id="lv"></i></div>
 <div class="m" id="st">Tayyor.</div><div class="m" id="tm"></div>
 <button class="n" id="rs">Yangi suhbat</button></div>
 <div class="card"><b>Suhbat</b><div id="log"></div></div>
 <script>
 const token=new URLSearchParams(location.search).get('token')||'';const $=id=>document.getElementById(id);
-const VOICES=__VOICES__,DEF=__DEF__;
+const VOICES=__VOICES__,DEF=__DEF__,EVD=__EVD__;
 $('gv').innerHTML=VOICES.map(v=>'<option>'+v+'</option>').join('');
-const setV=()=>{$('gv').value=DEF[$('p').value]||'Kore';};setV();$('p').onchange=()=>{setV();hist=[];$('log').innerHTML='';};
+const setV=()=>{$('gv').value=DEF[$('p').value]||'Kore';$('ev').value=EVD[$('p').value]||'';};setV();$('p').onchange=()=>{setV();hist=[];$('log').innerHTML='';};
 let hist=[],ctx=null,stream=null,proc=null,chunks=[],rec=false,ac=null,next=0,chain=Promise.resolve();
 function wav(f32,rate){const n=f32.length,b=new ArrayBuffer(44+n*2),v=new DataView(b);const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
  w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
@@ -55,12 +59,12 @@ async function stop(){if(!rec)return;await new Promise(r=>setTimeout(r,350));rec
  const all=new Float32Array(n);let p=0;for(const c of chunks){all.set(c,p);p+=c.length;}
  const sec=()=>((performance.now()-T0)/1000).toFixed(1);const tm={};
  try{$('st').textContent='1/3 Gapingiz matnga aylantirilyapti...';
-  const r1=await fetch('/transcribe'+($('sm').value?'?model='+encodeURIComponent($('sm').value):''),{method:'POST',headers:{'Content-Type':'audio/wav'},body:wav(down(all,rate,16000),16000)});
+  const r1=await fetch('/transcribe?engine='+$('se').value+($('sm').value?'&model='+encodeURIComponent($('sm').value):''),{method:'POST',headers:{'Content-Type':'audio/wav'},body:wav(down(all,rate,16000),16000)});
   const t1=await r1.text();if(!r1.ok)throw new Error('Ovozdan matn: HTTP '+r1.status+' '+t1.slice(0,200));
   const text=JSON.parse(t1).text.trim();tm.stt=sec();if(!text){$('st').textContent='Nutq topilmadi, qaytadan urining';return;}
   addRow('Siz',text,'n1');hist.push({role:'user',content:text});
   $('st').textContent='2/3 Bemor o‘ylayapti...';
-  const body={patient_id:$('p').value,history:hist,tts:$('e').value,tts_model:$('gm').value,gemini_voice:$('gv').value};
+  const body={patient_id:$('p').value,history:hist,tts:$('e').value,tts_model:$('e').value==='eleven'?$('em').value:$('gm').value,gemini_voice:$('gv').value,eleven_voice:$('ev').value.trim()||null,eleven_script:$('es').value};
   const r2=await fetch('/chat_stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(!r2.ok)throw new Error('Javob: HTTP '+r2.status+' '+(await r2.text()).slice(0,200));
   const rd=r2.body.getReader(),dec=new TextDecoder();let buf='',full='',tgt=null,first=null,segs=[];
@@ -87,9 +91,10 @@ $('rs').onclick=()=>{hist=[];$('log').innerHTML='';$('tm').textContent='';$('st'
 async def full_lab(token: str = ""):
     import json
 
+    from .eleven import DEFAULT_VOICE as DEFAULT_VOICE_ELEVEN
     from .tts import GEMINI_DEFAULT_VOICE, GEMINI_VOICES
     if not settings.debug_token.strip() or token.strip() != settings.debug_token.strip():
         raise HTTPException(403, "Ruxsat yo'q")
     opts = "".join(f'<option value="{pid}">{p.title}</option>' for pid, p in PATIENTS.items())
     return (PAGE.replace("__PATIENTS__", opts).replace("__VOICES__", json.dumps(GEMINI_VOICES))
-            .replace("__DEF__", json.dumps(GEMINI_DEFAULT_VOICE)))
+            .replace("__DEF__", json.dumps(GEMINI_DEFAULT_VOICE)).replace("__EVD__", json.dumps(DEFAULT_VOICE_ELEVEN)))

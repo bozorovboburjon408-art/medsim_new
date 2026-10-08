@@ -26,15 +26,18 @@ button{background:#b91c1c;color:#fff;border:0;border-radius:12px;padding:18px 28
 <label>ElevenLabs: ovoz ID, model, yozuv</label><input id="ev" style="width:100%;padding:6px;box-sizing:border-box" placeholder="ovoz ID (bo'sh = standart)">
 <select id="em"><option>eleven_multilingual_v2</option><option>eleven_v3</option><option>eleven_flash_v2_5</option><option>eleven_turbo_v2_5</option></select>
 <select id="es"><option value="lat">Lotin</option><option value="cyr">Kirill</option></select>
+<label>Ovoz balandligi/tezligi (bola uchun 1.2–1.45): <span id="spv">1.00</span>x</label><input id="sp" type="range" min="80" max="170" value="100" style="width:100%">
 <button id="b">🎤 Bosib turing va gapiring</button><div class="bar"><i id="lv"></i></div>
 <div class="m" id="st">Tayyor.</div><div class="m" id="tm"></div>
 <button class="n" id="rs">Yangi suhbat</button></div>
 <div class="card"><b>Suhbat</b><div id="log"></div></div>
 <script>
 const token=new URLSearchParams(location.search).get('token')||'';const $=id=>document.getElementById(id);
-const VOICES=__VOICES__,DEF=__DEF__,EVD=__EVD__;
+const VOICES=__VOICES__,DEF=__DEF__,EVD=__EVD__,SP=__SP__;
 $('gv').innerHTML=VOICES.map(v=>'<option>'+v+'</option>').join('');
-const setV=()=>{$('gv').value=DEF[$('p').value]||'Kore';$('ev').value=EVD[$('p').value]||'';};setV();$('p').onchange=()=>{setV();hist=[];$('log').innerHTML='';};
+const setSp=()=>{const q=SP[$('p').value]||{};const v=($('e').value==='eleven'?q.eleven:q.gemini)||1;$('sp').value=Math.round(v*100);$('spv').textContent=v.toFixed(2);};
+$('sp').oninput=()=>{$('spv').textContent=($('sp').value/100).toFixed(2);};$('e').onchange=setSp;
+const setV=()=>{$('gv').value=DEF[$('p').value]||'Kore';$('ev').value=EVD[$('p').value]||'';setSp();};setV();$('p').onchange=()=>{setV();hist=[];$('log').innerHTML='';};
 let hist=[],ctx=null,stream=null,proc=null,chunks=[],rec=false,ac=null,next=0,chain=Promise.resolve();
 function wav(f32,rate){const n=f32.length,b=new ArrayBuffer(44+n*2),v=new DataView(b);const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
  w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
@@ -64,7 +67,7 @@ async function stop(){if(!rec)return;await new Promise(r=>setTimeout(r,350));rec
   const text=JSON.parse(t1).text.trim();tm.stt=sec();if(!text){$('st').textContent='Nutq topilmadi, qaytadan urining';return;}
   addRow('Siz',text,'n1');hist.push({role:'user',content:text});
   $('st').textContent='2/3 Bemor o‘ylayapti...';
-  const body={patient_id:$('p').value,history:hist,tts:$('e').value,tts_model:$('e').value==='eleven'?$('em').value:$('gm').value,gemini_voice:$('gv').value,eleven_voice:$('ev').value.trim()||null,eleven_script:$('es').value};
+  const body={patient_id:$('p').value,history:hist,tts:$('e').value,tts_model:$('e').value==='eleven'?$('em').value:$('gm').value,gemini_voice:$('gv').value,eleven_voice:$('ev').value.trim()||null,eleven_script:$('es').value,voice_speed:($('e').value==='edge')?null:$('sp').value/100};
   const r2=await fetch('/chat_stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(!r2.ok)throw new Error('Javob: HTTP '+r2.status+' '+(await r2.text()).slice(0,200));
   const rd=r2.body.getReader(),dec=new TextDecoder();let buf='',full='',tgt=null,first=null,segs=[];
@@ -97,4 +100,5 @@ async def full_lab(token: str = ""):
         raise HTTPException(403, "Ruxsat yo'q")
     opts = "".join(f'<option value="{pid}">{p.title}</option>' for pid, p in PATIENTS.items())
     return (PAGE.replace("__PATIENTS__", opts).replace("__VOICES__", json.dumps(GEMINI_VOICES))
-            .replace("__DEF__", json.dumps(GEMINI_DEFAULT_VOICE)).replace("__EVD__", json.dumps(DEFAULT_VOICE_ELEVEN)))
+            .replace("__DEF__", json.dumps(GEMINI_DEFAULT_VOICE)).replace("__EVD__", json.dumps(DEFAULT_VOICE_ELEVEN))
+            .replace("__SP__", json.dumps({k: {"gemini": p.gemini_speed, "eleven": p.eleven_speed} for k, p in PATIENTS.items()})))

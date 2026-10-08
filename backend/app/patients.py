@@ -28,6 +28,7 @@ class Patient:
     role: str
     scenario_file: str
     name_swap: tuple[str, str] | None = None  # ssenariy matnidagi ism almashtiriladi (matn keyin yangilanadi)
+    eleven_speed: float = 1.0  # ElevenLabs PCM'ini shu koeffitsiyent bilan chalish (bola ovozi uchun)
     gemini_speed: float = 1.0  # Gemini ovozi PCM'ini shu koeffitsiyent bilan chalish: ovoz balandlashadi (bola uchun)
 
     def system_prompt(self) -> str:
@@ -53,7 +54,7 @@ PATIENTS = {
                 "Murakkab tibbiy so'zlarni bilmaysan; qichishish, qorin og'rig'i, uyqu yo'qligi haqida bolalarcha aytasan. "
                 "So'zlarni TO'G'RI ishlat: qichishish uchun 'qichiyapti', 'qichishyapti', 'qashiyapman' de (hech qachon 'qichqiryapti' dema, u baqirish degani); "
                 "og'riq uchun 'og'riyapti'; yig'lash uchun 'yig'layapman'; uyqu uchun 'uxlay olmayman'. Gaplarni sekin, aniq va oddiy so'zlar bilan ayt.",
-                "bola.txt", name_swap=("Jasurbek", "Madinaxon"), gemini_speed=1.12),
+                "bola.txt", name_swap=("Jasurbek", "Madinaxon"), gemini_speed=1.12, eleven_speed=1.3),
         Patient("bobo", "Hikmatilla ota (78 yosh, skrining)", "uz-UZ-SardorNeural", "-18%", "-8Hz",
                 "Hikmatilla ota, 78 yoshli qariya (erkak). Faqat o'zing gapirasan (kelining Nilufar opa gapirmaydi). "
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan, biroz quloqlaring og'ir: "

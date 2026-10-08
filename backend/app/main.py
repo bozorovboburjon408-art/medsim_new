@@ -33,6 +33,7 @@ class ChatRequest(BaseModel):
     gemini_voice: str | None = None  # Gemini ovozi nomi (ixtiyoriy)
     eleven_voice: str | None = None  # tts="eleven" bo'lsa ElevenLabs ovoz ID
     eleven_script: str | None = None  # "cyr" bo'lsa matn kirillga o'giriladi
+    voice_speed: float | None = None  # Gemini/ElevenLabs PCM chalish koeffitsiyenti (balandlik+tezlik); bo'sh bo'lsa bemor standarti
 
 
 class ChatResponse(BaseModel):
@@ -157,7 +158,8 @@ async def chat_stream(req: ChatRequest):
                 log.info("seg patient=%s total=%dms llm=%dms tts=%dms model=%s tries=%s",
                          p.id, int((time.perf_counter() - t0) * 1000), t_llm, t_tts,
                          info.get("model", ""), info.get("tries", []))
-                payload = ({"pcm_b64": base64.b64encode(audio).decode(), "rate": int(24000 * (p.gemini_speed if used.startswith("gemini") else 1))} if fmt == "pcm"
+                payload = ({"pcm_b64": base64.b64encode(audio).decode(), "rate": int(24000 * (min(2.0, max(0.7, req.voice_speed)) if req.voice_speed else
+                                                 (p.gemini_speed if used.startswith("gemini") else p.eleven_speed if used.startswith("eleven") else 1)))} if fmt == "pcm"
                            else {"audio_b64": base64.b64encode(audio).decode()})
                 yield json.dumps({"text": s, **payload,
                                   "ms": int((time.perf_counter() - t0) * 1000),
@@ -327,7 +329,7 @@ for(const [id,d] of Object.entries(P)){
  '<label>Gemini ovozi</label><select class="gv">'+GV.map(v=>'<option'+(v===GD[id]?' selected':'')+'>'+v+'</option>').join('')+'</select>'+
  '<label>Gemini uslub ko\u2018rsatmasi (ingliz tilida yozing)</label><textarea class="gs" rows="2">'+(GS[id]||'')+'</textarea>'+
  '<label>Uslub shakli</label><select class="gmo"><option value="none">Uslubsiz (tavsiya)</option><option value="say">Say ...: matn</option><option value="director">Rejissyor yozuvi</option></select>'+
- '<label>Balandlik (oʻynatish tezligi): <span class="pbv">'+(d.speed||1).toFixed(2)+'</span>x (bolaga: 1.15\u20131.35)</label><input class="pb" type="range" min="80" max="160" value="'+Math.round((d.speed||1)*100)+'">'+
+ '<label>Balandlik (oʻynatish tezligi): <span class="pbv">'+(d.speed||1).toFixed(2)+'</span>x (bolaga: 1.15\u20131.45; Gemini va ElevenLabs uchun)</label><input class="pb" type="range" min="80" max="170" value="'+Math.round((d.speed||1)*100)+'">'+
  '<label>ElevenLabs ovoz ID (kutubxonadan qidirib oling)</label><input class="ev" style="width:100%;padding:6px;font-size:14px;box-sizing:border-box" value="'+(EV[id]||'')+'">'+
  '<label>Matn</label><textarea class="t" rows="3">'+d.sample+'</textarea>'+
  '<button class="e">▶ Edge</button><button class="g">▶ Gemini</button><button class="s" style="background:#6d28d9">⚡ Gemini oqim</button><button class="el" style="background:#0f172a">🔊 ElevenLabs</button><button class="c">⇄ Ketma-ket</button>'+
@@ -348,7 +350,7 @@ document.querySelectorAll('.card[id]').forEach(c=>{
   try{const res=await fetch(url(eng));if(!res.ok)throw new Error('HTTP '+res.status+' '+(await res.text()).slice(0,200));
    const blob=await res.blob();const sec=((performance.now()-t0)/1000).toFixed(1);
    st.textContent=nm+': '+sec+' s da tayyor boʻldi'+(res.headers.get('X-Server-Ms')?' (server javobi: '+(res.headers.get('X-Server-Ms')/1000).toFixed(1)+' s)':'');a.src=URL.createObjectURL(blob);
-   a.preservesPitch=false;a.playbackRate=(eng==='gemini')?pb.value/100:1;
+   a.preservesPitch=false;a.playbackRate=(eng==='gemini'||eng==='eleven')?pb.value/100:1;
    await a.play();await new Promise(ok=>{a.onended=ok;a.onerror=ok;});}
   catch(e){st.textContent='Xato: '+e;}};
  c.querySelector('.e').onclick=()=>play('edge');
@@ -396,7 +398,7 @@ async def voice_stream(token: str = "", patient: str = "buvi", text: str = "", g
 @app.get("/voice_lab", response_class=HTMLResponse)
 async def voice_lab(token: str = ""):
     _check_token(token)
-    data = {pid: {"title": p.title, "voice": p.voice, "rate": p.rate, "pitch": p.pitch, "sample": SAMPLES.get(pid, ""), "speed": p.gemini_speed}
+    data = {pid: {"title": p.title, "voice": p.voice, "rate": p.rate, "pitch": p.pitch, "sample": SAMPLES.get(pid, ""), "speed": p.gemini_speed, "espeed": p.eleven_speed}
             for pid, p in PATIENTS.items()}
     return (_LAB.replace("__DATA__", json.dumps(data, ensure_ascii=False))
             .replace("__GV__", json.dumps(tts.GEMINI_VOICES)).replace("__GD__", json.dumps(tts.GEMINI_DEFAULT_VOICE)).replace("__GS__", json.dumps(GEMINI_STYLES))

@@ -46,11 +46,11 @@ PATIENTS = {
         Patient("homilador", "Nilufar (32 haftalik homilador)", "uz-UZ-MadinaNeural", "-5%", "+0Hz",
                 "Nilufar Rahimova, 33 yoshli, 32 haftalik homilador ayol. Hamshirani 'hamshira opa' deb ataysan.",
                 "homilador.txt"),
-        Patient("bola", "Madinaxon (5 yosh, qizaloq, gijja)", "uz-UZ-MadinaNeural", "+14%", "+85Hz",
+        Patient("bola", "Madinaxon (5 yosh, qizaloq, gijja)", "uz-UZ-MadinaNeural", "+14%", "+95Hz",
                 "Madinaxon, 5 yoshli kichkina QIZALOQ (qizcha). Sen shu qizchaning o'zisan: juda oddiy, qisqa (1-2 gap), "
                 "qiz bolalarcha erkalik va ba'zan injiqlik bilan, sodda so'zlar bilan gapir. Tushunmasang 'nima?' deb so'ra. "
                 "Murakkab tibbiy so'zlarni bilmaysan; qichishish, qorin og'rig'i, uyqu yo'qligi haqida bolalarcha aytasan.",
-                "bola.txt", name_swap=("Jasurbek", "Madinaxon"), gemini_speed=1.18),
+                "bola.txt", name_swap=("Jasurbek", "Madinaxon"), gemini_speed=1.26),
         Patient("bobo", "Hikmatilla ota (78 yosh, skrining)", "uz-UZ-SardorNeural", "-18%", "-8Hz",
                 "Hikmatilla ota, 78 yoshli qariya (erkak). Faqat o'zing gapirasan (kelining Nilufar opa gapirmaydi). "
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan, biroz quloqlaring og'ir: "

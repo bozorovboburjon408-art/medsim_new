@@ -22,7 +22,7 @@ VOICES = [
     "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi", "Vindemiatrix", "Sadachbia",
     "Sadaltager", "Sulafat",
 ]
-DEFAULT_VOICE = {"buvi": "Gacrux", "homilador": "Kore", "bola": "Leda", "bobo": "Charon"}
+DEFAULT_VOICE = {"buvi": "Gacrux", "homilador": "Kore", "bola": "Callirrhoe", "bobo": "Charon"}
 STYLE = {
     "buvi": "Speak slowly, in a weak, gentle, warm, slightly tired elderly woman's voice.",
     "homilador": "Speak in a warm, slightly tired adult woman's voice at a calm pace.",

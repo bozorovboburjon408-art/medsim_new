@@ -206,8 +206,15 @@ async def chat_stream(req: ChatRequest):
             return s, audio, "mp3", used, t_llm, int((time.perf_counter() - t) * 1000)
 
         async def producer():
+            cry = ""  # javob ichida yig'lash boshlangan bo'lsa, keyingi gaplar ham shu belgi bilan aytiladi (belgi faqat bitta gapga ta'sir qiladi)
             try:
                 async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model):
+                    if p.id == "bola":
+                        m = re.match(r"\s*\[(crying|sobbing)\]", eleven.crying_fix(s), re.I)
+                        if m:
+                            cry = m.group(0).strip()
+                        elif cry and eleven.strip_tags(s):
+                            s = f"{cry} {s}"
                     if not eleven.strip_tags(eleven.crying_fix(s) if p.id == "bola" else s):
                         continue
                     t_llm = int((time.perf_counter() - t0) * 1000)

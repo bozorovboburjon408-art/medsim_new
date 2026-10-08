@@ -132,7 +132,7 @@ async def stt_selftest(token: str = ""):
                 pcm = await eleven.tts(sent, vid, "eleven_multilingual_v2")
         except Exception as e:
             err = f"XATO (ovoz yaratish) {str(e)[:120]}"
-            return sent, err, err
+            return sent, err, err, err, err
         wav = tts._pcm_to_wav(pcm, 24000)
 
         async def g():
@@ -156,11 +156,15 @@ async def stt_selftest(token: str = ""):
         return sent, await g(), await s(), await c(True), await c(False)
 
     rows = await asyncio.gather(*[one(x) for x in STT_SENTENCES])
-    lines, tg, ts = [], 0.0, 0.0
-    for sent, g, s in rows:
-        wg, ws = _wer(sent, g), _wer(sent, s)
-        tg += wg; ts += ws
-        lines.append(f"ASL:    {sent}\nGemini: {g}   (xato {wg:.0%})\nScribe: {s}   (xato {ws:.0%})")
+    lines, tot = [], [0.0] * 4
+    names = ["Gemini", "Scribe", "Chirp+maslahat", "Chirp"]
+    nl = chr(10)
+    for sent, *outs in rows:
+        ws = [_wer(sent, o) for o in outs]
+        for k, w in enumerate(ws):
+            tot[k] += w
+        lines.append(f"ASL: {sent}" + nl + nl.join(f"{nm}: {o}   (xato {w:.0%})" for nm, o, w in zip(names, outs, ws)))
     n = len(rows)
-    lines.append(f"\nO'RTACHA so'z xatosi: Gemini {tg / n:.0%}, Scribe {ts / n:.0%}  (sun'iy ovoz bilan; haqiqiy ovozda boshqacha bo'lishi mumkin)")
-    return "\n\n".join(lines)
+    lines.append(nl + "O'RTACHA so'z xatosi: " + ", ".join(f"{nm} {t / n:.0%}" for nm, t in zip(names, tot))
+                 + "  (sun'iy ovoz bilan; haqiqiy ovozda boshqacha bo'lishi mumkin)")
+    return (nl + nl).join(lines)

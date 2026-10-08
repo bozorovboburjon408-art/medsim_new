@@ -152,7 +152,7 @@ SAMPLES = {
 
 
 def _check_token(token: str):
-    if not settings.debug_token or token != settings.debug_token:
+    if not settings.debug_token.strip() or token.strip() != settings.debug_token.strip():
         raise HTTPException(403, "Ruxsat yo'q")
 
 
@@ -182,7 +182,10 @@ async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", ra
         if not re.fullmatch(r"[A-Za-z0-9._-]{3,80}", gmodel):
             raise HTTPException(400, "Gemini TTS modeli tanlanmagan")
         try:
-            return Response(await tts.gemini_tts_lab(txt, gv, gmodel, gstyle, gmode if gmode in ('say', 'director') else 'none'), media_type="audio/wav")
+            t0 = time.perf_counter()
+            wav_bytes = await tts.gemini_tts_lab(txt, gv, gmodel, gstyle, gmode if gmode in ('say', 'director') else 'none')
+            return Response(wav_bytes, media_type="audio/wav",
+                            headers={"X-Server-Ms": str(int((time.perf_counter() - t0) * 1000)), "Access-Control-Expose-Headers": "X-Server-Ms"})
         except Exception as e:
             raise HTTPException(502, f"Gemini TTS: {e}")
     v = voice if voice in VOICES else p.voice
@@ -212,6 +215,7 @@ button{background:#0f766e;color:#fff;border:0;border-radius:12px;padding:12px 18
 button.g{background:#7c3aed}button.c{background:#334155}
 code{background:#e4eceb;padding:2px 6px;border-radius:6px}.m{font-size:13px;color:#475569;margin:6px 0}</style></head><body>
 <h1>Ovoz laboratoriyasi: Edge va Gemini</h1>
+<p><a id="lnk" href="#">Ovozdan matn sinovi (mikrofon) &rarr;</a></p><script>document.getElementById("lnk").href="/stt_lab?token="+encodeURIComponent(new URLSearchParams(location.search).get("token")||"");</script>
 <p>Har bemor uchun Edge (bepul) va Gemini (pulli, har bosish ~bir necha sent) ovozini yonma-yon eshiting. "Ketma-ket" tugmasi ikkalasini birin-ketin chaladi.</p>
 <div class="card"><label>Gemini TTS modeli (serverdan olinadi)</label><select id="gm"><option value="">yuklanmoqda...</option></select><div class="m" id="gmnote"></div></div>
 <div id="c"></div>
@@ -253,7 +257,7 @@ document.querySelectorAll('.card[id]').forEach(c=>{
  const play=async eng=>{const nm={edge:'Edge',gemini:'Gemini',cloud:'Cloud'}[eng];st.textContent=nm+' tayyorlanmoqda...';const t0=performance.now();
   try{const res=await fetch(url(eng));if(!res.ok)throw new Error('HTTP '+res.status+' '+(await res.text()).slice(0,200));
    const blob=await res.blob();const sec=((performance.now()-t0)/1000).toFixed(1);
-   st.textContent=nm+': '+sec+' s da tayyor boʻldi';a.src=URL.createObjectURL(blob);
+   st.textContent=nm+': '+sec+' s da tayyor boʻldi'+(res.headers.get('X-Server-Ms')?' (Google javobi: '+(res.headers.get('X-Server-Ms')/1000).toFixed(1)+' s, '+document.getElementById('gm').value+')':'');a.src=URL.createObjectURL(blob);
    a.preservesPitch=false;a.playbackRate=eng==='edge'?1:pb.value/100;
    await a.play();await new Promise(ok=>{a.onended=ok;a.onerror=ok;});}
   catch(e){st.textContent='Xato: '+e;}};
@@ -400,4 +404,5 @@ async def models():
 
 @app.get("/health")
 def health():
-    return {"ok": True}
+    import os
+    return {"ok": True, "commit": os.environ.get("RENDER_GIT_COMMIT", "")[:7]}

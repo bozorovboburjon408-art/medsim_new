@@ -6,7 +6,7 @@ Patronaj hamshiralik talabalari uchun **AI bemor simulyatori**. Talaba (hamshira
 Bemorlar (`backend/app/patients.py`, ssenariylar `backend/app/scenarios/*.txt`):
 - `buvi` — Salomat buvi, 75, qandli diabet (faqat buvi gapiradi)
 - `homilador` — Nilufar, 32 haftalik homilador
-- `bola` — Jasurbek, 5 yoshli o'g'il bola (o'zi gapiradi; gelmintoz)
+- `bola` — Madinaxon, 5 yoshli QIZALOQ (o'zi gapiradi; gelmintoz). Gemini'da bola ovozi yo'q, shuning uchun yosh qiz ovozi (Leda) PCM'ni 1.18x tezlik/balandlik bilan chalish orqali bolaga yaqinlashtirilgan (`gemini_speed`). Ssenariy matnida hozircha 'Jasurbek' ismi bor; `name_swap` uni Madinaxon deb almashtiradi. Yangi matn kelganda yangilanadi.
 - `chaqaloq` — AI yo'q: yig'laydi (baby_cry.mp3), kuladi (baby_laugh.m4a); ESP32-C6 maniken datchigi (esp32/ papkasi, Wi-Fi orqali /status) yoki planshet akselerometri bilan tinchlanadi
 - `bobo` — Hikmatilla ota, 78 yosh, yoshga doir skrining (ssenariy qo'shildi; faqat o'zi gapiradi, Edge Sardor ovozi)
 

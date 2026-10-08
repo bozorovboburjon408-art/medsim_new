@@ -82,7 +82,7 @@ GEMINI_VOICES = ["Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "
                  "Enceladus", "Iapetus", "Umbriel", "Algieba", "Despina", "Erinome", "Algenib", "Rasalgethi",
                  "Laomedeia", "Achernar", "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
                  "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"]
-GEMINI_DEFAULT_VOICE = {"buvi": "Gacrux", "homilador": "Kore", "bola": "Puck", "bobo": "Charon"}
+GEMINI_DEFAULT_VOICE = {"buvi": "Gacrux", "homilador": "Kore", "bola": "Leda", "bobo": "Charon"}
 
 
 async def list_gemini_tts_models() -> list[str]:

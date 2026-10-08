@@ -22,18 +22,18 @@ VOICES = [
     "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi", "Vindemiatrix", "Sadachbia",
     "Sadaltager", "Sulafat",
 ]
-DEFAULT_VOICE = {"buvi": "Gacrux", "homilador": "Kore", "bola": "Puck", "bobo": "Charon"}
+DEFAULT_VOICE = {"buvi": "Gacrux", "homilador": "Kore", "bola": "Leda", "bobo": "Charon"}
 STYLE = {
     "buvi": "Speak slowly, in a weak, gentle, warm, slightly tired elderly woman's voice.",
     "homilador": "Speak in a warm, slightly tired adult woman's voice at a calm pace.",
     "bobo": "Speak slowly, in a weak, calm, warm, slightly hoarse elderly man's voice.",
-    "bola": "You are Jasurbek, a 5-year-old BOY. Speak in a high-pitched, small, cute, slightly whiny little boy's voice (never a girl's voice), in very short childlike sentences.",
+    "bola": "You are Madinakhon, a 5-year-old little GIRL. Speak in a high-pitched, small, cute, slightly whiny little girl's voice, in very short childlike sentences.",
 }
 IDENT = {
     "buvi": "SEN: Salomat buvi, 75 yoshli kampir (ayol). ",
     "homilador": "SEN: Nilufar, 32 haftalik homilador ayol. ",
     "bobo": "SEN: Hikmatilla ota, 78 yoshli qariya (erkak). ",
-    "bola": "SEN: Jasurbek, 5 yoshli O'G'IL BOLA (buvi emas, kattalar emas). Hamshira senga 'Jasurbek' yoki 'bolajon' deydi; o'zingni hech qachon buvi yoki Salomat deb tanishtirma. Kattalardek emas, bolalarcha qisqa gapir. ",
+    "bola": "SEN: Madinaxon, 5 yoshli QIZALOQ (buvi emas, kattalar emas). Hamshira senga 'Madinaxon' yoki 'qizaloq' deydi; o'zingni hech qachon buvi yoki Salomat deb tanishtirma. Kattalardek emas, bolalarcha qisqa gapir. ",
 }
 LIVE_RULES = (
     "\n\nOVOZLI SUHBAT: faqat o'zbek tilida gapir. Butun suhbat davomida aynan bir xil ovoz, ohang va tezlikda gapir. "
@@ -231,7 +231,7 @@ code{background:#e4eceb;padding:2px 6px;border-radius:6px}.s{color:#475569;font-
 </style></head><body>
 <h1>Live laboratoriyasi (Gemini ovozdan-ovozga)</h1>
 <div class="card">
- <label>Bemor</label><select id="patient"><option value="buvi">Salomat buvi</option><option value="homilador">Nilufar (homilador)</option><option value="bola">Jasurbek (bola)</option><option value="bobo">Hikmatilla ota (bobo)</option></select>
+ <label>Bemor</label><select id="patient"><option value="buvi">Salomat buvi</option><option value="homilador">Nilufar (homilador)</option><option value="bola">Madinaxon (qizaloq)</option><option value="bobo">Hikmatilla ota (bobo)</option></select>
  <label>Live modeli (ro'yxat serverdan olinadi)</label><select id="model"><option value="">yuklanmoqda…</option></select>
  <label>Gemini ovozi</label><select id="voice"></select>
  <label>Gapirish rejimi</label><select id="mode"><option value="1">Tugmani bosib turib gapirish (tavsiya)</option><option value="0">Avtomatik (o'zi eshitadi, quloqchin kerak)</option><option value="2">Qo'lda signal (tajribaviy)</option></select>

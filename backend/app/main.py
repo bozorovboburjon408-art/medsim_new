@@ -126,7 +126,7 @@ async def chat_stream(req: ChatRequest):
                 log.info("seg patient=%s total=%dms llm=%dms tts=%dms model=%s tries=%s",
                          p.id, int((time.perf_counter() - t0) * 1000), t_llm, t_tts,
                          info.get("model", ""), info.get("tries", []))
-                payload = ({"pcm_b64": base64.b64encode(audio).decode(), "rate": 24000} if fmt == "pcm"
+                payload = ({"pcm_b64": base64.b64encode(audio).decode(), "rate": int(24000 * p.gemini_speed)} if fmt == "pcm"
                            else {"audio_b64": base64.b64encode(audio).decode()})
                 yield json.dumps({"text": s, **payload,
                                   "ms": int((time.perf_counter() - t0) * 1000),
@@ -256,7 +256,7 @@ for(const [id,d] of Object.entries(P)){
  '<label>Gemini ovozi</label><select class="gv">'+GV.map(v=>'<option'+(v===GD[id]?' selected':'')+'>'+v+'</option>').join('')+'</select>'+
  '<label>Gemini uslub ko\u2018rsatmasi (ingliz tilida yozing)</label><textarea class="gs" rows="2">'+(GS[id]||'')+'</textarea>'+
  '<label>Uslub shakli</label><select class="gmo"><option value="none">Uslubsiz (tavsiya)</option><option value="say">Say ...: matn</option><option value="director">Rejissyor yozuvi</option></select>'+
- '<label>Balandlik (oʻynatish tezligi): <span class="pbv">1.00</span>x (bolaga: 1.15\u20131.35)</label><input class="pb" type="range" min="80" max="160" value="100">'+
+ '<label>Balandlik (oʻynatish tezligi): <span class="pbv">'+(d.speed||1).toFixed(2)+'</span>x (bolaga: 1.15\u20131.35)</label><input class="pb" type="range" min="80" max="160" value="'+Math.round((d.speed||1)*100)+'">'+
  '<label>Matn</label><textarea class="t" rows="3">'+d.sample+'</textarea>'+
  '<button class="e">▶ Edge</button><button class="g">▶ Gemini</button><button class="s" style="background:#6d28d9">⚡ Gemini oqim</button><button class="c">⇄ Ketma-ket</button>'+
  '<div class="m">Qiymat: <code class="o"></code></div><div class="m st"></div><audio controls style="width:100%"></audio></div>');
@@ -322,7 +322,7 @@ async def voice_stream(token: str = "", patient: str = "buvi", text: str = "", g
 @app.get("/voice_lab", response_class=HTMLResponse)
 async def voice_lab(token: str = ""):
     _check_token(token)
-    data = {pid: {"title": p.title, "voice": p.voice, "rate": p.rate, "pitch": p.pitch, "sample": SAMPLES.get(pid, "")}
+    data = {pid: {"title": p.title, "voice": p.voice, "rate": p.rate, "pitch": p.pitch, "sample": SAMPLES.get(pid, ""), "speed": p.gemini_speed}
             for pid, p in PATIENTS.items()}
     return (_LAB.replace("__DATA__", json.dumps(data, ensure_ascii=False))
             .replace("__GV__", json.dumps(tts.GEMINI_VOICES)).replace("__GD__", json.dumps(tts.GEMINI_DEFAULT_VOICE)).replace("__GS__", json.dumps(GEMINI_STYLES)))

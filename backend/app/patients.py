@@ -26,9 +26,13 @@ class Patient:
     pitch: str     # edge-tts: "-5Hz"
     role: str
     scenario_file: str
+    name_swap: tuple[str, str] | None = None  # ssenariy matnidagi ism almashtiriladi (matn keyin yangilanadi)
+    gemini_speed: float = 1.0  # Gemini ovozi PCM'ini shu koeffitsiyent bilan chalish: ovoz balandlashadi (bola uchun)
 
     def system_prompt(self) -> str:
         scenario = (SCENARIO_DIR / self.scenario_file).read_text(encoding="utf-8")
+        if self.name_swap:
+            scenario = scenario.replace(*self.name_swap)
         return f"{COMMON_RULES}\nSening rolling: {self.role}\n\n=== STSENARIY ===\n{scenario}"
 
 
@@ -42,11 +46,11 @@ PATIENTS = {
         Patient("homilador", "Nilufar (32 haftalik homilador)", "uz-UZ-MadinaNeural", "-5%", "+0Hz",
                 "Nilufar Rahimova, 33 yoshli, 32 haftalik homilador ayol. Hamshirani 'hamshira opa' deb ataysan.",
                 "homilador.txt"),
-        Patient("bola", "Jasurbek (5 yosh, gijja)", "uz-UZ-MadinaNeural", "+12%", "+55Hz",
-                "Jasurbek, 5 yoshli bola. Sen bolaning o'zisan: juda oddiy, qisqa (1-2 gap), bolalarcha so'zlar bilan gapir, "
-                "ba'zan injiqlik qil, tushunmasang 'nima?' deb so'ra. Murakkab tibbiy so'zlarni bilmaysan; "
-                "qichishish, qorin og'rig'i, uyqu yo'qligi haqida o'zingcha aytasan.",
-                "bola.txt"),
+        Patient("bola", "Madinaxon (5 yosh, qizaloq, gijja)", "uz-UZ-MadinaNeural", "+14%", "+85Hz",
+                "Madinaxon, 5 yoshli kichkina QIZALOQ (qizcha). Sen shu qizchaning o'zisan: juda oddiy, qisqa (1-2 gap), "
+                "qiz bolalarcha erkalik va ba'zan injiqlik bilan, sodda so'zlar bilan gapir. Tushunmasang 'nima?' deb so'ra. "
+                "Murakkab tibbiy so'zlarni bilmaysan; qichishish, qorin og'rig'i, uyqu yo'qligi haqida bolalarcha aytasan.",
+                "bola.txt", name_swap=("Jasurbek", "Madinaxon"), gemini_speed=1.18),
         Patient("bobo", "Hikmatilla ota (78 yosh, skrining)", "uz-UZ-SardorNeural", "-18%", "-8Hz",
                 "Hikmatilla ota, 78 yoshli qariya (erkak). Faqat o'zing gapirasan (kelining Nilufar opa gapirmaydi). "
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan, biroz quloqlaring og'ir: "

@@ -288,6 +288,10 @@ code{background:#e4eceb;padding:2px 6px;border-radius:6px}.m{font-size:13px;colo
 <label>Matn yozuvi</label><select id="es"><option value="lat">Lotin (o'zgarishsiz)</option><option value="cyr">Kirill (q, x, g' ni to'g'riroq o'qishi mumkin)</option></select>
 <label>Kutubxonadan ovoz qidirish (masalan: bola, child, kid, young)</label>
 <input id="lq" style="width:100%;padding:8px;font-size:15px;box-sizing:border-box" placeholder="qidiruv so'zi (bo'sh = hamma o'zbekcha ovozlar)">
+<label>Til / jins / yosh filtri</label>
+<select id="lg" style="width:32%"><option value="uz">O'zbekcha ovozlar</option><option value="">Hamma tillar (boshqa tildagi ovoz ham o'zbekcha gapirishi mumkin)</option><option value="ru">Ruscha</option><option value="en">Inglizcha</option></select>
+<select id="ls" style="width:32%"><option value="">Jins: hammasi</option><option value="female">Ayol/qiz</option><option value="male">Erkak</option></select>
+<select id="la" style="width:32%"><option value="">Yosh: hammasi</option><option value="young">Yosh (young)</option><option value="middle_aged">O'rta yosh</option><option value="old">Keksa</option></select>
 <button class="c" id="lb">Qidirish</button><div class="m" id="ln"></div><div id="lr"></div></div>
 <div id="c"></div>
 <script>
@@ -298,7 +302,7 @@ const sg=n=>(n>=0?'+':'')+n;
 const $=id=>document.getElementById(id);
 $('em').innerHTML=EMODELS.map(m=>'<option>'+m+'</option>').join('');
 $('lb').onclick=async()=>{const n=$('ln');n.textContent='qidirilmoqda...';$('lr').innerHTML='';
- try{const r=await fetch('/eleven_library?token='+encodeURIComponent(token)+'&search='+encodeURIComponent($('lq').value));const t=await r.text();if(!r.ok)throw new Error(t.slice(0,250));
+ try{const r=await fetch('/eleven_library?token='+encodeURIComponent(token)+'&search='+encodeURIComponent($('lq').value)+'&language='+encodeURIComponent($('lg').value)+'&gender='+$('ls').value+'&age='+$('la').value);const t=await r.text();if(!r.ok)throw new Error(t.slice(0,250));
   const L=JSON.parse(t);n.textContent=L.length+' ta ovoz topildi. ID ni nusxalab kerakli bemor kartasiga qo\u2018ying; avval \u201cQo\u2018shish\u201d ni bosing.';
   for(const v of L){const d=document.createElement('div');d.style.cssText='border-top:1px solid #e2e8f0;padding:8px 0';
    const h=document.createElement('div');h.textContent=v.name+' \u00b7 '+(v.gender||'')+' \u00b7 '+(v.age||'')+' \u00b7 '+(v.accent||'')+' \u2014 '+v.description;d.appendChild(h);
@@ -400,7 +404,7 @@ async def voice_lab(token: str = ""):
 
 
 @app.get("/eleven_library")
-async def eleven_library(token: str = "", search: str = "", language: str = "uz", gender: str = "", age: str = ""):
+async def eleven_library(token: str = "", search: str = "", language: str = "", gender: str = "", age: str = ""):
     _check_token(token)
     if not eleven.enabled():
         raise HTTPException(400, "ELEVENLABS_API_KEY Render muhitida o'rnatilmagan")

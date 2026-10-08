@@ -59,7 +59,9 @@ async def tts(text: str, voice_id: str, model: str = "", cyrillic: bool = False,
 
 async def library(search: str = "", language: str = "uz", gender: str = "", age: str = "") -> list[dict]:
     """Umumiy ovoz kutubxonasidan qidirish."""
-    params = {"page_size": 30, "language": language}
+    params = {"page_size": 30}
+    if language:
+        params["language"] = language
     if search:
         params["search"] = search
     if gender:

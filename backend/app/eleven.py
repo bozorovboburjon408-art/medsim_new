@@ -10,8 +10,8 @@ BASE = "https://api.elevenlabs.io"
 # Antigravity tanlagan o'zbek kutubxona ovozlari (maxfiy emas). Bola uchun foydalanuvchi tanlaydi.
 DEFAULT_VOICE = {"buvi": "6Fkh9WgMXOqBcOWxX91f", "bobo": "xDwfBjUEPdIoQekNOXAX", "homilador": "132QLQIkg1RJGmpicuhR", "bola": "O72h9AUwisM6Zj4He72B"}
 # Bemor bo'yicha model: hammasi eleven_v3 (v2 o'zbekchada ruscha talaffuz berdi)
-DEFAULT_MODEL = {pid: "eleven_v3" for pid in ("buvi", "homilador", "bola", "bobo")}  # v3 o'zbekchani yaxshi o'qiydi (v2 ruscha talaffuz beradi)
-TTS_MODELS = ["eleven_multilingual_v2", "eleven_v3", "eleven_flash_v2_5", "eleven_turbo_v2_5"]
+DEFAULT_MODEL = {"buvi": "eleven_v4", "homilador": "eleven_v4", "bobo": "eleven_v4", "bola": "eleven_v3"}  # v4: tez va barqaror; Madinaxon v3 da yaxshi chiqqani uchun qoldi
+TTS_MODELS = ["eleven_multilingual_v2", "eleven_v3", "eleven_v4", "eleven_v4_turbo", "eleven_flash_v2_5", "eleven_turbo_v2_5"]
 
 
 def enabled() -> bool:

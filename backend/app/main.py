@@ -162,6 +162,7 @@ async def chat_stream(req: ChatRequest):
                             raise RuntimeError("ovoz bo'sh")
                     except Exception as e:
                         log.warning("ElevenLabs TTS xatosi (%d bo'lakdan keyin): %s", n, e)
+                        info.setdefault("tries", []).append(f"ElevenLabs {p.id}: {str(e)[:160]}")  # ilovada "Texnik ma'lumot" da ko'rinadi
                         if n == 0:  # hech narsa chalinmagan: shu gap Edge ovozida
                             try:
                                 audio, _ = await tts.synthesize(s, p)

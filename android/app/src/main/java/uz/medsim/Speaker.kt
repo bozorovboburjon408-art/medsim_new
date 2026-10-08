@@ -25,8 +25,8 @@ object Speaker {
     fun setVolume(v: Float) { player?.setVolume(v, v) }
 
     fun stop() {
-        queue.clear(); playing = false; expectMore = false
-        pcm?.abort(); pcm = null
+        items.clear(); playing = false; draining = false; expectMore = false
+        pcm?.abort(); pcm = null; drainP?.abort(); drainP = null
         player?.release(); player = null
     }
 
@@ -71,13 +71,21 @@ object Speaker {
         player = p
     }
 
-    // ---- Gap-gap oqim ijrosi: kelgan mp3 bo'laklari ketma-ket chalinadi ----
-    private val queue = ArrayDeque<File>()
-    private var playing = false
+    // ---- Gap-gap oqim ijrosi: PCM (ElevenLabs) va mp3 (Edge zaxirasi) bo'laklari bitta tartibli navbatda, hech qachon bir vaqtda chalinmaydi ----
+    private sealed class Item {
+        class Mp3(val file: File) : Item()
+        class Pcm(val bytes: ByteArray, val rate: Int) : Item()
+    }
+
+    private val items = ArrayDeque<Item>()
+    private var playing = false   // mp3 bo'lagi chalinyapti
+    private var draining = false  // PCM tugashi kutilyapti (mp3 yoki yakun uchun)
     private var expectMore = false
     private var seq = 0
     private var idleCb: () -> Unit = {}
     private var dev: Int? = null
+    private var pcm: PcmPlayer? = null
+    private var drainP: PcmPlayer? = null  // tugashi kutilayotgan PCM ijrochi (stop() uni ham to'xtatadi)
 
     fun beginStream(deviceId: Int?, onIdle: () -> Unit) {
         stop(); expectMore = true; dev = deviceId; idleCb = onIdle
@@ -85,44 +93,69 @@ object Speaker {
 
     fun enqueue(ctx: Context, bytes: ByteArray, ext: String = "mp3") {
         val f = File(ctx.cacheDir, "seg_${seq++}.$ext").also { it.writeBytes(bytes) }
-        queue.addLast(f)
-        if (!playing) playNext(ctx)
+        items.addLast(Item.Mp3(f))
+        advance(ctx)
     }
 
-    fun endStream() {
-        expectMore = false
-        val p = pcm
-        if (p != null) {
-            p.finish { pcm = null; if (!playing && queue.isEmpty()) idleCb() }
-        } else if (!playing && queue.isEmpty()) idleCb()
-    }
-
-    // ---- Xom PCM oqimi (Gemini): kelgan bo'laklar darrov chalinadi ----
-    private var pcm: PcmPlayer? = null
-
+    /** Xom PCM bo'lagi: navbat bo'sh va mp3 chalinmayotgan bo'lsa darrov chalinadi, aks holda tartib bilan kutadi. */
     fun writePcm(ctx: Context, bytes: ByteArray, rate: Int) {
+        if (playing || draining || items.isNotEmpty()) { items.addLast(Item.Pcm(bytes, rate)); return }
         val p = pcm ?: PcmPlayer(ctx, rate, dev).also { pcm = it }
         p.write(bytes)
     }
 
-    private fun playNext(ctx: Context) {
-        val f = queue.removeFirstOrNull()
-        if (f == null) {
-            playing = false
-            if (!expectMore) idleCb()
-            return
+    fun endStream() {
+        expectMore = false
+        checkIdle()
+    }
+
+    private fun advance(ctx: Context) {
+        if (playing || draining) return
+        while (true) {
+            val item = items.firstOrNull() ?: break
+            when (item) {
+                is Item.Pcm -> {
+                    items.removeFirst()
+                    val p = pcm ?: PcmPlayer(ctx, item.rate, dev).also { np -> pcm = np }
+                    p.write(item.bytes)
+                }
+                is Item.Mp3 -> {
+                    val p = pcm
+                    if (p != null) {  // avval PCM to'liq chalinib bo'lsin
+                        draining = true; pcm = null; drainP = p
+                        p.finish { draining = false; drainP = null; advance(ctx) }
+                        return
+                    }
+                    items.removeFirst()
+                    playSeg(ctx, item.file)
+                    return
+                }
+            }
         }
+        checkIdle()
+    }
+
+    private fun checkIdle() {
+        if (expectMore || playing || draining || items.isNotEmpty()) return
+        val p = pcm
+        if (p != null) {
+            pcm = null; draining = true; drainP = p
+            p.finish { draining = false; drainP = null; checkIdle() }
+        } else idleCb()
+    }
+
+    private fun playSeg(ctx: Context, f: File) {
         playing = true
         val p = MediaPlayer()
         try {
             p.setDataSource(f.absolutePath)
             dev?.let { id -> bluetoothDevices(ctx).firstOrNull { it.id == id }?.let { p.setPreferredDevice(it) } }
-            p.setOnCompletionListener { it.release(); f.delete(); playNext(ctx) }
-            p.setOnErrorListener { mp, _, _ -> mp.release(); f.delete(); playNext(ctx); true }
+            p.setOnCompletionListener { it.release(); f.delete(); playing = false; advance(ctx) }
+            p.setOnErrorListener { mp, _, _ -> mp.release(); f.delete(); playing = false; advance(ctx); true }
             p.prepare(); p.start()
             player = p
         } catch (e: Exception) {
-            p.release(); playNext(ctx)
+            p.release(); playing = false; advance(ctx)
         }
     }
 }

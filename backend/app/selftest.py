@@ -124,8 +124,15 @@ async def stt_selftest(token: str = ""):
         raise HTTPException(400, "ELEVENLABS_API_KEY o'rnatilmagan")
     vid = eleven.DEFAULT_VOICE["homilador"]
 
+    sem = asyncio.Semaphore(2)  # ElevenLabs parallel so'rovlar chegarasi (429) dan saqlanish
+
     async def one(sent: str):
-        pcm = await eleven.tts(sent, vid, "eleven_multilingual_v2")
+        try:
+            async with sem:
+                pcm = await eleven.tts(sent, vid, "eleven_multilingual_v2")
+        except Exception as e:
+            err = f"XATO (ovoz yaratish) {str(e)[:120]}"
+            return sent, err, err
         wav = tts._pcm_to_wav(pcm, 24000)
 
         async def g():

@@ -42,7 +42,7 @@ Nilufar Rahimova, 33 yoshli, 32 haftalik homilador ayol. Hamshirani 'hamshira op
 ### Madinaxon (5 yosh, qizaloq, gijja)  (`bola`)
 - Ssenariy fayli: `bola.txt` (hajmi ~9016 belgi)
 - Edge ovozi: uz-UZ-MadinaNeural, tezlik +14%, ohang +95Hz
-- Gemini ovozi tezligi (bolalashtirish): 1.26x
+- Gemini ovozi tezligi (bolalashtirish): 1.12x
 - Ssenariyda ism almashtiriladi: `Jasurbek` -> `Madinaxon`
 
 Rol matni:

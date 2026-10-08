@@ -71,10 +71,7 @@ async def _gemini(text: str, p: Patient) -> bytes:
 
     models = [m.strip() for m in settings.gemini_tts_models.split(",") if m.strip()]
     if not models:
-        models = [
-            "gemini-2.5-flash-preview-tts",
-            "gemini-3.1-flash-tts-preview",
-        ]
+        models = ["gemini-2.5-flash-preview-tts"]
 
     voice = getattr(p, "gemini_voice", None) or GEMINI_DEFAULT_VOICE.get(p.id, "Kore")
 
@@ -93,7 +90,7 @@ async def _gemini(text: str, p: Patient) -> bytes:
     hdr = {"x-goog-api-key": settings.gemini_api_key}
 
     last_err: Exception | None = None
-    async with httpx.AsyncClient(timeout=12) as c:
+    async with httpx.AsyncClient(timeout=8) as c:
         for m in models:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
             try:

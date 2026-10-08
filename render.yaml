@@ -14,6 +14,6 @@ services:
       - key: TTS_PROVIDER
         value: gemini
       - key: GEMINI_TTS_MODELS
-        value: gemini-2.5-flash-preview-tts,gemini-3.1-flash-tts-preview
+        value: gemini-2.5-flash-preview-tts
       - key: GEMINI_API_KEY
         sync: false

@@ -335,7 +335,7 @@ async def debug_tts(text: str = "Assalomu alaykum, yaxshimisiz?", voice: str = "
         },
     }
     hdr = {"x-goog-api-key": settings.gemini_api_key}
-    async with httpx.AsyncClient(timeout=20) as c:
+    async with httpx.AsyncClient(timeout=10) as c:
         for m in models:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
             try:

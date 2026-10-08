@@ -302,6 +302,35 @@ async def tts_models(token: str = ""):
         raise HTTPException(502, f"Modellar ro'yxati olinmadi: {e}")
 
 
+@app.get("/llm_check")
+async def llm_check(token: str = ""):
+    """Diagnostika: Gemini manbai (Vertex yoki AI Studio) va har bir model bitta qisqa so'rovga javob beradimi."""
+    _check_token(token)
+    import httpx
+    from . import vertex
+    out = {"backend": "vertex" if vertex.enabled() else "ai_studio", "models": {}}
+    if vertex.enabled():
+        try:
+            out["project"] = vertex.project()
+            out["location"] = settings.vertex_location
+        except Exception as e:
+            out["error"] = f"JSON o'qilmadi: {type(e).__name__}: {e}"
+            return out
+    body = {"contents": [{"role": "user", "parts": [{"text": "Salom deb javob ber."}]}],
+            "generationConfig": {"maxOutputTokens": 20}}
+    async with httpx.AsyncClient(timeout=30) as c:
+        for m in sorted(set(llm.chat_models() + llm.eval_models())):
+            t0 = time.perf_counter()
+            try:
+                url, hdr = await llm.target(m, "generateContent")
+                r = await c.post(url, json=body, headers=hdr)
+                out["models"][m] = {"status": r.status_code, "sec": round(time.perf_counter() - t0, 2),
+                                    **({} if r.status_code == 200 else {"error": r.text[:300]})}
+            except Exception as e:
+                out["models"][m] = {"error": f"{type(e).__name__}: {e}"}
+    return out
+
+
 @app.get("/models")
 async def models():
     """Kalitingiz bilan ishlaydigan Gemini model ID'lari (GEMINI_MODELS uchun)."""

@@ -6,6 +6,7 @@ from typing import AsyncIterator
 
 import httpx
 
+from . import vertex
 from .config import settings
 
 TIMEOUT = 30
@@ -26,6 +27,31 @@ def healthy_first(models: list[str]) -> list[str]:
     return ok + [m for m in models if m not in ok]  # buzuqlari oxirida, lekin zaxira sifatida qoladi
 
 
+def chat_models() -> list[str]:
+    raw = settings.vertex_models if vertex.enabled() else settings.gemini_models
+    return [m.strip() for m in raw.split(",") if m.strip()]
+
+
+def eval_models() -> list[str]:
+    raw = settings.vertex_eval_models if vertex.enabled() else settings.gemini_eval_models
+    return [m.strip() for m in raw.split(",") if m.strip()]
+
+
+async def target(model: str, method: str) -> tuple[str, dict]:
+    """Gemini so'rovi manzili va sarlavhalari: Vertex AI (kredit) yoki AI Studio (kalit)."""
+    if vertex.enabled():
+        return await vertex.target(model, method)
+    return (f"https://generativelanguage.googleapis.com/v1beta/models/{model}:{method}",
+            {"x-goog-api-key": settings.gemini_api_key})
+
+
+def think_config(model: str) -> dict | None:
+    """Vertex 2.5 modellari thinkingBudget bilan o'chiriladi (tezlik/narx); AI Studio uchun thinkingLevel."""
+    if vertex.enabled():
+        return None if "pro" in model else {"thinkingBudget": 0}
+    return {"thinkingLevel": settings.gemini_thinking} if settings.gemini_thinking else None
+
+
 async def generate(system: str, history: list[dict]) -> str:
     """history: [{"role": "user"|"assistant", "content": str}] — user = hamshira."""
     if settings.llm_provider == "claude":
@@ -42,12 +68,12 @@ async def _gemini(system: str, history: list[dict]) -> str:
         ],
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1024},
     }
-    models = [m.strip() for m in settings.gemini_models.split(",") if m.strip()]
+    models = chat_models()
     last = "model ro'yxati bo'sh"
     async with httpx.AsyncClient(timeout=TIMEOUT) as c:
         for model in models:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-            r = await c.post(url, json=body, headers={"x-goog-api-key": settings.gemini_api_key})
+            url, hdr = await target(model, "generateContent")
+            r = await c.post(url, json=body, headers=hdr)
             if r.status_code in (404, 429, 500, 503):  # limit/yo'q/band: keyingi modelga o'tamiz
                 last = f"{model}: {r.status_code} {r.text[:200]}"
                 continue
@@ -67,6 +93,8 @@ async def _gemini(system: str, history: list[dict]) -> str:
 
 
 async def list_gemini_models() -> list[str]:
+    if vertex.enabled():  # Vertex'da ro'yxat alohida; sozlangan modellarni ko'rsatamiz
+        return sorted(set(chat_models() + eval_models()))
     async with httpx.AsyncClient(timeout=TIMEOUT) as c:
         r = await c.get("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",
                         headers={"x-goog-api-key": settings.gemini_api_key})
@@ -115,7 +143,7 @@ async def stream_sentences(system: str, history: list[dict], info: dict | None =
         ],
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1024},
     }
-    models = [m.strip() for m in settings.gemini_models.split(",") if m.strip()]
+    models = chat_models()
     if model and re.fullmatch(r"[a-z0-9.\-]+", model):  # sinov uchun tanlangan model birinchi
         models = [model] + [m for m in models if m != model]
     last = "model ro'yxati bo'sh"
@@ -125,24 +153,22 @@ async def stream_sentences(system: str, history: list[dict], info: dict | None =
     fast = httpx.Timeout(connect=4, read=6, write=5, pool=5)
     async with httpx.AsyncClient(timeout=fast) as c:
         for model in models:
-            url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-                   f"{model}:streamGenerateContent?alt=sse")
+            url, hdr = await target(model, "streamGenerateContent?alt=sse")
             got, failed = False, False
             # "O'ylash" darajasi past qilinadi (tezroq va arzonroq); model tanimasa, bir marta o'ylashsiz qayta uriniladi
-            variants = [True, False] if (settings.gemini_thinking and model not in _no_think) else [False]
+            think = think_config(model)
+            variants = [True, False] if (think and model not in _no_think) else [False]
             for use_think in variants:
                 b = body
                 if use_think:
                     b = {**body, "generationConfig": {**body["generationConfig"],
-                                                      "thinkingConfig": {"thinkingLevel": settings.gemini_thinking}}}
+                                                      "thinkingConfig": think}}
                 retry_plain = False
                 try:
-                    async with c.stream("POST", url, json=b,
-                                        headers={"x-goog-api-key": settings.gemini_api_key}) as r:
+                    async with c.stream("POST", url, json=b, headers=hdr) as r:
                         if r.status_code == 400 and use_think:
                             _no_think.add(model)
-                            log.warning("%s thinkingLevel=%s ni qabul qilmadi, o'ylash sozlamasisiz davom etiladi",
-                                        model, settings.gemini_thinking)
+                            log.warning("%s o'ylash sozlamasini qabul qilmadi, usiz davom etiladi", model)
                             retry_plain = True
                         elif r.status_code >= 400:
                             last = f"{model}: {r.status_code} {(await r.aread()).decode()[:200]}"

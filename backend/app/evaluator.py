@@ -74,16 +74,16 @@ async def evaluate(p: Patient, history: list[dict], model: str | None = None) ->
         "contents": [{"role": "user", "parts": [{"text": build_prompt(p, history)}]}],
         "generationConfig": {"temperature": 0.2, "maxOutputTokens": 4096, "responseMimeType": "application/json"},
     }
-    models = [m.strip() for m in settings.gemini_eval_models.split(",") if m.strip()]
+    models = llm.eval_models()
     if model and re.fullmatch(r"[a-z0-9.\-]+", model):
         models = [model] + [m for m in models if m != model]
     models = llm.healthy_first(models)
     last = "model ro'yxati bo'sh"
     async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=45, write=5, pool=5)) as c:
         for m in models:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
+            url, hdr = await llm.target(m, "generateContent")
             try:
-                r = await c.post(url, json=body, headers={"x-goog-api-key": settings.gemini_api_key})
+                r = await c.post(url, json=body, headers=hdr)
             except httpx.TimeoutException:
                 last = f"{m}: timeout"
                 continue

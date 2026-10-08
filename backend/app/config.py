@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     debug_token: str = ""  # /voice_lab (ovoz sozlash sahifasi) uchun; bo'sh bo'lsa o'chiq
     azure_speech_key: str = ""
     azure_speech_region: str = ""
+    # Vertex AI (Google Cloud, $300 kredit): service account JSON matni. Bo'sh bo'lsa AI Studio kaliti ishlatiladi
+    google_sa_json: str = ""
+    vertex_project: str = ""  # bo'sh bo'lsa JSON ichidagi project_id olinadi
+    vertex_location: str = "global"
+    vertex_models: str = "gemini-2.5-flash-lite,gemini-2.5-flash"
+    vertex_eval_models: str = "gemini-2.5-flash,gemini-2.5-pro"
     google_tts_api_key: str = ""  # Google Cloud Text-to-Speech API kaliti ($300 Cloud krediti uchun); faqat laboratoriya
 
 

@@ -52,3 +52,10 @@ Android: GitHub Actions `android.yml` debug APK quradi (artifact `1-tayyor-demo`
 - Edge TTS Render'dan 403 berdi -> `edge-tts>=7.2.8`.
 - Bepul Render uxlaydi (30–50 s) -> Starter + ilova `/health` ping.
 - Foydalanuvchi AI'ning tezligiga (2–3 s), bir xil premium ovozga va arzonlikka e'tibor beradi; taqdimot (demo) ishonchliligi muhim.
+
+## 7. Vertex AI (Google Cloud $300 krediti) — oxirgi holat
+- AI Studio'dagi $30 prepay tugadi; $300 GCP kredit AI Studio kalitiga amal qilmaydi. Shuning uchun matn (suhbat + baholash) Vertex AI orqali chaqiriladi: `backend/app/vertex.py`, `llm.target()`.
+- Yoqish: Render env'da `GOOGLE_SA_JSON` (service account JSON matni, rol "Vertex AI User"). Bo'sh bo'lsa AI Studio kaliti ishlatiladi.
+- Modellar: `VERTEX_MODELS`, `VERTEX_EVAL_MODELS` (Vertex'da 3.x nomlari bo'lmasligi mumkin, hozir 2.5). Tekshirish: `/llm_check?token=...` har model uchun status va xatoni ko'rsatadi.
+- Google Cloud TTS (gemini-2.5-*-tts, Chirp3-HD) o'zbek tilini qo'llab-quvvatlamaydi (uz-UZ rad etiladi) — ishlatib bo'lmaydi.
+- Gemini TTS'da uslub ko'rsatmasi ("Say ...:" / rejissyor) ovoz chiqarib o'qiladi, foydalanib bo'lmaydi.

@@ -8,9 +8,9 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_thinking: str = "low"  # AI "o'ylash" darajasi (bo'sh = standart). Tezlik va narxga ta'sir qiladi
     # vergul bilan ajratilgan zanjir: birinchisi limitga yetsa keyingisiga o'tadi
-    gemini_models: str = "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.8-flash"
-    # Baholash kamdan-kam chaqiriladi (suhbat boshiga 1 marta), shuning uchun sifatliroq model
-    gemini_eval_models: str = "gemini-3.8-flash,gemini-3.5-flash-lite"
+    gemini_models: str = "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-2.5-flash-lite,gemini-2.5-flash"
+    # Baholash kamdan-kam chaqiriladi (suhbat boshiga 1 marta)
+    gemini_eval_models: str = "gemini-3.5-flash-lite,gemini-3.1-flash-lite"
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-5-5"
     tts_provider: str = "gemini"  # "gemini" (asosiy), "edge" (bepul/zaxira), "azure"

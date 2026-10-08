@@ -81,7 +81,7 @@ fun App() {
     val prefs = remember { ctx.getSharedPreferences("medsim", Context.MODE_PRIVATE) }
     val savedServer = prefs.getString("server", null)
     var server by remember { mutableStateOf(if (savedServer.isNullOrBlank()) DEFAULT_SERVER else savedServer) }
-    var model by remember { mutableStateOf(prefs.getString("model", "gemini-2.5-flash") ?: "gemini-2.5-flash") }
+    var model by remember { mutableStateOf(prefs.getString("model", "") ?: "") }
     var tts by remember { mutableStateOf(prefs.getString("tts", "gemini") ?: "gemini") }
 
     val savedBaby = prefs.getString("esp_baby_url", null)

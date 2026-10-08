@@ -82,7 +82,7 @@ fun App() {
     val savedServer = prefs.getString("server", null)
     var server by remember { mutableStateOf(if (savedServer.isNullOrBlank()) DEFAULT_SERVER else savedServer) }
     var model by remember { mutableStateOf(prefs.getString("model", "") ?: "") }
-    var tts by remember { mutableStateOf(prefs.getString("tts", "gemini") ?: "gemini") }
+    var tts by remember { mutableStateOf(prefs.getString("tts", "edge") ?: "edge") }
 
     val savedBaby = prefs.getString("esp_baby_url", null)
     val initialBaby = if (savedBaby.isNullOrBlank() || savedBaby == "http://medsim-baby.local") DEFAULT_ESP_BABY_URL else savedBaby

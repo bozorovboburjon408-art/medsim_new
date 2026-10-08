@@ -39,11 +39,12 @@ async def synthesize(text: str, p: Patient, provider: str | None = None) -> tupl
         return b"", "none"
 
     prov = (provider or settings.tts_provider).strip().lower()
-    # Agar alohida provider='edge' so'ralmagan bo'lsa va Gemini kaliti bo'lsa, Gemini'ni birlamchi qilamiz
-    if provider is None and settings.gemini_api_key:
-        prov = "gemini"
 
-    if prov in ("gemini", "auto", ""):
+    # Edge TTS — bepul va xavfsiz (Google hisobidan bir tiyin ham yechilmaydi)
+    if prov in ("edge", "auto", ""):
+        return await _edge(text, p), "edge"
+
+    if prov == "gemini":
         if settings.gemini_api_key:
             try:
                 audio = await _gemini(text, p)
@@ -60,7 +61,7 @@ async def synthesize(text: str, p: Patient, provider: str | None = None) -> tupl
         except Exception as e:
             log.warning("Azure TTS xatosi (%s), Edge ga o'tilmoqda", e)
 
-    # Edge TTS (bepul va zaxira)
+    # Boshqa hollarda zaxira Edge TTS
     return await _edge(text, p), "edge"
 
 

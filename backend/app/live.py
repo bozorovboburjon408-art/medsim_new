@@ -22,18 +22,18 @@ VOICES = [
     "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi", "Vindemiatrix", "Sadachbia",
     "Sadaltager", "Sulafat",
 ]
-DEFAULT_VOICE = {"buvi": "Gacrux", "homilador": "Kore", "bola": "Puck", "bobo": "Charon"}
+DEFAULT_VOICE = {"buvi": "Aoede", "homilador": "Kore", "bola": "Callirrhoe", "bobo": "Charon"}
 STYLE = {
     "buvi": "Speak slowly, in a weak, gentle, warm, slightly tired elderly woman's voice.",
     "homilador": "Speak in a warm, slightly tired adult woman's voice at a calm pace.",
     "bobo": "Speak slowly, in a weak, calm, warm, slightly hoarse elderly man's voice.",
-    "bola": "You are Jasurbek, a 5-year-old BOY. Speak in a high-pitched, small, cute, slightly whiny little boy's voice (never a girl's voice), in very short childlike sentences.",
+    "bola": "You are a 5-year-old little GIRL. Speak in a high-pitched, small, cute, childlike little girl's voice, in very short childlike sentences.",
 }
 IDENT = {
     "buvi": "SEN: Salomat buvi, 75 yoshli kampir (ayol). ",
     "homilador": "SEN: Nilufar, 32 haftalik homilador ayol. ",
     "bobo": "SEN: Hikmatilla ota, 78 yoshli qariya (erkak). ",
-    "bola": "SEN: Jasurbek, 5 yoshli O'G'IL BOLA (buvi emas, kattalar emas). Hamshira senga 'Jasurbek' yoki 'bolajon' deydi; o'zingni hech qachon buvi yoki Salomat deb tanishtirma. Kattalardek emas, bolalarcha qisqa gapir. ",
+    "bola": "SEN: 5 yoshli KICHKINA QIZ BOLA (qizaloq). Hamshira senga 'qizalog'im' yoki bolajon deydi; kattalardek emas, bolalarcha qisqa gapir. ",
 }
 LIVE_RULES = (
     "\n\nOVOZLI SUHBAT: faqat o'zbek tilida gapir. Butun suhbat davomida aynan bir xil ovoz, ohang va tezlikda gapir. "

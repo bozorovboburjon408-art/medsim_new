@@ -77,6 +77,12 @@ async def _gemini(text: str, p: Patient) -> bytes:
 
     body = {
         "contents": [{"parts": [{"text": text}]}],
+        "safetySettings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ],
         "generationConfig": {
             "temperature": 0.0,  # Ovoz va ritm tasodifiy o'zgarib ketmasligi, doim barqaror chiqishi uchun
             "responseModalities": ["AUDIO"],
@@ -171,7 +177,7 @@ GEMINI_VOICES = ["Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "
                  "Enceladus", "Iapetus", "Umbriel", "Algieba", "Despina", "Erinome", "Algenib", "Rasalgethi",
                  "Laomedeia", "Achernar", "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
                  "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"]
-GEMINI_DEFAULT_VOICE = {"buvi": "Aoede", "homilador": "Kore", "bola": "Puck", "bobo": "Charon"}
+GEMINI_DEFAULT_VOICE = {"buvi": "Aoede", "homilador": "Kore", "bola": "Callirrhoe", "bobo": "Charon"}
 
 
 async def list_gemini_tts_models() -> list[str]:

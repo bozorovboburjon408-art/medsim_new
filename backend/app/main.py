@@ -5,6 +5,8 @@ import logging
 import re
 import time
 
+import httpx
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel
@@ -27,12 +29,14 @@ class ChatRequest(BaseModel):
     patient_id: str
     history: list[Turn]  # oxirgisi hamshiraning yangi gapi bo'lishi kerak
     model: str | None = None  # ixtiyoriy: shu model birinchi sinaladi
-    tts: str | None = None  # eski ilovalar yuboradi; e'tiborga olinmaydi (ovoz doim Edge)
+    tts: str | None = None  # "gemini", "edge", yoki bo'sh (default: config dagi)
 
 
 class ChatResponse(BaseModel):
     text: str
-    audio_b64: str  # mp3
+    audio_b64: str  # mp3 yoki wav
+    fmt: str = "mp3"
+    tts: str = ""
     llm_ms: int = 0
     tts_ms: int = 0
 
@@ -56,13 +60,15 @@ async def chat(req: ChatRequest):
         raise HTTPException(502, f"AI xatosi: {e}"[:400])
     t1 = time.perf_counter()
     try:
-        audio, _used = await tts.synthesize(text, p)
+        audio, used = await tts.synthesize(text, p, req.tts)
     except Exception as e:
         raise HTTPException(502, f"Ovoz (TTS) xatosi: {e} | javob: {text}"[:400])
     t2 = time.perf_counter()
     if not audio:
         raise HTTPException(502, f"Ovoz bo'sh chiqdi (TTS) | javob: {text}"[:400])
+    fmt = "wav" if used == "gemini" else "mp3"
     return ChatResponse(text=text, audio_b64=base64.b64encode(audio).decode(),
+                        fmt=fmt, tts=used,
                         llm_ms=int((t1 - t0) * 1000), tts_ms=int((t2 - t1) * 1000))
 
 
@@ -84,8 +90,9 @@ async def chat_stream(req: ChatRequest):
 
         async def synth(s: str, t_llm: int):
             t = time.perf_counter()
-            audio, used = await tts.synthesize(s, p)
-            return s, audio, "mp3", used, t_llm, int((time.perf_counter() - t) * 1000)
+            audio, used = await tts.synthesize(s, p, req.tts)
+            fmt = "wav" if used == "gemini" else "mp3"
+            return s, audio, fmt, used, t_llm, int((time.perf_counter() - t) * 1000)
 
         async def producer():
             try:
@@ -306,6 +313,43 @@ async def tts_models(token: str = ""):
 async def models():
     """Kalitingiz bilan ishlaydigan Gemini model ID'lari (GEMINI_MODELS uchun)."""
     return await llm.list_gemini_models()
+
+
+@app.get("/debug_tts")
+async def debug_tts(text: str = "Assalomu alaykum, yaxshimisiz?", voice: str = "Aoede"):
+    """Gemini TTS modellarini sinovdan o'tkazish va statuslarini ko'rish uchun."""
+    if not settings.gemini_api_key:
+        return {"error": "gemini_api_key sozlanmagan"}
+    models = [m.strip() for m in settings.gemini_tts_models.split(",") if m.strip()]
+    results = []
+    body = {
+        "contents": [{"role": "user", "parts": [{"text": text}]}],
+        "generationConfig": {
+            "temperature": 0.0,
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {
+                    "prebuiltVoiceConfig": {"voiceName": voice}
+                }
+            },
+        },
+    }
+    hdr = {"x-goog-api-key": settings.gemini_api_key}
+    async with httpx.AsyncClient(timeout=10) as c:
+        for m in models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
+            try:
+                r = await c.post(url, json=body, headers=hdr)
+                if r.status_code == 200:
+                    data = r.json()
+                    parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                    has_audio = any("inlineData" in pt for pt in parts)
+                    results.append({"model": m, "status": 200, "has_audio": has_audio, "parts_count": len(parts)})
+                else:
+                    results.append({"model": m, "status": r.status_code, "detail": r.text[:250]})
+            except Exception as e:
+                results.append({"model": m, "error": str(e)})
+    return {"voice": voice, "results": results}
 
 
 @app.get("/health")

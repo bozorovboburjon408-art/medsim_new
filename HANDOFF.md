@@ -22,7 +22,7 @@ Android: mp3 navbati MediaPlayer bilan Bluetooth karnayga
 - Backend: FastAPI, Docker, Render Starter ($7, uxlamaydi). URL: https://medsim-backend-oyfd.onrender.com . `render.yaml` Blueprint.
 - Render **env o'zgaruvchilari kod default'laridan ustun** (GEMINI_MODELS, TTS_PROVIDER...).
 - Gemini modellari: `GEMINI_MODELS=gemini-3.5-flash-lite,gemini-3.1-flash-lite` (thinkingLevel=low, sekin/xato modelga circuit-breaker), baholash: `GEMINI_EVAL_MODELS`.
-- Ovoz: faqat Edge TTS (uz-UZ-MadinaNeural/SardorNeural, bemorga mos rate/pitch). Gemini TTS **olib tashlangan** (xarajatning ~90%i edi, ohangi beqaror). Azure ixtiyoriy (`TTS_PROVIDER=azure`).
+- Ovoz: Gemini TTS asosiy (`gemini-2.5-flash-preview-tts,gemini-3.1-flash-tts-preview`; temperature: 0.0 bilan barqarorlashtirilgan; WAV 24kHz), xatolik yoki limit bo'lsa zaxira Edge TTS (`uz-UZ-MadinaNeural/SardorNeural`) ga avto o'tadi. Azure ixtiyoriy (`TTS_PROVIDER=azure`).
 
 Fayllar: `backend/app/{main,llm,tts,patients,evaluator,config,live}.py`; Android: `android/app/src/main/java/uz/medsim/{Api,Speaker,MainActivity,Theme}.kt`.
 Maxfiy sahifalar `?token=` (env `DEBUG_TOKEN`, hozir `sinov7421`): `/voice_lab` (Edge ovoz sozlash), `/live_lab` (Gemini Live tajriba), `/models`, `/health`.

@@ -8,5 +8,5 @@ Avval `HANDOFF.md` ni to'liq o'qing: loyiha holati, arxitektura, qaror va muammo
 - Branch: `claude/confident-volta-sfk9ep` (Render shu branchdan avtomatik deploy qiladi). Boshqa branchga push qilmang.
 - Python o'zgartirsangiz: toza venv da `pip install -r backend/requirements.txt` bilan tekshiring (httpx versiyasi to'qnashuvi bir marta deployni buzgan).
 - `backend/app/live.py` ichidagi LAB_HTML (JS) ni o'zgartirsangiz, jsdom yoki brauzerda ishga tushirib tekshiring (qo'shtirnoq xatosi sahifani buzgan).
-- Bemor javoblari: sof o'zbek, 1–2 qisqa gap. Production ovozi faqat Edge TTS; Gemini faqat matn (LLM) uchun.
+- Bemor javoblari: sof o'zbek, 1–2 qisqa gap. Asosiy ovoz: Gemini TTS (gemini-2.5-flash-preview-tts, gemini-3.1-flash-tts-preview; qimmat 3.8 modellari qo'shilmasin), xatolik yoki limitda zaxira Edge TTS ga avto o'tadi.
 - Android APK ni GitHub Actions (`.github/workflows/android.yml`) quradi; artifact nomi `1-tayyor-demo`.

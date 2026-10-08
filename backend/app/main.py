@@ -9,13 +9,14 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import evaluator, live, llm, tts
+from . import evaluator, full_lab, live, llm, tts
 from .config import settings
 from .patients import PATIENTS
 
 log = logging.getLogger("uvicorn.error")
 app = FastAPI(title="MedSim backend")
 app.include_router(live.router)
+app.include_router(full_lab.router)
 
 
 class Turn(BaseModel):
@@ -27,7 +28,9 @@ class ChatRequest(BaseModel):
     patient_id: str
     history: list[Turn]  # oxirgisi hamshiraning yangi gapi bo'lishi kerak
     model: str | None = None  # ixtiyoriy: shu model birinchi sinaladi
-    tts: str | None = None  # eski ilovalar yuboradi; e'tiborga olinmaydi (ovoz doim Edge)
+    tts: str | None = None  # "gemini" bo'lsa Gemini ovozi (xato bo'lsa Edge), aks holda Edge
+    tts_model: str | None = None  # Gemini TTS modeli (ixtiyoriy)
+    gemini_voice: str | None = None  # Gemini ovozi nomi (ixtiyoriy)
 
 
 class ChatResponse(BaseModel):
@@ -84,6 +87,18 @@ async def chat_stream(req: ChatRequest):
 
         async def synth(s: str, t_llm: int):
             t = time.perf_counter()
+            if req.tts == "gemini":
+                try:
+                    voice = req.gemini_voice if req.gemini_voice in tts.GEMINI_VOICES else tts.GEMINI_DEFAULT_VOICE.get(p.id, "Kore")
+                    model = req.tts_model if req.tts_model and re.fullmatch(r"[A-Za-z0-9._-]{3,80}", req.tts_model) else settings.gemini_tts_model
+                    gen = await tts.gemini_tts_stream(tts.clean_for_tts(s), voice, model)
+                    pcm = b"".join([c async for c in gen])
+                    if pcm:
+                        return s, pcm, "pcm", "gemini", t_llm, int((time.perf_counter() - t) * 1000)
+                except Exception as e:
+                    log.warning("Gemini TTS xatosi, Edge'ga o'tildi: %s", e)
+                audio, _ = await tts.synthesize(s, p)
+                return s, audio, "mp3", "edge (gemini xato)", t_llm, int((time.perf_counter() - t) * 1000)
             audio, used = await tts.synthesize(s, p)
             return s, audio, "mp3", used, t_llm, int((time.perf_counter() - t) * 1000)
 
@@ -111,7 +126,9 @@ async def chat_stream(req: ChatRequest):
                 log.info("seg patient=%s total=%dms llm=%dms tts=%dms model=%s tries=%s",
                          p.id, int((time.perf_counter() - t0) * 1000), t_llm, t_tts,
                          info.get("model", ""), info.get("tries", []))
-                yield json.dumps({"text": s, "audio_b64": base64.b64encode(audio).decode(),
+                payload = ({"pcm_b64": base64.b64encode(audio).decode(), "rate": 24000} if fmt == "pcm"
+                           else {"audio_b64": base64.b64encode(audio).decode()})
+                yield json.dumps({"text": s, **payload,
                                   "ms": int((time.perf_counter() - t0) * 1000),
                                   "llm_ms": t_llm, "tts_ms": t_tts, "fmt": fmt, "tts": used,
                                   "model": info.get("model", ""), "usage": info.get("usage", ""), "tries": ", ".join(info.get("tries", []))}) + "\n"
@@ -215,7 +232,7 @@ button{background:#0f766e;color:#fff;border:0;border-radius:12px;padding:12px 18
 button.g{background:#7c3aed}button.c{background:#334155}
 code{background:#e4eceb;padding:2px 6px;border-radius:6px}.m{font-size:13px;color:#475569;margin:6px 0}</style></head><body>
 <h1>Ovoz laboratoriyasi: Edge va Gemini</h1>
-<p><a id="lnk" href="#">Ovozdan matn sinovi (mikrofon) &rarr;</a></p><script>document.getElementById("lnk").href="/stt_lab?token="+encodeURIComponent(new URLSearchParams(location.search).get("token")||"");</script>
+<p><a id="lnk" href="#">Ovozdan matn sinovi &rarr;</a> &nbsp; <a id="lnk2" href="#"><b>To'liq sinov (mikrofon &rarr; javob &rarr; ovoz) &rarr;</b></a></p><script>const tk=encodeURIComponent(new URLSearchParams(location.search).get("token")||"");document.getElementById("lnk").href="/stt_lab?token="+tk;document.getElementById("lnk2").href="/full_lab?token="+tk;</script>
 <p>Har bemor uchun Edge (bepul) va Gemini (pulli, har bosish ~bir necha sent) ovozini yonma-yon eshiting. "Ketma-ket" tugmasi ikkalasini birin-ketin chaladi.</p>
 <div class="card"><label>Gemini TTS modeli (serverdan olinadi)</label><select id="gm"><option value="">yuklanmoqda...</option></select><div class="m" id="gmnote"></div></div>
 <div id="c"></div>

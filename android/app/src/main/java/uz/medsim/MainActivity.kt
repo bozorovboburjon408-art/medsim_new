@@ -24,7 +24,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -449,12 +450,16 @@ fun HoldToTalkButton(phase: Phase, level: Float, onPress: () -> Unit, onRelease:
                 .shadow(10.dp, CircleShape)
                 .clip(CircleShape).background(grad)
                 .pointerInput(Unit) {
-                    detectTapGestures(onPress = {
-                        if (!busyState) {
-                            onPressState()
-                            try { tryAwaitRelease() } finally { onReleaseState() }
-                        }
-                    })
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        val active = !busyState
+                        if (active) onPressState()
+                        // barmoq tugmadan siljib chiqib ketsa ham bosilgan hisoblanadi; faqat butunlay ko'tarilganda tugaydi
+                        do {
+                            val event = awaitPointerEvent()
+                        } while (event.changes.any { it.pressed })
+                        if (active) onReleaseState()
+                    }
                 },
             contentAlignment = Alignment.Center,
         ) {
@@ -517,6 +522,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
     val held = remember { booleanArrayOf(false) }
     val errStreak = remember { intArrayOf(0) }
     val pressedAt = remember { longArrayOf(0L) }
+    val pendingUp = remember { arrayOfNulls<kotlinx.coroutines.Job>(1) }
     val gen = remember { intArrayOf(0) }  // har yangi savolda oshadi: eski javobning qolgan ovozi chalinmasin
 
     fun send(text: String) {
@@ -616,6 +622,8 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
     }
 
     fun pressDown() {
+        val pu = pendingUp[0]
+        if (pu != null && pu.isActive) { pu.cancel(); pendingUp[0] = null; return }  // barmoq 0.35 s ichida qaytdi: bir xil bosish davom etadi
         if (ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             error = "Mikrofonga ruxsat bering (Sozlamalar → Ilovalar → MedSim)"; return
         }
@@ -624,7 +632,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
         startRec()
     }
 
-    fun pressUp() {
+    fun releaseNow() {
         if (!held[0]) return
         held[0] = false
         if (System.currentTimeMillis() - pressedAt[0] < 400 && buffer.isEmpty()) {  // tasodifan tegib ketdi
@@ -639,7 +647,13 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
         } else finish()
     }
 
-    DisposableEffect(p.id) { onDispose { held[0] = false; recRef[0]?.destroy(); recRef[0] = null } }
+    fun pressUp() {
+        if (!held[0]) return
+        pendingUp[0]?.cancel()
+        pendingUp[0] = scope.launch { delay(350); releaseNow() }  // qisqa uzilishlar (barmoq titrashi) e'tiborsiz qoldiriladi
+    }
+
+    DisposableEffect(p.id) { onDispose { pendingUp[0]?.cancel(); held[0] = false; recRef[0]?.destroy(); recRef[0] = null } }
 
     evalResult?.let { EvaluationDialog(it) { evalResult = null } }
     if (showInfo) AlertDialog(
@@ -716,19 +730,19 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
                 Column(
                     (if (side) Modifier.fillMaxSize() else Modifier.fillMaxWidth()).padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = if (side) Arrangement.Center else Arrangement.Top,
+                    verticalArrangement = Arrangement.Center,
                 ) {
-                    if (error.isNotEmpty()) {
-                        Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.errorContainer) {
-                            Text(error, Modifier.padding(horizontal = 14.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
+                    // Doimiy balandlikdagi joy: matn/xato paydo bo'lganda tugma siljib ketmasin
+                    Box(Modifier.fillMaxWidth().height(if (side) 78.dp else 62.dp), contentAlignment = Alignment.Center) {
+                        if (error.isNotEmpty()) {
+                            Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.errorContainer) {
+                                Text(error, Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                            }
+                        } else if (phase == Phase.LISTENING && partial.isNotBlank()) {
+                            Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant) {
+                                Text(partial, Modifier.padding(horizontal = 12.dp, vertical = 6.dp), fontSize = 15.sp, maxLines = if (side) 3 else 2, overflow = TextOverflow.Ellipsis)
+                            }
                         }
-                        Spacer(Modifier.height(6.dp))
-                    }
-                    if (phase == Phase.LISTENING && partial.isNotBlank()) {
-                        Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant) {
-                            Text(partial, Modifier.padding(horizontal = 14.dp, vertical = 8.dp), fontSize = 16.sp, maxLines = if (side) 2 else 3, overflow = TextOverflow.Ellipsis)
-                        }
-                        Spacer(Modifier.height(4.dp))
                     }
                     HoldToTalkButton(phase, level, onPress = { pressDown() }, onRelease = { pressUp() })
                     Row(verticalAlignment = Alignment.CenterVertically) {

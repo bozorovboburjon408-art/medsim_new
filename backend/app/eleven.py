@@ -126,7 +126,7 @@ def _settings(speed: float, stability: float, style: float = 0.15) -> dict:
 
 
 # ElevenLabs tarifida bir vaqtdagi so'rovlar soni cheklangan (429 concurrent_limit_exceeded): ortig'i navbatda kutadi
-_SLOTS = asyncio.Semaphore(2)
+_SLOTS = asyncio.Semaphore(1)  # parallel yo'q: gaplar ketma-ket (har biri oqim bilan tez keladi)
 
 
 def slots_free() -> bool:

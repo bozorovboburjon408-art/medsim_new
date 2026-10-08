@@ -145,7 +145,10 @@ object Api {
     suspend fun getBabyStatus(espUrl: String): BabyStatus? = withContext(Dispatchers.IO) {
         runCatching {
             val req = Request.Builder().url(normalize(espUrl) + "/status").build()
-            http.newBuilder().readTimeout(2, TimeUnit.SECONDS).build().newCall(req).execute().use { r ->
+            http.newBuilder()
+                .connectTimeout(1200, TimeUnit.MILLISECONDS)
+                .readTimeout(1500, TimeUnit.MILLISECONDS)
+                .build().newCall(req).execute().use { r ->
                 if (!r.isSuccessful) return@use null
                 val raw = r.body?.string() ?: return@use null
                 val j = JSONObject(raw)
@@ -175,7 +178,10 @@ object Api {
     suspend fun sendBabyCommand(espUrl: String, endpoint: String): Boolean = withContext(Dispatchers.IO) {
         runCatching {
             val req = Request.Builder().url(normalize(espUrl) + endpoint).build()
-            http.newBuilder().readTimeout(3, TimeUnit.SECONDS).build().newCall(req).execute().use { it.isSuccessful }
+            http.newBuilder()
+                .connectTimeout(1500, TimeUnit.MILLISECONDS)
+                .readTimeout(2, TimeUnit.SECONDS)
+                .build().newCall(req).execute().use { it.isSuccessful }
         }.getOrDefault(false)
     }
 }

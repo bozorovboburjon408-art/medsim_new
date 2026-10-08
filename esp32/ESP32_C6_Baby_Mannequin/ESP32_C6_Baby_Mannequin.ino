@@ -27,9 +27,15 @@
 #include <math.h>
 
 // 1. WI-FI VA TARMOQ SOZLAMALARI
-const char* ssid = "A56";              // O'zingizning Wi-Fi nomingiz
+const char* ssid = "A56";              // Hotspot nomi
 const char* password = "21082007";     // Wi-Fi paroli
 const char* mdns_host = "medsim-baby"; // http://medsim-baby.local
+
+// DOIMIY STATIK IP SOZLAMASI (Manzil hech qachon o'zgarmasligi uchun):
+IPAddress staticIP(10, 186, 157, 233);
+IPAddress gateway(10, 186, 157, 182);
+IPAddress subnet(255, 255, 255, 0);
+IPAddress primaryDNS(8, 8, 8, 8);
 
 WebServer server(80);
 
@@ -479,6 +485,12 @@ void setup() {
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
   WiFi.setSleep(false); // Hotspotdan uzilib qolmasligi uchun uyqu rejimini o'chiramiz
+
+  // Statik IP sozlash: ESP32 har doim aynan 10.186.157.233 manzilini oladi
+  if (!WiFi.config(staticIP, gateway, subnet, primaryDNS)) {
+    Serial.println("⚠️ Statik IP sozlanmadi, DHCP orqali ulanmoqda...");
+  }
+
   WiFi.begin(ssid, password);
   Serial.print("Wi-Fi ga ulanmoqda...");
 

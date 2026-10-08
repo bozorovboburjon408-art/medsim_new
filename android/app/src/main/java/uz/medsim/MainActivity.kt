@@ -72,15 +72,30 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private const val DEFAULT_SERVER = "https://medsim-backend-oyfd.onrender.com"
+private const val DEFAULT_ESP_BABY_URL = "http://10.186.157.233"
+
 @Composable
 fun App() {
     val ctx = LocalContext.current
     val prefs = remember { ctx.getSharedPreferences("medsim", Context.MODE_PRIVATE) }
-    var server by remember { mutableStateOf(prefs.getString("server", "") ?: "") }
-    var model by remember { mutableStateOf(prefs.getString("model", "") ?: "") }
-    var tts by remember { mutableStateOf(prefs.getString("tts", "") ?: "") }
-    var espBabyUrl by remember { mutableStateOf(prefs.getString("esp_baby_url", "http://medsim-baby.local") ?: "http://medsim-baby.local") }
-    var showSettings by remember { mutableStateOf(server.isBlank()) }
+    val savedServer = prefs.getString("server", null)
+    var server by remember { mutableStateOf(if (savedServer.isNullOrBlank()) DEFAULT_SERVER else savedServer) }
+    var model by remember { mutableStateOf(prefs.getString("model", "gemini-2.5-flash") ?: "gemini-2.5-flash") }
+    var tts by remember { mutableStateOf(prefs.getString("tts", "gemini") ?: "gemini") }
+
+    val savedBaby = prefs.getString("esp_baby_url", null)
+    val initialBaby = if (savedBaby.isNullOrBlank() || savedBaby == "http://medsim-baby.local") DEFAULT_ESP_BABY_URL else savedBaby
+    var espBabyUrl by remember { mutableStateOf(initialBaby) }
+    var showSettings by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val ed = prefs.edit()
+        var changed = false
+        if (savedServer.isNullOrBlank()) { ed.putString("server", DEFAULT_SERVER); changed = true }
+        if (savedBaby.isNullOrBlank() || savedBaby == "http://medsim-baby.local") { ed.putString("esp_baby_url", DEFAULT_ESP_BABY_URL); changed = true }
+        if (changed) ed.apply()
+    }
     var current by remember { mutableStateOf<PatientInfo?>(null) }
     // manikenga biriktirilgan kalonka: patient.id -> AudioDeviceInfo.id
     val speakers = remember { mutableStateMapOf<String, Int>() }
@@ -204,7 +219,7 @@ fun SettingsDialog(server: String, model: String, tts: String, espBabyUrl: Strin
                 Spacer(Modifier.height(14.dp))
                 OutlinedTextField(
                     esp, { esp = it }, label = { Text("Chaqaloq manikeni IP (ESP32)") },
-                    placeholder = { Text("http://192.168.1.50 yoki http://medsim-baby.local") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("http://10.186.157.233") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(8.dp))
                 var espResult by remember { mutableStateOf("") }

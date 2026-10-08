@@ -108,7 +108,7 @@ def gemini_prompt(text: str, style: str = "", mode: str = "none") -> str:
 
 async def gemini_tts_lab(text: str, voice: str, model: str, style: str = "", mode: str = "none") -> bytes:
     """Faqat laboratoriya uchun: Gemini TTS bilan bitta gapni wav qilib qaytaradi."""
-    body = {"contents": [{"parts": [{"text": gemini_prompt(text, style, mode)}]}],
+    body = {"contents": [{"role": "user", "parts": [{"text": gemini_prompt(text, style, mode)}]}],
             "generationConfig": {"responseModalities": ["AUDIO"],
                                  "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}}}
     from . import llm

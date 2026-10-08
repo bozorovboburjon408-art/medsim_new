@@ -214,18 +214,12 @@ code{background:#e4eceb;padding:2px 6px;border-radius:6px}.m{font-size:13px;colo
 <h1>Ovoz laboratoriyasi: Edge va Gemini</h1>
 <p>Har bemor uchun Edge (bepul) va Gemini (pulli, har bosish ~bir necha sent) ovozini yonma-yon eshiting. "Ketma-ket" tugmasi ikkalasini birin-ketin chaladi.</p>
 <div class="card"><label>Gemini TTS modeli (serverdan olinadi)</label><select id="gm"><option value="">yuklanmoqda...</option></select><div class="m" id="gmnote"></div></div>
-<div class="card"><label>Google Cloud TTS modeli ($300 kredit; GOOGLE_TTS_API_KEY kerak)</label>
-<select id="cm"><option>gemini-2.5-flash-tts</option><option>gemini-2.5-pro-tts</option><option value="Chirp3-HD">Chirp3-HD</option></select>
-<button class="c" id="cv">O\u2018zbekcha ovozlarni tekshirish</button><div class="m" id="cvnote"></div></div>
 <div id="c"></div>
 <script>
 const token=new URLSearchParams(location.search).get('token')||'';
 const P=__DATA__, GV=__GV__, GD=__GD__, GS=__GS__;
 const box=document.getElementById('c');
 const sg=n=>(n>=0?'+':'')+n;
-document.getElementById('cv').onclick=async()=>{const n=document.getElementById('cvnote');n.textContent='tekshirilmoqda...';
- try{const r=await fetch('/cloud_voices?token='+encodeURIComponent(token));const t=await r.text();
-  n.textContent=r.ok?(JSON.parse(t).length+' ta uz-UZ ovozi: '+t.slice(0,300)):'Xato: '+t.slice(0,300);}catch(e){n.textContent='Xato: '+e;}};
 fetch('/tts_models?token='+encodeURIComponent(token)).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(l=>{
  const s=document.getElementById('gm');
  s.innerHTML=l.map(m=>'<option>'+m+'</option>').join('')||'<option value="">TTS modeli topilmadi</option>';
@@ -243,7 +237,7 @@ for(const [id,d] of Object.entries(P)){
  '<label>Uslub shakli</label><select class="gmo"><option value="none">Uslubsiz (tavsiya)</option><option value="say">Say ...: matn</option><option value="director">Rejissyor yozuvi</option></select>'+
  '<label>Balandlik (oʻynatish tezligi): <span class="pbv">1.00</span>x (bolaga: 1.15\u20131.35)</label><input class="pb" type="range" min="80" max="160" value="100">'+
  '<label>Matn</label><textarea class="t" rows="3">'+d.sample+'</textarea>'+
- '<button class="e">▶ Edge</button><button class="g">▶ Gemini</button><button class="c">⇄ Ketma-ket</button><button class="k" style="background:#0369a1">☁ Cloud</button>'+
+ '<button class="e">▶ Edge</button><button class="g">▶ Gemini</button><button class="c">⇄ Ketma-ket</button>'+
  '<div class="m">Qiymat: <code class="o"></code></div><div class="m st"></div><audio controls style="width:100%"></audio></div>');
 }
 document.querySelectorAll('.card[id]').forEach(c=>{
@@ -265,7 +259,6 @@ document.querySelectorAll('.card[id]').forEach(c=>{
   catch(e){st.textContent='Xato: '+e;}};
  c.querySelector('.e').onclick=()=>play('edge');
  c.querySelector('.g').onclick=()=>play('gemini');
- c.querySelector('.k').onclick=()=>play('cloud');
  c.querySelector('.c').onclick=async()=>{await play('edge');await play('gemini');};
 });
 </script></body></html>"""

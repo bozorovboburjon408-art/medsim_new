@@ -61,6 +61,19 @@ async def synthesize(text: str, p: Patient, provider: str | None = None) -> tupl
         except Exception as e:
             log.warning("Azure TTS xatosi (%s), Edge ga o'tilmoqda", e)
 
+    if prov == "cloud":
+        if settings.google_tts_api_key:
+            try:
+                voice = getattr(p, "gemini_voice", None) or GEMINI_DEFAULT_VOICE.get(p.id, "Kore")
+                model = "gemini-2.5-flash-tts"
+                audio = await cloud_tts_lab(text, voice, model)
+                if audio:
+                    return audio, "cloud"
+            except Exception as e:
+                log.warning("Google Cloud TTS xatosi (%s), zaxira Edge TTS ga o'tilmoqda", e)
+        else:
+            log.warning("GOOGLE_TTS_API_KEY sozlanmagan, Edge TTS ga o'tilmoqda")
+
     # Boshqa hollarda zaxira Edge TTS
     return await _edge(text, p), "edge"
 

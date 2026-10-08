@@ -679,59 +679,77 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
             }
         }
 
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-            Box(Modifier.widthIn(max = 820.dp).fillMaxSize()) {
-                if (history.isEmpty()) {
-                    Column(
-                        Modifier.fillMaxSize().padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
-                    ) {
-                        Avatar(p, 96.dp)
-                        Spacer(Modifier.height(16.dp))
-                        Text("${p.name} bilan suhbat", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "Mikrofon tugmasini bosib turing, gapiring va qo'yib yuboring.\nMasalan: «Assalomu alaykum, ahvollaringiz qanday?»",
-                            textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp,
-                        )
+        val chatArea: @Composable (Modifier) -> Unit = { mod ->
+            Box(mod, contentAlignment = Alignment.TopCenter) {
+                Box(Modifier.widthIn(max = 820.dp).fillMaxSize()) {
+                    if (history.isEmpty()) {
+                        Column(
+                            Modifier.fillMaxSize().padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+                        ) {
+                            Avatar(p, 84.dp)
+                            Spacer(Modifier.height(14.dp))
+                            Text("${p.name} bilan suhbat", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Mikrofon tugmasini bosib turing, gapiring va qo'yib yuboring.
+Masalan: «Assalomu alaykum, ahvollaringiz qanday?»",
+                                textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp,
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            state = listState, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize(),
+                        ) { items(history) { Bubble(it, p) } }
                     }
-                } else {
-                    LazyColumn(
-                        state = listState, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize(),
-                    ) { items(history) { Bubble(it, p) } }
                 }
             }
         }
 
-        Surface(
-            Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surface, shadowElevation = 14.dp,
-            shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
-        ) {
-            Column(
-                Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+        // side = true: yotiq (past) ekranda panel o'ng tomonda, aks holda pastda
+        val dock: @Composable (Boolean) -> Unit = { side ->
+            Surface(
+                if (side) Modifier.width(260.dp).fillMaxHeight() else Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface, shadowElevation = 14.dp,
+                shape = if (side) RoundedCornerShape(topStart = 30.dp, bottomStart = 30.dp) else RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
             ) {
-                if (error.isNotEmpty()) {
-                    Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.errorContainer) {
-                        Text(error, Modifier.padding(horizontal = 14.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
+                Column(
+                    (if (side) Modifier.fillMaxSize() else Modifier.fillMaxWidth()).padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = if (side) Arrangement.Center else Arrangement.Top,
+                ) {
+                    if (error.isNotEmpty()) {
+                        Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.errorContainer) {
+                            Text(error, Modifier.padding(horizontal = 14.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
+                        }
+                        Spacer(Modifier.height(6.dp))
                     }
-                    Spacer(Modifier.height(6.dp))
-                }
-                if (phase == Phase.LISTENING && partial.isNotBlank()) {
-                    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant) {
-                        Text(partial, Modifier.padding(horizontal = 16.dp, vertical = 10.dp), fontSize = 17.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    if (phase == Phase.LISTENING && partial.isNotBlank()) {
+                        Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant) {
+                            Text(partial, Modifier.padding(horizontal = 14.dp, vertical = 8.dp), fontSize = 16.sp, maxLines = if (side) 2 else 3, overflow = TextOverflow.Ellipsis)
+                        }
+                        Spacer(Modifier.height(4.dp))
                     }
-                    Spacer(Modifier.height(4.dp))
+                    HoldToTalkButton(phase, level, onPress = { pressDown() }, onRelease = { pressUp() })
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (phase == Phase.SPEAKING) { SpeakingBars(MaterialTheme.colorScheme.primary); Spacer(Modifier.width(10.dp)) }
+                        Text(
+                            phase.label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
+                            color = if (phase == Phase.LISTENING) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-                HoldToTalkButton(phase, level, onPress = { pressDown() }, onRelease = { pressUp() })
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (phase == Phase.SPEAKING) { SpeakingBars(MaterialTheme.colorScheme.primary); Spacer(Modifier.width(10.dp)) }
-                    Text(
-                        phase.label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
-                        color = if (phase == Phase.LISTENING) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            }
+        }
+
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            if (maxHeight < 480.dp) Row(Modifier.fillMaxSize()) {
+                chatArea(Modifier.weight(1f).fillMaxHeight())
+                dock(true)
+            } else Column(Modifier.fillMaxSize()) {
+                chatArea(Modifier.weight(1f).fillMaxWidth())
+                dock(false)
             }
         }
     }

@@ -7,7 +7,7 @@ import time
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
 
-from . import eleven, llm, tts
+from . import chirp, eleven, llm, tts
 from .config import settings
 from .patients import PATIENTS
 
@@ -147,7 +147,13 @@ async def stt_selftest(token: str = ""):
             except Exception as e:
                 return f"XATO {str(e)[:80]}"
 
-        return sent, await g(), await s()
+        async def c(h):
+            try:
+                return await chirp.stt(wav, "audio/wav", hints=h)
+            except Exception as e:
+                return f"XATO {str(e)[:300]}"
+
+        return sent, await g(), await s(), await c(True), await c(False)
 
     rows = await asyncio.gather(*[one(x) for x in STT_SENTENCES])
     lines, tg, ts = [], 0.0, 0.0

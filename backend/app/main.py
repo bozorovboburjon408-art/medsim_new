@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import eleven, evaluator, full_lab, live, llm, selftest, tts
+from . import chirp, eleven, evaluator, full_lab, live, llm, selftest, tts
 from .config import settings
 from .patients import PATIENTS
 
@@ -521,6 +521,8 @@ async def transcribe(request: Request, model: str = "", engine: str = "gemini"):
     try:
         if engine == "eleven":
             text, used = await eleven.stt(audio, mime), settings.eleven_stt_model
+        elif engine in ("chirp", "chirp_nohint"):
+            text, used = await chirp.stt(audio, mime, hints=engine == "chirp"), settings.chirp_model
         else:
             text, used = await llm.transcribe(audio, mime, model or None)
     except Exception as e:

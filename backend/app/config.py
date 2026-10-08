@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     chat_tts: str = "eleven"  # suhbat ovozi: eleven (kalit bo'lmasa/xato bo'lsa Edge), gemini yoki edge_only
     elevenlabs_api_key: str = ""
     eleven_stt_model: str = "scribe_v1"
+    chirp_region: str = "us-central1"
+    chirp_model: str = "chirp_2"
     eleven_tts_model: str = "eleven_multilingual_v2"
     google_tts_api_key: str = ""  # Google Cloud Text-to-Speech API kaliti ($300 Cloud krediti uchun); faqat laboratoriya
 

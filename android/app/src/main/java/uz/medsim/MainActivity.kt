@@ -692,8 +692,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
                             Text("${p.name} bilan suhbat", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                "Mikrofon tugmasini bosib turing, gapiring va qo'yib yuboring.
-Masalan: «Assalomu alaykum, ahvollaringiz qanday?»",
+                                "Mikrofon tugmasini bosib turing, gapiring va qo'yib yuboring.\nMasalan: «Assalomu alaykum, ahvollaringiz qanday?»",
                                 textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp,
                             )
                         }

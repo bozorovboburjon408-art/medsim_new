@@ -49,10 +49,10 @@ PATIENTS = {
         Patient("buvi", "Salomat buvi (75 yosh, diabet)", "uz-UZ-MadinaNeural", "-22%", "-18Hz",
                 "Salomat Xolmatova, 75 yoshli nafaqadagi buvi. Faqat o'zing gapirasan (kelining gapirmaydi). "
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan.",
-                "buvi.txt", eleven_tempo=0.85, eleven_stability=0.6, eleven_style=0.1),  # 75 yosh: sekin, vazmin, bir tekis
+                "buvi.txt", eleven_tempo=0.85, eleven_stability=0.5, eleven_style=0.1),  # 75 yosh: sekin, vazmin, bir tekis
         Patient("homilador", "Nilufar (32 haftalik homilador)", "uz-UZ-MadinaNeural", "-5%", "+0Hz",
                 "Nilufar Rahimova, 33 yoshli, 32 haftalik homilador ayol. Hamshirani 'hamshira opa' deb ataysan.",
-                "homilador.txt", eleven_tempo=0.98, eleven_stability=0.4, eleven_style=0.2),  # 32 yosh: tabiiy, jonli
+                "homilador.txt", eleven_tempo=0.98, eleven_stability=0.5, eleven_style=0.2),  # 32 yosh: tabiiy, jonli
         Patient("bola", "Madinaxon (5 yosh, qizaloq, gijja)", "uz-UZ-MadinaNeural", "+14%", "+95Hz",
                 "Madinaxon, 5 yoshli kichkina QIZALOQ (qizcha). Sen shu qizchaning o'zisan: juda oddiy, qisqa (1-2 gap), "
                 "qiz bolalarcha erkalik va ba'zan injiqlik bilan, sodda so'zlar bilan gapir. Tushunmasang 'nima?' deb so'ra. "
@@ -70,6 +70,6 @@ PATIENTS = {
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan, biroz quloqlaring og'ir: "
                 "ba'zan 'nima dedingiz?' deb qayta so'raysan. Holsizlik, xotira susayishi, uyqusizlik, "
                 "kechasi tez-tez hojatga chiqish haqida o'zing aytasan.",
-                "bobo.txt", eleven_tempo=0.85, eleven_stability=0.6, eleven_style=0.1),  # 78 yosh: sekin, vazmin
+                "bobo.txt", eleven_tempo=0.85, eleven_stability=0.5, eleven_style=0.1),  # 78 yosh: sekin, vazmin
     ]
 }

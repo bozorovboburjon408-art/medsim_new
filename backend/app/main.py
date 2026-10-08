@@ -113,14 +113,47 @@ async def chat_stream(req: ChatRequest):
                 text_v3 = eleven.prepare(raw) if model == "eleven_v3" else s
                 cq: asyncio.Queue = asyncio.Queue()
 
+                async def start():
+                    g = await eleven.tts_stream(text_v3, vid, model, req.eleven_script == "cyr", tempo / pit, stab, p.eleven_style)
+                    it_ = g.__aiter__()
+                    return it_, await it_.__anext__()
+
+                async def first_chunk():
+                    """eleven_v3 ba'zan 6-9 s kechikadi: 1.8 s da birinchi tovush kelmasa bir xil so'rov parallel yuboriladi, birinchi kelgani olinadi."""
+                    pend = {asyncio.create_task(start())}
+                    t0, hedged, err = time.perf_counter(), False, None
+                    try:
+                        while pend:
+                            left = (1.8 if not hedged else 8) - (time.perf_counter() - t0)
+                            done, pend = await asyncio.wait(pend, timeout=max(left, 0.05), return_when=asyncio.FIRST_COMPLETED)
+                            for d in done:
+                                if d.exception():
+                                    err = d.exception()
+                                else:
+                                    return d.result()
+                            if not done:
+                                if hedged:
+                                    raise asyncio.TimeoutError("ElevenLabs birinchi tovush kelmadi")
+                                hedged = True
+                                log.info("eleven_v3 sekin (%s): ikkinchi so'rov yuborildi", p.id)
+                                pend.add(asyncio.create_task(start()))
+                            elif not pend and not hedged:
+                                hedged = True
+                                pend.add(asyncio.create_task(start()))  # birinchisi xato berdi: bir marta qayta urinish
+                        raise err or RuntimeError("ovoz bo'sh")
+                    finally:
+                        for x in pend:
+                            x.cancel()
+
                 async def fill():
                     n, t1 = 0, time.perf_counter()
                     try:
-                        gen_ = await eleven.tts_stream(text_v3, vid, model, req.eleven_script == "cyr", tempo / pit, stab, p.eleven_style)
-                        it = gen_.__aiter__()
+                        it, first = await first_chunk()
+                        n += 1
+                        await cq.put(("pcm", first, int((time.perf_counter() - t1) * 1000)))
                         while True:
                             try:
-                                ch = await asyncio.wait_for(it.__anext__(), 8 if n == 0 else 20)
+                                ch = await asyncio.wait_for(it.__anext__(), 20)
                             except StopAsyncIteration:
                                 break
                             n += 1

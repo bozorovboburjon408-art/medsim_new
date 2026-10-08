@@ -134,7 +134,7 @@ async def tts_stream(text: str, voice_id: str, model: str = "", cyrillic: bool =
         r = await client.send(client.build_request("POST", f"{BASE}/v1/text-to-speech/{voice_id}/stream",
                                                    params={"output_format": "pcm_24000"}, json=body, headers=_hdr()),
                               stream=True)
-    except Exception:
+    except BaseException:
         await client.aclose()
         raise
     if r.status_code >= 400:

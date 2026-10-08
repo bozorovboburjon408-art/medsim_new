@@ -64,6 +64,20 @@ async def synthesize(text: str, p: Patient, provider: str | None = None) -> tupl
     return await _edge(text, p), "edge"
 
 
+def _adjust_audio(pcm: bytes, speed: float = 1.0, rate: int = 24000) -> bytes:
+    """Ovoz tezligi va ohangini moslashtiradi: speed < 1.0 qari/sekin, speed > 1.0 yosh bola/chaqqon."""
+    if abs(speed - 1.0) < 0.02:
+        return pcm
+    try:
+        import audioop
+        in_rate = int(rate * speed)
+        out_pcm, _ = audioop.ratecv(pcm, 2, 1, in_rate, rate, None)
+        return out_pcm
+    except Exception as e:
+        log.warning("Ovoz tezligini moslashda xato: %s", e)
+        return pcm
+
+
 async def _gemini(text: str, p: Patient) -> bytes:
     """Gemini audio chiqish modalligi orqali o'zbekcha ovoz sintez qiladi."""
     if not settings.gemini_api_key:
@@ -115,10 +129,6 @@ async def _gemini(text: str, p: Patient) -> bytes:
                 for pt in parts:
                     if "inlineData" in pt:
                         raw = base64.b64decode(pt["inlineData"]["data"])
-                        # Agar allaqachon WAV bo'lsa (RIFF), to'g'ridan-to'g'ri qaytaramiz
-                        if raw.startswith(b"RIFF"):
-                            return raw
-                        # Aks holda PCM ni WAV ga o'giramiz
                         rate = 24000
                         mime = pt["inlineData"].get("mimeType", "").lower()
                         if "rate=" in mime:
@@ -126,7 +136,13 @@ async def _gemini(text: str, p: Patient) -> bytes:
                                 rate = int(mime.split("rate=")[1].split(";")[0])
                             except Exception:
                                 rate = 24000
-                        return _pcm_to_wav(raw, rate)
+                        speed = getattr(p, "gemini_speed", 1.0)
+                        if raw.startswith(b"RIFF"):
+                            pcm = raw[44:]
+                            pcm = _adjust_audio(pcm, speed, rate)
+                            return _pcm_to_wav(pcm, rate)
+                        pcm = _adjust_audio(raw, speed, rate)
+                        return _pcm_to_wav(pcm, rate)
             except Exception as e:
                 log.warning("Gemini TTS %s tahlil xatosi: %s", m, e)
                 last_err = e
@@ -177,7 +193,7 @@ GEMINI_VOICES = ["Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "
                  "Enceladus", "Iapetus", "Umbriel", "Algieba", "Despina", "Erinome", "Algenib", "Rasalgethi",
                  "Laomedeia", "Achernar", "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
                  "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"]
-GEMINI_DEFAULT_VOICE = {"buvi": "Aoede", "homilador": "Kore", "bola": "Callirrhoe", "bobo": "Charon"}
+GEMINI_DEFAULT_VOICE = {"buvi": "Gacrux", "homilador": "Kore", "bola": "Callirrhoe", "bobo": "Charon"}
 
 
 async def list_gemini_tts_models() -> list[str]:

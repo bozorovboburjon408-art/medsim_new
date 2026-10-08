@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     vertex_models: str = "gemini-2.5-flash-lite,gemini-2.5-flash"
     vertex_eval_models: str = "gemini-2.5-flash,gemini-2.5-pro"
     vertex_tts_models: str = "gemini-2.5-flash-tts,gemini-2.5-pro-tts,gemini-2.5-flash-preview-tts,gemini-2.5-pro-preview-tts"
-    stt_models: str = "gemini-2.5-flash-lite,gemini-2.5-flash"  # Gemini orqali ovozdan matn (Vertex'da)
+    stt_models: str = "gemini-2.5-flash,gemini-2.5-flash-lite"  # Gemini orqali ovozdan matn (Vertex'da)
     gemini_tts_model: str = "gemini-2.5-flash-tts"  # tts="gemini" rejimi uchun (Vertex yoki AI Studio)
     google_tts_api_key: str = ""  # Google Cloud Text-to-Speech API kaliti ($300 Cloud krediti uchun); faqat laboratoriya
 

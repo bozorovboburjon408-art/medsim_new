@@ -19,7 +19,7 @@ button{background:#b91c1c;color:#fff;border:0;border-radius:12px;padding:18px 28
 <div class="card">
 <label>Bemor</label><select id="p">__PATIENTS__</select>
 <label>Ovoz</label><select id="e"><option value="gemini">Gemini ovozi (oqim, xato bo'lsa Edge)</option><option value="edge">Edge ovozi</option></select>
-<label>Ovozdan matn modeli</label><select id="sm"><option value="">Avto (flash-lite, keyin flash)</option><option>gemini-2.5-flash</option><option>gemini-2.5-flash-lite</option><option>gemini-2.5-pro</option></select>
+<label>Ovozdan matn modeli</label><select id="sm"><option value="">Avto (flash, keyin flash-lite)</option><option>gemini-2.5-flash</option><option>gemini-2.5-flash-lite</option><option>gemini-2.5-pro</option></select>
 <label>Gemini TTS modeli</label><select id="gm"><option>gemini-2.5-flash-tts</option><option>gemini-2.5-pro-tts</option><option>gemini-2.5-flash-preview-tts</option><option>gemini-2.5-pro-preview-tts</option></select>
 <label>Gemini ovozi</label><select id="gv"></select>
 <button id="b">🎤 Bosib turing va gapiring</button><div class="bar"><i id="lv"></i></div>
@@ -40,13 +40,16 @@ const b64=s=>{const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.l
 function addRow(who,text,cls){const d=document.createElement('div');d.className='row';d.innerHTML='<span class="'+cls+'">'+who+':</span> ';const t=document.createElement('span');t.textContent=text;d.appendChild(t);$('log').appendChild(d);return t;}
 function play(u8,rate){const n=u8.length>>1,dv=new DataView(u8.buffer,u8.byteOffset,n*2),f=new Float32Array(n);for(let i=0;i<n;i++)f[i]=dv.getInt16(i*2,true)/32768;
  const buf=ac.createBuffer(1,n,rate);buf.copyToChannel(f,0);const s=ac.createBufferSource();s.buffer=buf;s.connect(ac.destination);if(next<ac.currentTime)next=ac.currentTime+0.03;s.start(next);next+=buf.duration;}
-async function start(){if(rec)return;rec=true;chunks=[];$('st').textContent='Yozilyapti... gapirib bo‘lgach qo‘yib yuboring';
- if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();ac.resume();
- try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});}catch(e){$('st').textContent='Mikrofon ruxsati yo‘q: '+e;rec=false;return;}
+let ready=false,ring=[],ringLen=0;
+async function initMic(){if(ready)return;stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
  ctx=new (window.AudioContext||window.webkitAudioContext)();const src=ctx.createMediaStreamSource(stream);proc=ctx.createScriptProcessor(4096,1,1);
- proc.onaudioprocess=e=>{const d=new Float32Array(e.inputBuffer.getChannelData(0));chunks.push(d);let m=0;for(const x of d)m=Math.max(m,Math.abs(x));$('lv').style.width=Math.min(100,m*140)+'%';};
- src.connect(proc);proc.connect(ctx.destination);}
-async function stop(){if(!rec)return;rec=false;const T0=performance.now(),rate=ctx.sampleRate;proc.disconnect();stream.getTracks().forEach(t=>t.stop());await ctx.close();$('lv').style.width='0';
+ proc.onaudioprocess=e=>{const d=new Float32Array(e.inputBuffer.getChannelData(0));let m=0;for(const x of d)m=Math.max(m,Math.abs(x));$('lv').style.width=Math.min(100,m*140)+'%';
+  if(rec){chunks.push(d);}else{ring.push(d);ringLen+=d.length;while(ring.length>1&&ringLen-ring[0].length>ctx.sampleRate*0.7){ringLen-=ring.shift().length;}}};
+ src.connect(proc);proc.connect(ctx.destination);ready=true;}
+async function start(){if(rec)return;if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();ac.resume();
+ try{await initMic();}catch(e){$('st').textContent='Mikrofon ruxsati yo\u2018q: '+e;return;}
+ if(ctx.state==='suspended')ctx.resume();chunks=ring.slice();ring=[];ringLen=0;rec=true;$('st').textContent='Yozilyapti... gapirib bo\u2018lgach qo\u2018yib yuboring';}
+async function stop(){if(!rec)return;await new Promise(r=>setTimeout(r,350));rec=false;const T0=performance.now()-350,rate=ctx.sampleRate;$('lv').style.width='0';
  let n=0;for(const c of chunks)n+=c.length;if(n<rate*0.3){$('st').textContent='Juda qisqa, qaytadan urining';return;}
  let sq=0;for(const c of chunks)for(let i=0;i<c.length;i+=8)sq+=c[i]*c[i];if(Math.sqrt(sq/(n/8))<0.004){$('st').textContent='Ovoz juda past eshitildi (mikrofonni tekshiring), qaytadan urining';return;}
  const all=new Float32Array(n);let p=0;for(const c of chunks){all.set(c,p);p+=c.length;}
@@ -75,6 +78,7 @@ async function stop(){if(!rec)return;rec=false;const T0=performance.now(),rate=c
  }catch(e){$('st').textContent='Xato: '+e;}}
 const b=$('b');['mousedown','touchstart'].forEach(e=>b.addEventListener(e,ev=>{ev.preventDefault();start();}));
 ['mouseup','mouseleave','touchend','touchcancel'].forEach(e=>b.addEventListener(e,ev=>{ev.preventDefault();stop();}));
+initMic().catch(()=>{});
 $('rs').onclick=()=>{hist=[];$('log').innerHTML='';$('tm').textContent='';$('st').textContent='Yangi suhbat.';};
 </script></body></html>"""
 

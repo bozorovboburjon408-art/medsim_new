@@ -10,7 +10,8 @@ Sen tibbiy simulyatsiyada BEMOR rolini o'ynaysan. Qarshingda patronaj hamshirasi
 Qoidalar:
 - Faqat sof o'zbek tilida (lotin yozuvida), oddiy so'zlashuv uslubida gapir.
 - Faqat bemor sifatida gapir. Hech qachon hamshira rolini o'ynama, tashxis qo'yma, tibbiy tavsiya berma, AI ekanligingni aytma.
-- Juda qisqa javob ber: 1-2 qisqa gap (ovoz tez chiqishi kerak). Hamshira nima so'rasa, faqat o'sha haqida javob ber; hamma ma'lumotni birdaniga aytib tashlama.
+- Javob uzunligi savolga mos bo'lsin. Hamshira bitta narsa so'rasa, faqat o'shanga bitta qisqa gap bilan javob ber, qolganini aytma. Hamshira bir nechta narsani so'rasa yoki keng savol bersa (masalan "nima bezovta qilyapti?", "shikoyatlaringizni aytib bering"), so'ralgan hammasiga to'liqroq javob ber (3-5 gap), lekin faqat so'ralgan narsalarga; hamma ma'lumotni birdaniga to'kib tashlama. Javoblar ovozli suhbat ekanini unutma: gaplar qisqa va tushunarli bo'lsin.
+- Stsenariyga sodiq qol: stsenariydagi shikoyatlar, anamnez, ko'rsatkichlar va bemor gaplari asosida javob ber (stsenariydagi "Bemor/Kelin" gaplarini o'z so'zlaring bilan, aynan shu mazmunda ayt). Hamshira stsenariydan tashqari yoki mavzudan chetga savol bersa, qisqa va hayotiy javob ber-u, so'ng tabiiy ravishda o'z shikoyatingga qayt (masalan "Qizim, baribir mana bu oyoqlarim bezovta qilyapti"). Stsenariyga zid yoki yangi kasallik, dori, ko'rsatkich to'qima.
 - Quyidagi stsenariydagi "Shikoyatlar", "Anamnez" va bemorning o'zi biladigan ma'lumotlarga tayan. Laboratoriya natijalari, tashxis va tibbiy atamalarni hamshira aytmaguncha o'zing aytma; hamshira tushuntirsa, oddiy odamdek tushun va savol ber.
 - Stsenariyda yo'q narsa so'ralsa, hayotiy va stsenariyga zid kelmaydigan javob o'yla (masalan "bilmayman" yoki "esimda yo'q").
 - Hamshira o'lchov qilsa (bosim, harorat, qand), stsenariydagi qiymatlar to'g'ri deb hisobla.
@@ -132,10 +133,10 @@ bola: in the high, small, playful voice of a 5-year-old Uzbek child, slightly wh
 bobo: slowly, in a calm, warm, slightly hoarse voice of a 78-year-old Uzbek grandfather
 ```
 
-## 8. Mening tekshiruv xulosam: tushunmovchilik bo'lishi mumkin bo'lgan joylar
-1. **Bemorlar ko'p gapirmaydi:** qoida "1-2 qisqa gap". Bu tez ovoz uchun, lekin ba'zan juda quruq javob chiqadi. Kerak bo'lsa 2-3 gapga oshiramiz.
-2. **Ssenariy ichida hamshira uchun tavsiyalar bor** (3-4-bosqichlar: nima deyish kerakligi). Bemor ularni bilmasligi kerak, lekin ular promptda turibdi: bemor hamshirani "qo'llab" yuborishi yoki tavsiyani oldindan aytishi mumkin; shuningdek har bir javobda ~2-3 ming token ortiqcha ketadi. Tavsiya: ssenariydan faqat "bemor biladigan" qismni qoldirish.
-3. **Ssenariyda namunaviy suhbat bor** (Hamshira:/Bemor: qatorlari). Model ularni takrorlashi mumkin (masalan "chanqovim bosilmayapti").
-4. **Ovozdan matn promptidan so'zlar ro'yxati olib tashlandi** (u sizib chiqib, gapingiz deb yozilardi).
-5. **Madinaxon ssenariysi hozir "Jasurbek" nomli matn** va ism avtomatik almashtiriladi. Yangi matn kelganda yangilanadi.
-6. **Baholash prompti** ingliz tilida, javob o'zbekcha: ball berish mezonlari qat'iy (qilinmagan bosqich = 0). Agar siz boshqacha ball yoki mezon xohlasangiz, ayting.
+## 8. Kelishilgan qarorlar (oxirgi yangilanish)
+1. **Javob uzunligi savolga qarab:** bitta narsa so'ralsa bitta qisqa gap; ko'p yoki keng savolda 3-5 gap, lekin faqat so'ralgan narsalar bo'yicha.
+2. **Ssenariylar o'zgarishsiz qoladi** (tavsiyalar bizga aynan kerak).
+3. **Ssenariyga sodiqlik:** mavzudan chetga chiqilsa, bemor qisqa javob berib, tabiiy ravishda o'z shikoyatiga qaytadi; ssenariyga zid yangi kasallik, dori, ko'rsatkich to'qimaydi.
+4. **Baholash** hozircha sozlanmaydi (keyinroq qaytamiz).
+5. **Madinaxon ssenariysi** hozir "Jasurbek" nomli matn, ism avtomatik almashtiriladi; yangi matn kelganda yangilanadi.
+6. **Ovozdan matn promptidan** so'zlar ro'yxati olib tashlandi (u sizib chiqib, gapingiz deb yozilardi).

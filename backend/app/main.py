@@ -99,6 +99,8 @@ async def chat_stream(req: ChatRequest):
 
         async def synth(raw: str, t_llm: int):
             t = time.perf_counter()
+            if p.id == "bola":
+                raw = eleven.crying_fix(raw)
             s = eleven.strip_tags(raw)  # ekranda va boshqa ovoz xizmatlarida belgilarsiz
             if mode == "eleven":
                 vid = req.eleven_voice if req.eleven_voice and re.fullmatch(r"[A-Za-z0-9]{10,40}", req.eleven_voice) else eleven.DEFAULT_VOICE.get(p.id, "")
@@ -172,7 +174,7 @@ async def chat_stream(req: ChatRequest):
         async def producer():
             try:
                 async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model):
-                    if not eleven.strip_tags(s):
+                    if not eleven.strip_tags(eleven.crying_fix(s) if p.id == "bola" else s):
                         continue
                     t_llm = int((time.perf_counter() - t0) * 1000)
                     await q.put(asyncio.create_task(synth(s, t_llm)))  # TTS parallel boshlanadi
@@ -594,7 +596,8 @@ async function initMic(){if(ready)return;stream=await navigator.mediaDevices.get
 async function start(){if(rec)return;
  try{await initMic();}catch(e){$('st').textContent='Mikrofon ruxsati yo\\u2018q: '+e;return;}
  if(ctx.state==='suspended')ctx.resume();chunks=ring.slice();ring=[];ringLen=0;rec=true;srStart();$('st').textContent='Yozilyapti...';}
-async function stop(){if(!rec)return;await new Promise(r=>setTimeout(r,350));rec=false;const rate=ctx.sampleRate;$('lv').style.width='0';
+let stopping=false;
+async function stop(){if(!rec||stopping)return;stopping=true;await new Promise(r=>setTimeout(r,350));rec=false;stopping=false;const rate=ctx.sampleRate;$('lv').style.width='0';
  let n=0;for(const c of chunks)n+=c.length;const all=new Float32Array(n);let p=0;for(const c of chunks){all.set(c,p);p+=c.length;}
  if(n<rate*0.3){$('st').textContent='Juda qisqa, qaytadan urining';return;}
  const blob=wav(down(all,rate,16000),16000);$('st').textContent='Yuborilyapti ('+Math.round(blob.size/1024)+' KB)...';const t0=performance.now();

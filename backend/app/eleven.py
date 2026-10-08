@@ -156,3 +156,18 @@ async def tts_stream(text: str, voice_id: str, model: str = "", cyrillic: bool =
         finally:
             await r.aclose(); await client.aclose()
     return gen()
+
+
+_CRY_WORD = re.compile(r"\b[Yy]ig['\u2019\u2018\u02bb`]?lay\w*\b[ ,]*(hozir)?[ ,]*", re.I)
+
+
+def crying_fix(raw: str) -> str:
+    """Model 'yig'layman' deb so'z bilan aytsa, o'rniga yig'lash belgisi qo'yiladi: [sobbing] va yig'lash tovushi."""
+    if not _CRY_WORD.search(raw):
+        return raw
+    rest = _CRY_WORD.sub("", raw)
+    rest = re.sub(r"^[\s,.!?-]+|\s+$", "", re.sub(r"\s+([.,!?])", r"\1", rest))
+    rest = re.sub(r"(?i)\bmen[\s.,!?]*$", "", rest).strip()
+    rest = re.sub(r"([.!?])[.!?]+", r"\1", rest)
+    tag = "[sobbing] " if "[" not in rest else ""
+    return f"{tag}{rest} Uu-hu-hu!".strip() if rest else "[sobbing] Uu-hu-hu, uu-hu-hu!"

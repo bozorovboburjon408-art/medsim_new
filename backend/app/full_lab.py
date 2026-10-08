@@ -65,7 +65,8 @@ async function initMic(){if(ready)return;stream=await navigator.mediaDevices.get
 async function start(){if(rec)return;if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();ac.resume();
  try{await initMic();}catch(e){$('st').textContent='Mikrofon ruxsati yo\u2018q: '+e;return;}
  if(ctx.state==='suspended')ctx.resume();chunks=ring.slice();ring=[];ringLen=0;rec=true;if($('se').value==='browser')srStart();$('st').textContent='Yozilyapti... gapirib bo\u2018lgach qo\u2018yib yuboring';}
-async function stop(){if(!rec)return;await new Promise(r=>setTimeout(r,350));rec=false;const T0=performance.now()-350,rate=ctx.sampleRate;$('lv').style.width='0';
+let stopping=false;
+async function stop(){if(!rec||stopping)return;stopping=true;await new Promise(r=>setTimeout(r,350));rec=false;stopping=false;const T0=performance.now()-350,rate=ctx.sampleRate;$('lv').style.width='0';
  let n=0;for(const c of chunks)n+=c.length;if(n<rate*0.3){$('st').textContent='Juda qisqa, qaytadan urining';return;}
  let sq=0;for(const c of chunks)for(let i=0;i<c.length;i+=8)sq+=c[i]*c[i];if(Math.sqrt(sq/(n/8))<0.004){$('st').textContent='Ovoz juda past eshitildi (mikrofonni tekshiring), qaytadan urining';return;}
  const all=new Float32Array(n);let p=0;for(const c of chunks){all.set(c,p);p+=c.length;}

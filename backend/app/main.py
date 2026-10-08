@@ -33,6 +33,8 @@ class ChatRequest(BaseModel):
     gemini_voice: str | None = None  # Gemini ovozi nomi (ixtiyoriy)
     eleven_voice: str | None = None  # tts="eleven" bo'lsa ElevenLabs ovoz ID
     eleven_script: str | None = None  # "cyr" bo'lsa matn kirillga o'giriladi
+    eleven_tempo: float | None = None  # ElevenLabs gapirish tezligi (natija tezligi; balandlikka ta'sir qilmaydi)
+    eleven_stability: float | None = None  # 0 = ifodali, 1 = barqaror
     voice_speed: float | None = None  # Gemini/ElevenLabs PCM chalish koeffitsiyenti (balandlik+tezlik); bo'sh bo'lsa bemor standarti
 
 
@@ -92,20 +94,48 @@ async def chat_stream(req: ChatRequest):
         if mode == "eleven" and not eleven.enabled():
             mode = "edge_only"
 
-        async def synth(s: str, t_llm: int):
+        pitch = min(2.0, max(0.7, req.voice_speed)) if req.voice_speed else None  # chalish koeffitsiyenti (balandlik)
+        bg: list = []
+
+        async def synth(raw: str, t_llm: int):
             t = time.perf_counter()
+            s = eleven.strip_tags(raw)  # ekranda va boshqa ovoz xizmatlarida belgilarsiz
             if mode == "eleven":
-                try:
-                    vid = req.eleven_voice if req.eleven_voice and re.fullmatch(r"[A-Za-z0-9]{10,40}", req.eleven_voice) else eleven.DEFAULT_VOICE.get(p.id, "")
-                    model = (req.tts_model if req.tts_model and re.fullmatch(r"[A-Za-z0-9._-]{3,60}", req.tts_model) and req.tts_model.startswith("eleven")
-                             else eleven.DEFAULT_MODEL.get(p.id, ""))
-                    pcm = await asyncio.wait_for(eleven.tts(tts.clean_for_tts(s), vid, model, req.eleven_script == "cyr"), timeout=9)
-                    if pcm:
-                        return s, pcm, "pcm", "elevenlabs", t_llm, int((time.perf_counter() - t) * 1000)
-                except Exception as e:
-                    log.warning("ElevenLabs TTS xatosi, Edge'ga o'tildi: %s", e)
-                audio, _ = await tts.synthesize(s, p)
-                return s, audio, "mp3", "edge (elevenlabs xato)", t_llm, int((time.perf_counter() - t) * 1000)
+                vid = req.eleven_voice if req.eleven_voice and re.fullmatch(r"[A-Za-z0-9]{10,40}", req.eleven_voice) else eleven.DEFAULT_VOICE.get(p.id, "")
+                model = (req.tts_model if req.tts_model and re.fullmatch(r"[A-Za-z0-9._-]{3,60}", req.tts_model) and req.tts_model.startswith("eleven")
+                         else eleven.DEFAULT_MODEL.get(p.id, ""))
+                pit = pitch or p.eleven_speed
+                tempo = min(1.2, max(0.5, req.eleven_tempo)) if req.eleven_tempo else p.eleven_tempo
+                stab = min(1.0, max(0.0, req.eleven_stability)) if req.eleven_stability is not None else p.eleven_stability
+                text_v3 = eleven.prepare(raw) if model == "eleven_v3" else s
+                cq: asyncio.Queue = asyncio.Queue()
+
+                async def fill():
+                    n, t1 = 0, time.perf_counter()
+                    try:
+                        gen_ = await eleven.tts_stream(text_v3, vid, model, req.eleven_script == "cyr", tempo / pit, stab)
+                        it = gen_.__aiter__()
+                        while True:
+                            try:
+                                ch = await asyncio.wait_for(it.__anext__(), 8 if n == 0 else 20)
+                            except StopAsyncIteration:
+                                break
+                            n += 1
+                            await cq.put(("pcm", ch, int((time.perf_counter() - t1) * 1000)))
+                        if n == 0:
+                            raise RuntimeError("ovoz bo'sh")
+                    except Exception as e:
+                        log.warning("ElevenLabs TTS xatosi (%d bo'lakdan keyin): %s", n, e)
+                        if n == 0:  # hech narsa chalinmagan: shu gap Edge ovozida
+                            try:
+                                audio, _ = await tts.synthesize(s, p)
+                                await cq.put(("mp3", audio, int((time.perf_counter() - t1) * 1000)))
+                            except Exception as e2:
+                                await cq.put(("error", str(e2)[:200], 0))
+                    await cq.put(None)
+
+                bg.append(asyncio.create_task(fill()))
+                return s, cq, "stream", "elevenlabs", t_llm, 0
             if mode == "gemini":
                 voice = req.gemini_voice if req.gemini_voice in tts.GEMINI_VOICES else tts.GEMINI_DEFAULT_VOICE.get(p.id, "Kore")
                 model = req.tts_model if req.tts_model and re.fullmatch(r"[A-Za-z0-9._-]{3,80}", req.tts_model) else settings.gemini_tts_model
@@ -142,6 +172,8 @@ async def chat_stream(req: ChatRequest):
         async def producer():
             try:
                 async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model):
+                    if not eleven.strip_tags(s):
+                        continue
                     t_llm = int((time.perf_counter() - t0) * 1000)
                     await q.put(asyncio.create_task(synth(s, t_llm)))  # TTS parallel boshlanadi
             except Exception as e:
@@ -155,6 +187,26 @@ async def chat_stream(req: ChatRequest):
                     if isinstance(item, Exception):
                         raise item
                     s, audio, fmt, used, t_llm, t_tts = await item
+                    if fmt == "stream":
+                        first = True
+                        rate_out = int(24000 * (pitch or p.eleven_speed))
+                        while (it2 := await audio.get()) is not None:
+                            kind, data, ms_first = it2
+                            if kind == "error":
+                                raise RuntimeError(data)
+                            payload = ({"pcm_b64": base64.b64encode(data).decode(), "rate": rate_out} if kind == "pcm"
+                                       else {"audio_b64": base64.b64encode(data).decode()})
+                            if first:
+                                log.info("seg patient=%s total=%dms llm=%dms tts_first=%dms eleven", p.id,
+                                         int((time.perf_counter() - t0) * 1000), t_llm, ms_first)
+                            yield json.dumps({"text": s if first else "", **payload,
+                                              "ms": int((time.perf_counter() - t0) * 1000), "llm_ms": t_llm,
+                                              "tts_ms": ms_first if first else 0, "fmt": "pcm" if kind == "pcm" else "mp3",
+                                              "tts": "elevenlabs" if kind == "pcm" else "edge (elevenlabs xato)",
+                                              "model": info.get("model", ""), "usage": info.get("usage", ""),
+                                              "tries": ", ".join(info.get("tries", []))}) + "\n"
+                            first = False
+                        continue
                     if not audio:
                         raise RuntimeError(f"Ovoz bo'sh chiqdi | javob: {s}")
                 except Exception as e:
@@ -163,8 +215,7 @@ async def chat_stream(req: ChatRequest):
                 log.info("seg patient=%s total=%dms llm=%dms tts=%dms model=%s tries=%s",
                          p.id, int((time.perf_counter() - t0) * 1000), t_llm, t_tts,
                          info.get("model", ""), info.get("tries", []))
-                payload = ({"pcm_b64": base64.b64encode(audio).decode(), "rate": int(24000 * (min(2.0, max(0.7, req.voice_speed)) if req.voice_speed else
-                                                 (p.gemini_speed if used.startswith("gemini") else p.eleven_speed if used.startswith("eleven") else 1)))} if fmt == "pcm"
+                payload = ({"pcm_b64": base64.b64encode(audio).decode(), "rate": int(24000 * (pitch or (p.gemini_speed if used.startswith("gemini") else 1)))} if fmt == "pcm"
                            else {"audio_b64": base64.b64encode(audio).decode()})
                 yield json.dumps({"text": s, **payload,
                                   "ms": int((time.perf_counter() - t0) * 1000),
@@ -172,6 +223,8 @@ async def chat_stream(req: ChatRequest):
                                   "model": info.get("model", ""), "usage": info.get("usage", ""), "tries": ", ".join(info.get("tries", []))}) + "\n"
         finally:
             prod.cancel()
+            for x in bg:
+                x.cancel()
 
     return StreamingResponse(gen(), media_type="application/x-ndjson")
 

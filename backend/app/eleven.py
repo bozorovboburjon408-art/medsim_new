@@ -1,4 +1,6 @@
 """ElevenLabs: ovozdan matn (Scribe), ovoz yaratish va ovoz kutubxonasini qidirish. Kalit faqat Render muhitida."""
+import re
+
 import httpx
 
 from .config import settings
@@ -87,3 +89,70 @@ async def add_to_account(owner: str, voice_id: str) -> str:
     if r.status_code >= 400:
         raise RuntimeError(f"ElevenLabs qo'shish {r.status_code}: {r.text[:200]}")
     return r.json().get("voice_id", voice_id)
+
+
+TAGS = {"crying", "sobbing", "whining", "sniffles", "laughs", "sighs", "whispers", "excited"}
+_TAG = re.compile(r"\[([A-Za-z ]{2,20})\]")
+
+
+def strip_tags(text: str) -> str:
+    """[crying] kabi belgilarni olib tashlaydi (ekranda ko'rsatish va boshqa ovoz xizmatlari uchun)."""
+    t = re.sub(r"\s+", " ", _TAG.sub("", text)).strip()
+    return re.sub(r"\s+([.,!?])", r"\1", t)
+
+
+def prepare(text: str) -> str:
+    """ElevenLabs v3 uchun matn: ruxsat etilgan belgilar ([crying]...) saqlanadi, qolgani odatdagidek tozalanadi."""
+    from . import tts as _tts
+    found: list[str] = []
+
+    def keep(m):
+        tag = m.group(1).strip().lower()
+        if tag in TAGS:
+            found.append(f"[{tag}]")
+            return f" TAGX{len(found) - 1}X "
+        return " "
+
+    t = _tts.clean_for_tts(_TAG.sub(keep, text))
+    for i, tag in enumerate(found):
+        t = t.replace(f"TAGX{i}X", tag)
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def _settings(speed: float, stability: float) -> dict:
+    return {"stability": stability, "similarity_boost": 0.85, "style": 0.15, "use_speaker_boost": True,
+            "speed": max(0.7, min(1.2, speed))}
+
+
+async def tts_stream(text: str, voice_id: str, model: str = "", cyrillic: bool = False, speed: float = 1.0,
+                     stability: float = 0.4):
+    """PCM (24 kHz, 16-bit) bo'laklari keladigan zahoti qaytariladi. Status oqim boshlanmasdan tekshiriladi."""
+    body = {"text": latin_to_cyrillic(text) if cyrillic else text, "model_id": model or settings.eleven_tts_model,
+            "voice_settings": _settings(speed, stability)}
+    client = httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=30, write=10, pool=5))
+    try:
+        r = await client.send(client.build_request("POST", f"{BASE}/v1/text-to-speech/{voice_id}/stream",
+                                                   params={"output_format": "pcm_24000"}, json=body, headers=_hdr()),
+                              stream=True)
+    except Exception:
+        await client.aclose()
+        raise
+    if r.status_code >= 400:
+        err = (await r.aread()).decode()[:200]
+        await r.aclose(); await client.aclose()
+        raise RuntimeError(f"ElevenLabs TTS {r.status_code}: {err}")
+
+    async def gen():
+        left = b""
+        try:
+            async for ch in r.aiter_bytes(4800):
+                b = left + ch
+                if len(b) % 2:
+                    left, b = b[-1:], b[:-1]
+                else:
+                    left = b""
+                if b:
+                    yield b
+        finally:
+            await r.aclose(); await client.aclose()
+    return gen()

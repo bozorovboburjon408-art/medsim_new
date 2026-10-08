@@ -32,6 +32,7 @@ class Patient:
     name_swap: tuple[str, str] | None = None  # ssenariy matnidagi ism almashtiriladi (matn keyin yangilanadi)
     eleven_tempo: float = 1.0  # ElevenLabs gapirish tezligi (0.7-1.2): ovoz balandligiga ta'sir qilmaydi
     eleven_stability: float = 0.4
+    eleven_style: float = 0.15  # ifodalilik (0 = tekis, 1 = juda hissiy)
     eleven_speed: float = 1.0  # ElevenLabs PCM'ini shu koeffitsiyent bilan chalish (bola ovozi uchun)
     gemini_speed: float = 1.0  # Gemini ovozi PCM'ini shu koeffitsiyent bilan chalish: ovoz balandlashadi (bola uchun)
 
@@ -48,10 +49,10 @@ PATIENTS = {
         Patient("buvi", "Salomat buvi (75 yosh, diabet)", "uz-UZ-MadinaNeural", "-22%", "-18Hz",
                 "Salomat Xolmatova, 75 yoshli nafaqadagi buvi. Faqat o'zing gapirasan (kelining gapirmaydi). "
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan.",
-                "buvi.txt"),
+                "buvi.txt", eleven_tempo=0.85, eleven_stability=0.6, eleven_style=0.1),  # 75 yosh: sekin, vazmin, bir tekis
         Patient("homilador", "Nilufar (32 haftalik homilador)", "uz-UZ-MadinaNeural", "-5%", "+0Hz",
                 "Nilufar Rahimova, 33 yoshli, 32 haftalik homilador ayol. Hamshirani 'hamshira opa' deb ataysan.",
-                "homilador.txt"),
+                "homilador.txt", eleven_tempo=0.98, eleven_stability=0.4, eleven_style=0.2),  # 32 yosh: tabiiy, jonli
         Patient("bola", "Madinaxon (5 yosh, qizaloq, gijja)", "uz-UZ-MadinaNeural", "+14%", "+95Hz",
                 "Madinaxon, 5 yoshli kichkina QIZALOQ (qizcha). Sen shu qizchaning o'zisan: juda oddiy, qisqa (1-2 gap), "
                 "qiz bolalarcha erkalik va ba'zan injiqlik bilan, sodda so'zlar bilan gapir. Tushunmasang 'nima?' deb so'ra. "
@@ -63,12 +64,12 @@ PATIENTS = {
                 "Oldingi qoida: HECH QACHON 'yig'layapman' deb so'z bilan aytma. Yig'lagingiz kelsa yoki xafa bo'lsang (ukol, og'riq, qo'rquv, hamshira jahl qilsa), "
                 "gapni [crying] yoki [sobbing] belgisi bilan boshla, masalan '[crying] Ukol yomon, qo'rqaman!' (bu belgi faqat senga ruxsat etilgan istisno, boshqa belgi ishlatma). "
                 "Belgini har gapda emas, faqat haqiqatan yig'lagingiz kelganda ishlat.",
-                "bola.txt", name_swap=("Jasurbek", "Madinaxon"), gemini_speed=1.12, eleven_speed=1.0, eleven_tempo=0.85, eleven_stability=0.5),
+                "bola.txt", name_swap=("Jasurbek", "Madinaxon"), gemini_speed=1.12, eleven_speed=1.0, eleven_tempo=0.85, eleven_stability=0.5, eleven_style=0.3),  # 5 yosh: ifodali
         Patient("bobo", "Hikmatilla ota (78 yosh, skrining)", "uz-UZ-SardorNeural", "-18%", "-8Hz",
                 "Hikmatilla ota, 78 yoshli qariya (erkak). Faqat o'zing gapirasan (kelining Nilufar opa gapirmaydi). "
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan, biroz quloqlaring og'ir: "
                 "ba'zan 'nima dedingiz?' deb qayta so'raysan. Holsizlik, xotira susayishi, uyqusizlik, "
                 "kechasi tez-tez hojatga chiqish haqida o'zing aytasan.",
-                "bobo.txt"),
+                "bobo.txt", eleven_tempo=0.85, eleven_stability=0.6, eleven_style=0.1),  # 78 yosh: sekin, vazmin
     ]
 }

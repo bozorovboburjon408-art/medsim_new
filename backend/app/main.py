@@ -116,7 +116,7 @@ async def chat_stream(req: ChatRequest):
                 async def fill():
                     n, t1 = 0, time.perf_counter()
                     try:
-                        gen_ = await eleven.tts_stream(text_v3, vid, model, req.eleven_script == "cyr", tempo / pit, stab)
+                        gen_ = await eleven.tts_stream(text_v3, vid, model, req.eleven_script == "cyr", tempo / pit, stab, p.eleven_style)
                         it = gen_.__aiter__()
                         while True:
                             try:

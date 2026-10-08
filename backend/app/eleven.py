@@ -119,16 +119,16 @@ def prepare(text: str) -> str:
     return re.sub(r"\s+", " ", t).strip()
 
 
-def _settings(speed: float, stability: float) -> dict:
-    return {"stability": stability, "similarity_boost": 0.85, "style": 0.15, "use_speaker_boost": True,
+def _settings(speed: float, stability: float, style: float = 0.15) -> dict:
+    return {"stability": stability, "similarity_boost": 0.85, "style": style, "use_speaker_boost": True,
             "speed": max(0.7, min(1.2, speed))}
 
 
 async def tts_stream(text: str, voice_id: str, model: str = "", cyrillic: bool = False, speed: float = 1.0,
-                     stability: float = 0.4):
+                     stability: float = 0.4, style: float = 0.15):
     """PCM (24 kHz, 16-bit) bo'laklari keladigan zahoti qaytariladi. Status oqim boshlanmasdan tekshiriladi."""
     body = {"text": latin_to_cyrillic(text) if cyrillic else text, "model_id": model or settings.eleven_tts_model,
-            "voice_settings": _settings(speed, stability)}
+            "voice_settings": _settings(speed, stability, style)}
     client = httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=30, write=10, pool=5))
     try:
         r = await client.send(client.build_request("POST", f"{BASE}/v1/text-to-speech/{voice_id}/stream",

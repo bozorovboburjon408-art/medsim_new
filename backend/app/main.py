@@ -397,7 +397,7 @@ button{background:#b91c1c;color:#fff;border:0;border-radius:12px;padding:16px 26
 select{font-size:15px;padding:6px;width:100%}.m{font-size:14px;color:#475569;margin:8px 0}.r{font-size:20px;margin:10px 0;min-height:30px}
 .bar{height:10px;background:#e4eceb;border-radius:6px}.bar i{display:block;height:10px;width:0;background:#15803d;border-radius:6px}</style></head><body>
 <h1>Ovozdan matn (Gemini)</h1>
-<div class="card"><label>Model</label><select id="m"><option value="">Avto (flash-lite, keyin flash)</option><option>gemini-2.5-flash-lite</option><option>gemini-2.5-flash</option><option>gemini-2.5-pro</option></select>
+<div class="card"><label>Model</label><select id="m"><option value="">Avto (flash-lite, keyin flash)</option><option>gemini-2.5-flash</option><option>gemini-2.5-flash-lite</option><option>gemini-2.5-pro</option></select>
 <p class="m">Tugmani bosib turing, o'zbekcha gapiring, qo'yib yuboring. Natijani aytgan gapingiz bilan solishtiring.</p>
 <button id="b">🎤 Bosib turing va gapiring</button><div class="bar"><i id="lv"></i></div>
 <div class="m" id="st"></div><div class="r" id="out"></div></div>

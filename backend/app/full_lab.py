@@ -19,6 +19,7 @@ button{background:#b91c1c;color:#fff;border:0;border-radius:12px;padding:18px 28
 <div class="card">
 <label>Bemor</label><select id="p">__PATIENTS__</select>
 <label>Ovoz</label><select id="e"><option value="gemini">Gemini ovozi (oqim, xato bo'lsa Edge)</option><option value="edge">Edge ovozi</option></select>
+<label>Ovozdan matn modeli</label><select id="sm"><option value="">Avto (flash-lite, keyin flash)</option><option>gemini-2.5-flash</option><option>gemini-2.5-flash-lite</option><option>gemini-2.5-pro</option></select>
 <label>Gemini TTS modeli</label><select id="gm"><option>gemini-2.5-flash-tts</option><option>gemini-2.5-pro-tts</option><option>gemini-2.5-flash-preview-tts</option><option>gemini-2.5-pro-preview-tts</option></select>
 <label>Gemini ovozi</label><select id="gv"></select>
 <button id="b">🎤 Bosib turing va gapiring</button><div class="bar"><i id="lv"></i></div>
@@ -47,10 +48,11 @@ async function start(){if(rec)return;rec=true;chunks=[];$('st').textContent='Yoz
  src.connect(proc);proc.connect(ctx.destination);}
 async function stop(){if(!rec)return;rec=false;const T0=performance.now(),rate=ctx.sampleRate;proc.disconnect();stream.getTracks().forEach(t=>t.stop());await ctx.close();$('lv').style.width='0';
  let n=0;for(const c of chunks)n+=c.length;if(n<rate*0.3){$('st').textContent='Juda qisqa, qaytadan urining';return;}
+ let sq=0;for(const c of chunks)for(let i=0;i<c.length;i+=8)sq+=c[i]*c[i];if(Math.sqrt(sq/(n/8))<0.004){$('st').textContent='Ovoz juda past eshitildi (mikrofonni tekshiring), qaytadan urining';return;}
  const all=new Float32Array(n);let p=0;for(const c of chunks){all.set(c,p);p+=c.length;}
  const sec=()=>((performance.now()-T0)/1000).toFixed(1);const tm={};
  try{$('st').textContent='1/3 Gapingiz matnga aylantirilyapti...';
-  const r1=await fetch('/transcribe',{method:'POST',headers:{'Content-Type':'audio/wav'},body:wav(down(all,rate,16000),16000)});
+  const r1=await fetch('/transcribe'+($('sm').value?'?model='+encodeURIComponent($('sm').value):''),{method:'POST',headers:{'Content-Type':'audio/wav'},body:wav(down(all,rate,16000),16000)});
   const t1=await r1.text();if(!r1.ok)throw new Error('Ovozdan matn: HTTP '+r1.status+' '+t1.slice(0,200));
   const text=JSON.parse(t1).text.trim();tm.stt=sec();if(!text){$('st').textContent='Nutq topilmadi, qaytadan urining';return;}
   addRow('Siz',text,'n1');hist.push({role:'user',content:text});

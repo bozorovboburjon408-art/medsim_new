@@ -226,10 +226,12 @@ async def stream_sentences(system: str, history: list[dict], info: dict | None =
     raise RuntimeError(f"Hamma Gemini modellari muvaffaqiyatsiz. Oxirgisi: {last}")
 
 
-STT_PROMPT = ("Transcribe this audio exactly as spoken. The speaker is a nurse (student) speaking Uzbek; "
-              "write the transcript in Uzbek Latin script (o', g', sh, ch, ng). Typical words: assalomu alaykum, "
-              "ahvolingiz qanday, qon bosimi, qand, dori, shifokor, ukol, og'riq, uyqu. "
-              "Return ONLY the transcript text, nothing else. If there is no speech, return an empty string.")
+STT_PROMPT = ("Transcribe the speech in this audio verbatim. The speaker talks Uzbek; write in Uzbek Latin script "
+              "(o', g', sh, ch, ng). Write ONLY the words that are actually spoken. Do NOT add, repeat, complete or invent any words, "
+              "and do not add greetings or vocabulary that you did not hear. If the audio is silent, unclear or only noise, "
+              "output an empty string. Output only the transcript text.")
+
+_STT_LEAK = ("qon bosimi, qand, dori",)  # eski prompt ro'yxati sizib chiqsa, bo'sh deb hisoblanadi
 
 
 async def transcribe(audio: bytes, mime: str = "audio/wav", model: str | None = None) -> tuple[str, str]:
@@ -257,7 +259,10 @@ async def transcribe(audio: bytes, mime: str = "audio/wav", model: str | None = 
                 last = f"{m}: {r.status_code} {r.text[:200]}"; mark_bad(m); continue
             try:
                 parts = r.json()["candidates"][0]["content"]["parts"]
-                return "".join(p.get("text", "") for p in parts if not p.get("thought")).strip(), m
+                text = "".join(p.get("text", "") for p in parts if not p.get("thought")).strip()
+                if any(x in text.lower() for x in _STT_LEAK):
+                    text = ""
+                return text, m
             except (KeyError, IndexError, ValueError):
                 return "", m  # nutq topilmadi
     raise RuntimeError(f"Ovozdan matn xatosi. Oxirgisi: {last}")

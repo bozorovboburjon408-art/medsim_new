@@ -363,6 +363,28 @@ async def debug_tts(text: str = "Assalomu alaykum, yaxshimisiz?", voice: str = "
     return {"voice": voice, "results": results}
 
 
+@app.get("/test_synth")
+async def test_synth(patient: str = "buvi", text: str = "Assalomu alaykum qizim"):
+    p = PATIENTS.get(patient)
+    if not p:
+        return {"error": "patient not found"}
+    try:
+        t0 = time.perf_counter()
+        audio, used = await tts.synthesize(text, p)
+        ms = int((time.perf_counter() - t0) * 1000)
+        return {
+            "patient": patient,
+            "used": used,
+            "ms": ms,
+            "audio_len": len(audio),
+            "voice": getattr(p, "gemini_voice", None),
+            "speed": getattr(p, "gemini_speed", 1.0),
+            "header": audio[:12].hex() if audio else ""
+        }
+    except Exception as e:
+        return {"error": f"{type(e).__name__}: {e}"}
+
+
 @app.get("/health")
 def health():
     return {"ok": True}

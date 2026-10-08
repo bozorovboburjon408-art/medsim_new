@@ -70,6 +70,8 @@ def _adjust_audio(pcm: bytes, speed: float = 1.0, rate: int = 24000) -> bytes:
         return pcm
     try:
         import audioop
+        if len(pcm) % 2 != 0:
+            pcm = pcm[:-1]
         in_rate = int(rate * speed)
         out_pcm, _ = audioop.ratecv(pcm, 2, 1, in_rate, rate, None)
         return out_pcm

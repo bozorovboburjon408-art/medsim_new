@@ -25,6 +25,25 @@ data class Seg(
     val fmt: String = "mp3", val tts: String = "", val pcmRate: Int = 0, val usage: String = "",
 )
 
+data class BabyStatus(
+    val online: Boolean,
+    val state: String,
+    val stateUz: String,
+    val isCrying: Boolean,
+    val isSoothed: Boolean,
+    val isLaughing: Boolean,
+    val soothingProgress: Int,
+    val happyProgress: Int,
+    val holdingStatus: String,
+    val holdingText: String,
+    val shakeStatus: String,
+    val shakeText: String,
+    val motion: Float,
+    val pitch: Float,
+    val roll: Float,
+    val sensorOk: Boolean
+)
+
 object Api {
     private val http = OkHttpClient.Builder()
         .readTimeout(45, TimeUnit.SECONDS).build()
@@ -121,4 +140,49 @@ object Api {
                 )
             }
         }
+
+    /** ESP32 Chaqaloq manikeni holatini o'qish (/status) */
+    suspend fun getBabyStatus(espUrl: String): BabyStatus? = withContext(Dispatchers.IO) {
+        runCatching {
+            val req = Request.Builder().url(normalize(espUrl) + "/status").build()
+            http.newBuilder()
+                .connectTimeout(1200, TimeUnit.MILLISECONDS)
+                .readTimeout(1500, TimeUnit.MILLISECONDS)
+                .build().newCall(req).execute().use { r ->
+                if (!r.isSuccessful) return@use null
+                val raw = r.body?.string() ?: return@use null
+                val j = JSONObject(raw)
+                val angles = j.optJSONObject("angles")
+                BabyStatus(
+                    online = j.optBoolean("online", true),
+                    state = j.optString("state", "CALM"),
+                    stateUz = j.optString("state_uz", "Tinch"),
+                    isCrying = j.optBoolean("is_crying", false),
+                    isSoothed = j.optBoolean("is_soothed", true),
+                    isLaughing = j.optBoolean("is_laughing", false),
+                    soothingProgress = j.optInt("soothing_progress", 0),
+                    happyProgress = j.optInt("happy_progress", 0),
+                    holdingStatus = j.optString("holding_status", "LYING"),
+                    holdingText = j.optString("holding_text", "Yotqizilgan"),
+                    shakeStatus = j.optString("shake_status", "NONE"),
+                    shakeText = j.optString("shake_text", "Harakatsiz"),
+                    motion = j.optDouble("motion", 0.0).toFloat(),
+                    pitch = angles?.optDouble("pitch", 0.0)?.toFloat() ?: 0f,
+                    roll = angles?.optDouble("roll", 0.0)?.toFloat() ?: 0f,
+                    sensorOk = j.optBoolean("sensor_ok", true)
+                )
+            }
+        }.getOrNull()
+    }
+
+    suspend fun sendBabyCommand(espUrl: String, endpoint: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val req = Request.Builder().url(normalize(espUrl) + endpoint).build()
+            http.newBuilder()
+                .connectTimeout(1500, TimeUnit.MILLISECONDS)
+                .readTimeout(2, TimeUnit.SECONDS)
+                .build().newCall(req).execute().use { it.isSuccessful }
+        }.getOrDefault(false)
+    }
 }
+

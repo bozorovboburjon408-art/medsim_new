@@ -72,14 +72,30 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private const val DEFAULT_SERVER = "https://medsim-backend-oyfd.onrender.com"
+private const val DEFAULT_ESP_BABY_URL = "http://10.186.157.233"
+
 @Composable
 fun App() {
     val ctx = LocalContext.current
     val prefs = remember { ctx.getSharedPreferences("medsim", Context.MODE_PRIVATE) }
-    var server by remember { mutableStateOf(prefs.getString("server", "") ?: "") }
+    val savedServer = prefs.getString("server", null)
+    var server by remember { mutableStateOf(if (savedServer.isNullOrBlank()) DEFAULT_SERVER else savedServer) }
     var model by remember { mutableStateOf(prefs.getString("model", "") ?: "") }
-    var tts by remember { mutableStateOf(prefs.getString("tts", "") ?: "") }
-    var showSettings by remember { mutableStateOf(server.isBlank()) }
+    var tts by remember { mutableStateOf(prefs.getString("tts", "edge") ?: "edge") }
+
+    val savedBaby = prefs.getString("esp_baby_url", null)
+    val initialBaby = if (savedBaby.isNullOrBlank() || savedBaby == "http://medsim-baby.local") DEFAULT_ESP_BABY_URL else savedBaby
+    var espBabyUrl by remember { mutableStateOf(initialBaby) }
+    var showSettings by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val ed = prefs.edit()
+        var changed = false
+        if (savedServer.isNullOrBlank()) { ed.putString("server", DEFAULT_SERVER); changed = true }
+        if (savedBaby.isNullOrBlank() || savedBaby == "http://medsim-baby.local") { ed.putString("esp_baby_url", DEFAULT_ESP_BABY_URL); changed = true }
+        if (changed) ed.apply()
+    }
     var current by remember { mutableStateOf<PatientInfo?>(null) }
     // manikenga biriktirilgan kalonka: patient.id -> AudioDeviceInfo.id
     val speakers = remember { mutableStateMapOf<String, Int>() }
@@ -102,12 +118,13 @@ fun App() {
     } else {
         val picker: @Composable () -> Unit = { SpeakerPicker(speakers[p.id]) { speakers[p.id] = it } }
         val back = { Speaker.stop(); current = null }
-        if (p.isBaby) BabyScreen(p, speakers[p.id], back, picker)
+        if (p.isBaby) BabyScreen(p, espBabyUrl, speakers[p.id], back, picker)
         else ChatScreen(p, server, model, tts, speakers[p.id], back, picker)
     }
-    if (showSettings) SettingsDialog(server, model, tts, onDismiss = { showSettings = false }) { srv, mdl, tt ->
-        server = srv.trim(); model = mdl; tts = tt
-        prefs.edit().putString("server", server).putString("model", model).putString("tts", tts).apply(); showSettings = false
+    if (showSettings) SettingsDialog(server, model, tts, espBabyUrl, onDismiss = { showSettings = false }) { srv, mdl, tt, esp ->
+        server = srv.trim(); model = mdl; tts = tt; espBabyUrl = esp.trim()
+        prefs.edit().putString("server", server).putString("model", model).putString("tts", tts)
+            .putString("esp_baby_url", espBabyUrl).apply(); showSettings = false
     }
 }
 
@@ -171,10 +188,11 @@ fun PatientCard(p: PatientInfo, speakerName: String?, onClick: () -> Unit) {
 }
 
 @Composable
-fun SettingsDialog(server: String, model: String, tts: String, onDismiss: () -> Unit, onSave: (String, String, String) -> Unit) {
+fun SettingsDialog(server: String, model: String, tts: String, espBabyUrl: String, onDismiss: () -> Unit, onSave: (String, String, String, String) -> Unit) {
     var text by remember { mutableStateOf(server) }
     var mdl by remember { mutableStateOf(model) }
     var tt by remember { mutableStateOf(tts) }
+    var esp by remember { mutableStateOf(espBabyUrl) }
     var result by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     AlertDialog(
@@ -183,36 +201,56 @@ fun SettingsDialog(server: String, model: String, tts: String, onDismiss: () -> 
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
-                    text, { text = it }, label = { Text("Server manzili") },
+                    text, { text = it }, label = { Text("Server manzili (Render)") },
                     placeholder = { Text("https://....onrender.com") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
                 OutlinedButton({
                     scope.launch {
                         result = "Tekshirilyapti… (server uxlayotgan bo'lsa 1 daqiqagacha)"
                         result = if (Api.health(text)) "✓ Server javob berdi" else "✗ Ulanib bo'lmadi. Manzilni tekshiring yoki qayta urinib ko'ring"
                     }
-                }) { Text("Ulanishni tekshirish") }
+                }) { Text("Serverni tekshirish") }
                 if (result.isNotEmpty()) {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(6.dp))
                     Text(result, color = if (result.startsWith("✓")) Ok else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+
+                Spacer(Modifier.height(14.dp))
+                OutlinedTextField(
+                    esp, { esp = it }, label = { Text("Chaqaloq manikeni IP (ESP32)") },
+                    placeholder = { Text("http://10.186.157.233") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                var espResult by remember { mutableStateOf("") }
+                OutlinedButton({
+                    scope.launch {
+                        espResult = "Tekshirilyapti…"
+                        val st = Api.getBabyStatus(esp)
+                        espResult = if (st != null) "✓ Maniken ulandi: ${st.stateUz} (${st.holdingText})"
+                                    else "✗ Maniken topilmadi. IP manzil va Wi-Fi ni tekshiring"
+                    }
+                }) { Text("Manikenni tekshirish") }
+                if (espResult.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(espResult, color = if (espResult.startsWith("✓")) Ok else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
                 Spacer(Modifier.height(14.dp))
                 Text("AI modeli (sinov uchun)", style = MaterialTheme.typography.labelLarge)
                 Row(Modifier.horizontalScroll(rememberScrollState())) {
                     listOf(
                         "" to "Avto",
-                        "gemini-3.5-flash-lite" to "3.5 Flash-Lite",
-                        "gemini-3.1-flash-lite" to "3.1 Flash-Lite",
-                        "gemini-3.8-flash" to "3.8 Flash",
-                        "gemini-3.7-flash" to "3.7 Flash",
+                        "gemini-2.5-flash-lite" to "2.5 Flash-Lite",
+                        "gemini-2.5-pro" to "2.5 Pro",
+                        "gemini-2.5-flash" to "2.5 Flash",
                     ).forEach { (id, label) ->
                         FilterChip(mdl == id, { mdl = id }, { Text(label) }, modifier = Modifier.padding(end = 8.dp))
                     }
                 }
             }
         },
-        confirmButton = { Button({ onSave(text, mdl, tt) }) { Text("Saqlash") } },
+        confirmButton = { Button({ onSave(text, mdl, tt, esp) }) { Text("Saqlash") } },
         dismissButton = { TextButton(onDismiss) { Text("Bekor qilish") } },
     )
 }
@@ -505,22 +543,81 @@ private const val RESUME_AFTER_MS = 10000L
 private const val SHAKE_AFTER_MS = 1000L
 
 @Composable
-fun BabyScreen(p: PatientInfo, deviceId: Int?, onBack: () -> Unit, picker: @Composable () -> Unit) {
+fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () -> Unit, picker: @Composable () -> Unit) {
     val ctx = LocalContext.current
-    var msg by remember { mutableStateOf("Yig'latish tugmasini bosing") }
+    val scope = rememberCoroutineScope()
+    var msg by remember { mutableStateOf("Chaqaloq manikeni tekshirilmoqda…") }
     var auto by remember { mutableStateOf(true) }
     var crying by remember { mutableStateOf(false) }
-    var calmedByRock by remember { mutableStateOf(false) }
+    var laughing by remember { mutableStateOf(false) }
+    var espStatus by remember { mutableStateOf<BabyStatus?>(null) }
+    var isEspConnected by remember { mutableStateOf(false) }
+
+    // Planshet ichki akselerometri (zaxira datchik)
     var rms by remember { mutableStateOf(0f) }
     var hasSensor by remember { mutableStateOf(true) }
     val level = remember { floatArrayOf(0f) }
 
     fun startCry() {
-        crying = true
-        msg = if (Speaker.playAsset(ctx, "baby_cry.mp3", deviceId, loop = true)) "Chaqaloq yig'layapti"
-        else "assets/baby_cry.mp3 fayli topilmadi"
+        if (laughing) {
+            Speaker.stop()
+            laughing = false
+        }
+        if (!crying) {
+            crying = true
+            Speaker.playAsset(ctx, "baby_cry.mp3", deviceId, loop = true)
+        }
     }
 
+    fun startLaugh() {
+        if (crying) {
+            Speaker.stop()
+            crying = false
+        }
+        if (!laughing) {
+            laughing = true
+            Speaker.playAsset(ctx, "baby_laugh.m4a", deviceId, loop = true)
+        }
+    }
+
+    fun stopAllSounds() {
+        if (crying || laughing) {
+            Speaker.stop()
+            crying = false
+            laughing = false
+        }
+    }
+
+    // 1. ESP32 Maniken bilan real-vaqtda aloqa (Polling har 250ms)
+    LaunchedEffect(espBabyUrl) {
+        while (true) {
+            val st = Api.getBabyStatus(espBabyUrl)
+            if (st != null) {
+                isEspConnected = true
+                espStatus = st
+                msg = when (st.state) {
+                    "CRYING" -> "Chaqaloq yig'layapti! (${st.holdingText})"
+                    "SOOTHING" -> "Ovunmoqda… (${st.soothingProgress}%)"
+                    "LAUGHING" -> "Quvonib kulmoqda! 😄"
+                    else -> "Chaqaloq tinch / xotirjam 😴"
+                }
+                if (auto) {
+                    if (st.isCrying) {
+                        startCry()
+                    } else if (st.isLaughing || st.state == "LAUGHING") {
+                        startLaugh()
+                    } else if (crying || laughing) {
+                        stopAllSounds()
+                    }
+                }
+            } else {
+                isEspConnected = false
+            }
+            delay(250)
+        }
+    }
+
+    // 2. Agar ESP32 ulanmagan bo'lsa, planshetning o'zini tebratish datchigi ishlaydi (Fallback)
     DisposableEffect(Unit) {
         val sm = ctx.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val sensor = sm.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
@@ -533,16 +630,17 @@ fun BabyScreen(p: PatientInfo, deviceId: Int?, onBack: () -> Unit, picker: @Comp
         }
         if (sensor == null) hasSensor = false
         else sm.registerListener(l, sensor, SensorManager.SENSOR_DELAY_GAME)
-        onDispose { sm.unregisterListener(l); Speaker.stop() }
+        onDispose { sm.unregisterListener(l); stopAllSounds() }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(isEspConnected) {
+        if (isEspConnected) return@LaunchedEffect
         var rockMs = 0L; var stillMs = 0L; var shakeMs = 0L
         val step = 200L
         while (true) {
             delay(step)
             val r = sqrt(level[0]); rms = r
-            if (!auto) { rockMs = 0; stillMs = 0; shakeMs = 0; continue }
+            if (!auto || isEspConnected) continue
             val shaking = r > SHAKE_MAX
             val rocking = r in ROCK_MIN..SHAKE_MAX
             shakeMs = if (shaking) shakeMs + step else 0
@@ -550,17 +648,16 @@ fun BabyScreen(p: PatientInfo, deviceId: Int?, onBack: () -> Unit, picker: @Comp
             stillMs = if (r < ROCK_MIN) stillMs + step else 0
             when {
                 shakeMs >= SHAKE_AFTER_MS -> {
-                    if (!crying) startCry()
-                    calmedByRock = false
+                    startCry()
                     msg = "Qattiq silkitish! Chaqaloq yig'layapti"
                 }
                 crying && rockMs >= CALM_AFTER_MS -> {
-                    for (v in 10 downTo 0) { Speaker.setVolume(v / 10f); delay(80) }
-                    Speaker.stop(); crying = false; calmedByRock = true
+                    stopAllSounds()
                     msg = "Chaqaloq tinchidi"
                 }
-                !crying && calmedByRock && stillMs >= RESUME_AFTER_MS -> {
-                    calmedByRock = false; startCry()
+                !crying && stillMs >= RESUME_AFTER_MS -> {
+                    startCry()
+                    msg = "Chaqaloq yana yig'layapti"
                 }
             }
         }
@@ -569,16 +666,6 @@ fun BabyScreen(p: PatientInfo, deviceId: Int?, onBack: () -> Unit, picker: @Comp
     val shake by rememberInfiniteTransition(label = "shake").animateFloat(
         -5f, 5f, infiniteRepeatable(tween(260), RepeatMode.Reverse), label = "s",
     )
-    val zoneColor = when {
-        rms > SHAKE_MAX -> MaterialTheme.colorScheme.error
-        rms >= ROCK_MIN -> Ok
-        else -> MaterialTheme.colorScheme.secondary
-    }
-    val zoneText = when {
-        rms > SHAKE_MAX -> "Qattiq silkitish ✗"
-        rms >= ROCK_MIN -> "Yumshoq tebratish ✓"
-        else -> "Qimirlamayapti"
-    }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 14.dp)) {
         ScreenHeader(p, onBack, picker)
@@ -586,39 +673,160 @@ fun BabyScreen(p: PatientInfo, deviceId: Int?, onBack: () -> Unit, picker: @Comp
         Row(Modifier.weight(1f).fillMaxWidth()) {
             Surface(
                 Modifier.weight(1f).fillMaxHeight(), shape = MaterialTheme.shapes.large,
-                color = if (crying) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                color = when {
+                    crying -> MaterialTheme.colorScheme.errorContainer
+                    laughing -> MaterialTheme.colorScheme.tertiaryContainer
+                    else -> MaterialTheme.colorScheme.primaryContainer
+                },
             ) {
-                Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Text("👶", fontSize = 84.sp, modifier = Modifier.graphicsLayer { rotationZ = if (crying) shake else 0f })
+                Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    val emoji = when {
+                        crying -> "😭"
+                        espStatus?.isLaughing == true -> "😄"
+                        espStatus?.state == "SOOTHING" -> "🥺"
+                        else -> "👶"
+                    }
+                    Text(emoji, fontSize = 84.sp, modifier = Modifier.graphicsLayer { rotationZ = if (crying) shake else 0f })
                     Spacer(Modifier.height(10.dp))
                     Text(msg, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+
+                    Spacer(Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (isEspConnected) "● ESP32 Maniken: Ulangan (${espStatus?.holdingText ?: ""})"
+                            else "○ ESP32 Maniken: Ulanmagan (Planshet datchigi rejimida)",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (isEspConnected) Ok else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (isEspConnected && espStatus != null) {
+                        Spacer(Modifier.height(14.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth(0.9f)
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                val isHazard = espStatus!!.shakeStatus == "VIOLENT" || espStatus!!.holdingStatus == "UPSIDE_DOWN"
+                                if (isHazard) {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.errorContainer,
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                                    ) {
+                                        Text(
+                                            "⚠️ ${if (espStatus!!.holdingStatus == "UPSIDE_DOWN") espStatus!!.holdingText else espStatus!!.shakeText}",
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(8.dp)
+                                        )
+                                    }
+                                }
+
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Ovunish progressi:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                    Text("${espStatus!!.soothingProgress}%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                                }
+                                LinearProgressIndicator(
+                                    progress = espStatus!!.soothingProgress / 100f,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).height(8.dp).clip(CircleShape),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+
+                                if (espStatus!!.happyProgress > 0 || espStatus!!.isLaughing) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Kulgi va quvonch:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                        Text("${espStatus!!.happyProgress}%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
+                                    }
+                                    LinearProgressIndicator(
+                                        progress = espStatus!!.happyProgress / 100f,
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).height(8.dp).clip(CircleShape),
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                }
+
+                                Spacer(Modifier.height(6.dp))
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Chayqatish: ${espStatus!!.shakeText}", style = MaterialTheme.typography.labelSmall)
+                                    Text("Pitch: ${espStatus!!.pitch.toInt()}° | Roll: ${espStatus!!.roll.toInt()}°", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                    }
                 }
             }
             Spacer(Modifier.width(20.dp))
             Column(Modifier.width(280.dp).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-                Button({ calmedByRock = false; startCry() }, Modifier.fillMaxWidth().height(52.dp)) { Text("Yig'latish", fontSize = 17.sp) }
-                Spacer(Modifier.height(10.dp))
+                Button(
+                    {
+                        startCry()
+                        if (isEspConnected) scope.launch { Api.sendBabyCommand(espBabyUrl, "/trigger_cry") }
+                    },
+                    Modifier.fillMaxWidth().height(48.dp)
+                ) { Text("😭 Yig'latish", fontSize = 15.sp) }
+
+                Spacer(Modifier.height(8.dp))
+                FilledTonalButton(
+                    {
+                        startLaugh()
+                        if (isEspConnected) scope.launch { Api.sendBabyCommand(espBabyUrl, "/trigger_laugh") }
+                    },
+                    Modifier.fillMaxWidth().height(48.dp)
+                ) { Text("😄 Kuldurish", fontSize = 15.sp) }
+
+                Spacer(Modifier.height(8.dp))
                 OutlinedButton(
-                    { Speaker.stop(); crying = false; calmedByRock = false; msg = "Jim bo'ldi" },
-                    Modifier.fillMaxWidth().height(52.dp),
-                ) { Text("Ovuntirish (jim)", fontSize = 17.sp) }
-                Spacer(Modifier.height(16.dp))
+                    {
+                        stopAllSounds()
+                        if (isEspConnected) scope.launch { Api.sendBabyCommand(espBabyUrl, "/stop_cry") }
+                        msg = "Chaqaloq tinchitildi"
+                    },
+                    Modifier.fillMaxWidth().height(48.dp),
+                ) { Text("✅ Tinchlantirish (jim)", fontSize = 15.sp) }
+
+                Spacer(Modifier.height(8.dp))
+                FilledTonalButton(
+                    {
+                        stopAllSounds()
+                        if (isEspConnected) scope.launch { Api.sendBabyCommand(espBabyUrl, "/reset") }
+                        msg = "Tizim qayta sozlandi"
+                    },
+                    Modifier.fillMaxWidth().height(48.dp),
+                ) { Text("🔄 Qayta sozlash", fontSize = 15.sp) }
+
+                Spacer(Modifier.height(14.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Switch(auto, { auto = it })
                     Spacer(Modifier.width(10.dp))
-                    Text("Avto ovuntirish\n(tebratish orqali)", style = MaterialTheme.typography.bodyMedium)
+                    Text("Avtomatik muloqot\n(datchik orqali)", style = MaterialTheme.typography.bodyMedium)
                 }
-                Spacer(Modifier.height(12.dp))
-                if (hasSensor) {
-                    LinearProgressIndicator(
-                        progress = (rms / SHAKE_MAX).coerceIn(0f, 1f),
-                        color = zoneColor, trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape),
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text("%s · %.2f".format(zoneText, rms), style = MaterialTheme.typography.labelMedium, color = zoneColor)
-                } else {
-                    Text("Bu qurilmada tebranish datchigi yo'q", style = MaterialTheme.typography.bodySmall)
+
+                if (!isEspConnected) {
+                    Spacer(Modifier.height(12.dp))
+                    if (hasSensor) {
+                        val zoneColor = when {
+                            rms > SHAKE_MAX -> MaterialTheme.colorScheme.error
+                            rms >= ROCK_MIN -> Ok
+                            else -> MaterialTheme.colorScheme.secondary
+                        }
+                        val zoneText = when {
+                            rms > SHAKE_MAX -> "Qattiq silkitish ✗"
+                            rms >= ROCK_MIN -> "Yumshoq tebratish ✓"
+                            else -> "Qimirlamayapti"
+                        }
+                        LinearProgressIndicator(
+                            progress = (rms / SHAKE_MAX).coerceIn(0f, 1f),
+                            color = zoneColor, trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape),
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text("%s · %.2f".format(zoneText, rms), style = MaterialTheme.typography.labelMedium, color = zoneColor)
+                    } else {
+                        Text("ESP32 ulanmagan va planshetda datchik yo'q", style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
         }

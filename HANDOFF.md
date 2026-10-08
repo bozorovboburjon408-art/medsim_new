@@ -7,7 +7,7 @@ Bemorlar (`backend/app/patients.py`, ssenariylar `backend/app/scenarios/*.txt`):
 - `buvi` — Salomat buvi, 75, qandli diabet (faqat buvi gapiradi)
 - `homilador` — Nilufar, 32 haftalik homilador
 - `bola` — Jasurbek, 5 yoshli o'g'il bola (o'zi gapiradi; gelmintoz)
-- `chaqaloq` — AI yo'q: yig'laydi (assets/baby_cry.mp3), planshetni beshikdek tebratsa (akselerometr) tinchlanadi
+- `chaqaloq` — AI yo'q: yig'laydi (baby_cry.mp3), kuladi (baby_laugh.m4a); ESP32-C6 maniken datchigi (esp32/ papkasi, Wi-Fi orqali /status) yoki planshet akselerometri bilan tinchlanadi
 - `bobo` — Hikmatilla ota, 78 yosh, yoshga doir skrining (ssenariy qo'shildi; faqat o'zi gapiradi, Edge Sardor ovozi)
 
 ## 2. Arxitektura (production)

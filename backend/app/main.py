@@ -88,15 +88,33 @@ async def chat_stream(req: ChatRequest):
         async def synth(s: str, t_llm: int):
             t = time.perf_counter()
             if req.tts == "gemini":
+                voice = req.gemini_voice if req.gemini_voice in tts.GEMINI_VOICES else tts.GEMINI_DEFAULT_VOICE.get(p.id, "Kore")
+                model = req.tts_model if req.tts_model and re.fullmatch(r"[A-Za-z0-9._-]{3,80}", req.tts_model) else settings.gemini_tts_model
+                clean = tts.clean_for_tts(s)
+
+                async def one() -> bytes:
+                    gen = await tts.gemini_tts_stream(clean, voice, model)
+                    return b"".join([c async for c in gen])
+
+                # Google ba'zan bitta so'rovni ushlab qoladi: 2.5 s da ikkinchisi parallel yuboriladi, 7 s da Edge'ga o'tamiz
+                pending = {asyncio.create_task(one())}
+                started, hedged = time.perf_counter(), False
                 try:
-                    voice = req.gemini_voice if req.gemini_voice in tts.GEMINI_VOICES else tts.GEMINI_DEFAULT_VOICE.get(p.id, "Kore")
-                    model = req.tts_model if req.tts_model and re.fullmatch(r"[A-Za-z0-9._-]{3,80}", req.tts_model) else settings.gemini_tts_model
-                    gen = await tts.gemini_tts_stream(tts.clean_for_tts(s), voice, model)
-                    pcm = b"".join([c async for c in gen])
-                    if pcm:
-                        return s, pcm, "pcm", "gemini", t_llm, int((time.perf_counter() - t) * 1000)
-                except Exception as e:
-                    log.warning("Gemini TTS xatosi, Edge'ga o'tildi: %s", e)
+                    while pending and time.perf_counter() - started < 7:
+                        wait = (2.5 - (time.perf_counter() - started)) if not hedged else (7 - (time.perf_counter() - started))
+                        done, pending = await asyncio.wait(pending, timeout=max(wait, 0.05), return_when=asyncio.FIRST_COMPLETED)
+                        for d in done:
+                            if d.exception():
+                                log.warning("Gemini TTS xatosi: %s", d.exception())
+                            elif d.result():
+                                return s, d.result(), "pcm", "gemini" + (" (qayta)" if hedged else ""), t_llm, int((time.perf_counter() - t) * 1000)
+                        if not done and not hedged:
+                            hedged = True
+                            pending.add(asyncio.create_task(one()))
+                finally:
+                    for x in pending:
+                        x.cancel()
+                log.warning("Gemini TTS vaqtida javob bermadi, Edge'ga o'tildi")
                 audio, _ = await tts.synthesize(s, p)
                 return s, audio, "mp3", "edge (gemini xato)", t_llm, int((time.perf_counter() - t) * 1000)
             audio, used = await tts.synthesize(s, p)

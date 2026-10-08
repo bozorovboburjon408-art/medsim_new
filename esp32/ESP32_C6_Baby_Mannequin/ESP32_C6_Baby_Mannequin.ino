@@ -476,6 +476,9 @@ void setup() {
   initMPU6050();
 
   WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
+  WiFi.setSleep(false); // Hotspotdan uzilib qolmasligi uchun uyqu rejimini o'chiramiz
   WiFi.begin(ssid, password);
   Serial.print("Wi-Fi ga ulanmoqda...");
 
@@ -504,6 +507,22 @@ void setup() {
 
 void loop() {
   server.handleClient();
+
+  // Wi-Fi uzilib qolsa, avtomatik qayta ulanish
+  static unsigned long lastWifiCheck = 0;
+  static bool wasConnected = false;
+  if (millis() - lastWifiCheck >= 3000) {
+    lastWifiCheck = millis();
+    if (WiFi.status() != WL_CONNECTED) {
+      wasConnected = false;
+      Serial.println("⚠️ Wi-Fi aloqasi yo'q! Qayta ulanishga urinilmoqda...");
+      WiFi.reconnect();
+    } else if (!wasConnected) {
+      wasConnected = true;
+      Serial.print("✅ Wi-Fi qayta ulandi! IP Manzil: ");
+      Serial.println(WiFi.localIP());
+    }
+  }
 
   // Har 50 ms da datchik ma'lumotlarini tahlil qilish (20 Hz)
   if (millis() - lastUpdate >= 50) {

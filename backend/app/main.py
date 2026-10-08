@@ -5,7 +5,7 @@ import logging
 import re
 import time
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
@@ -300,6 +300,74 @@ async def tts_models(token: str = ""):
         return await tts.list_gemini_tts_models()
     except Exception as e:
         raise HTTPException(502, f"Modellar ro'yxati olinmadi: {e}")
+
+
+@app.post("/transcribe")
+async def transcribe(request: Request, model: str = ""):
+    """Ovozni (WAV 16 kHz, mono) matnga aylantiradi. Android ilova va laboratoriya uchun."""
+    audio = await request.body()
+    if not audio or len(audio) > 4_000_000:
+        raise HTTPException(400, "Audio bo'sh yoki juda katta")
+    mime = (request.headers.get("content-type") or "audio/wav").split(";")[0]
+    t0 = time.perf_counter()
+    try:
+        text, used = await llm.transcribe(audio, mime, model or None)
+    except Exception as e:
+        raise HTTPException(502, str(e)[:300])
+    return {"text": text, "model": used, "ms": int((time.perf_counter() - t0) * 1000)}
+
+
+@app.get("/stt_lab", response_class=HTMLResponse)
+async def stt_lab(token: str = ""):
+    _check_token(token)
+    return _STT_LAB
+
+
+_STT_LAB = r"""<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MedSim: ovozdan matn</title><style>
+body{font-family:system-ui,sans-serif;background:#f3f7f6;margin:0;padding:16px;color:#0f172a}
+h1{color:#0f766e;font-size:22px}.card{background:#fff;border-radius:18px;padding:16px;margin:14px 0;box-shadow:0 1px 4px #0002}
+button{background:#b91c1c;color:#fff;border:0;border-radius:12px;padding:16px 26px;font-size:18px}
+select{font-size:15px;padding:6px;width:100%}.m{font-size:14px;color:#475569;margin:8px 0}.r{font-size:20px;margin:10px 0;min-height:30px}
+.bar{height:10px;background:#e4eceb;border-radius:6px}.bar i{display:block;height:10px;width:0;background:#15803d;border-radius:6px}</style></head><body>
+<h1>Ovozdan matn (Gemini)</h1>
+<div class="card"><label>Model</label><select id="m"><option value="">Avto (flash-lite, keyin flash)</option><option>gemini-2.5-flash-lite</option><option>gemini-2.5-flash</option><option>gemini-2.5-pro</option></select>
+<p class="m">Tugmani bosib turing, o'zbekcha gapiring, qo'yib yuboring. Natijani aytgan gapingiz bilan solishtiring.</p>
+<button id="b">🎤 Bosib turing va gapiring</button><div class="bar"><i id="lv"></i></div>
+<div class="m" id="st"></div><div class="r" id="out"></div></div>
+<div class="card"><b>Tarix</b><div id="h" class="m"></div></div>
+<script>
+const token=new URLSearchParams(location.search).get('token')||'';
+const $=id=>document.getElementById(id);
+let ctx=null,stream=null,proc=null,chunks=[],rec=false;
+function wav(f32,rate){const n=f32.length,b=new ArrayBuffer(44+n*2),v=new DataView(b);
+ const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+ w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+ v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+ for(let i=0;i<n;i++){const s=Math.max(-1,Math.min(1,f32[i]));v.setInt16(44+i*2,s<0?s*0x8000:s*0x7fff,true);}return new Blob([b],{type:'audio/wav'});}
+function down(f32,from,to){if(from===to)return f32;const r=from/to,n=Math.floor(f32.length/r),o=new Float32Array(n);
+ for(let i=0;i<n;i++){const a=Math.floor(i*r),e=Math.min(f32.length,Math.floor((i+1)*r));let s=0;for(let j=a;j<e;j++)s+=f32[j];o[i]=s/Math.max(1,e-a);}return o;}
+async function start(){if(rec)return;rec=true;chunks=[];$('st').textContent='Yozilyapti...';
+ try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});}
+ catch(e){$('st').textContent='Mikrofon ruxsati yo\u2018q: '+e;rec=false;return;}
+ ctx=new (window.AudioContext||window.webkitAudioContext)();const src=ctx.createMediaStreamSource(stream);
+ proc=ctx.createScriptProcessor(4096,1,1);proc.onaudioprocess=e=>{const d=new Float32Array(e.inputBuffer.getChannelData(0));chunks.push(d);
+  let m=0;for(const x of d)m=Math.max(m,Math.abs(x));$('lv').style.width=Math.min(100,m*140)+'%';};
+ src.connect(proc);proc.connect(ctx.destination);}
+async function stop(){if(!rec)return;rec=false;const rate=ctx.sampleRate;proc.disconnect();stream.getTracks().forEach(t=>t.stop());await ctx.close();$('lv').style.width='0';
+ let n=0;for(const c of chunks)n+=c.length;const all=new Float32Array(n);let p=0;for(const c of chunks){all.set(c,p);p+=c.length;}
+ if(n<rate*0.3){$('st').textContent='Juda qisqa, qaytadan urining';return;}
+ const blob=wav(down(all,rate,16000),16000);$('st').textContent='Yuborilyapti ('+Math.round(blob.size/1024)+' KB)...';const t0=performance.now();
+ try{const q=$('m').value?'?model='+encodeURIComponent($('m').value):'';
+  const r=await fetch('/transcribe'+q,{method:'POST',headers:{'Content-Type':'audio/wav'},body:blob});
+  const txt=await r.text();if(!r.ok)throw new Error('HTTP '+r.status+' '+txt.slice(0,200));
+  const j=JSON.parse(txt);const sec=((performance.now()-t0)/1000).toFixed(1);
+  $('out').textContent=j.text||'(nutq topilmadi)';$('st').textContent='Tayyor: '+sec+' s (server '+j.ms+' ms, '+j.model+')';
+  $('h').insertAdjacentHTML('afterbegin','<div>'+sec+' s \u00b7 '+(j.text||'\u2014').replace(/</g,'&lt;')+'</div>');}
+ catch(e){$('st').textContent='Xato: '+e;}}
+const b=$('b');['mousedown','touchstart'].forEach(e=>b.addEventListener(e,ev=>{ev.preventDefault();start();}));
+['mouseup','mouseleave','touchend','touchcancel'].forEach(e=>b.addEventListener(e,ev=>{ev.preventDefault();stop();}));
+</script></body></html>"""
 
 
 @app.get("/llm_check")

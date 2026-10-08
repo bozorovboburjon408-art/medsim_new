@@ -85,6 +85,9 @@ GEMINI_DEFAULT_VOICE = {"buvi": "Gacrux", "homilador": "Kore", "bola": "Puck", "
 
 
 async def list_gemini_tts_models() -> list[str]:
+    from . import vertex
+    if vertex.enabled():  # Vertex'da ro'yxat olinmaydi: sozlangan nomlarni sinab ko'ramiz
+        return [m.strip() for m in settings.vertex_tts_models.split(",") if m.strip()]
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.get("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",
                         headers={"x-goog-api-key": settings.gemini_api_key})
@@ -108,9 +111,10 @@ async def gemini_tts_lab(text: str, voice: str, model: str, style: str = "", mod
     body = {"contents": [{"parts": [{"text": gemini_prompt(text, style, mode)}]}],
             "generationConfig": {"responseModalities": ["AUDIO"],
                                  "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}}}
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    from . import llm
+    url, hdr = await llm.target(model, "generateContent")  # Vertex (kredit) yoki AI Studio
     async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=40, write=5, pool=5)) as c:
-        r = await c.post(url, json=body, headers={"x-goog-api-key": settings.gemini_api_key})
+        r = await c.post(url, json=body, headers=hdr)
     if r.status_code >= 400:
         raise RuntimeError(f"{r.status_code} {r.text[:200]}")
     part = r.json()["candidates"][0]["content"]["parts"][0]["inlineData"]

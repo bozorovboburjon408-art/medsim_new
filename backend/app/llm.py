@@ -224,3 +224,40 @@ async def stream_sentences(system: str, history: list[dict], info: dict | None =
                 last = f"{model}: bo'sh javob"
                 tries.append(f"{model} bo'sh")
     raise RuntimeError(f"Hamma Gemini modellari muvaffaqiyatsiz. Oxirgisi: {last}")
+
+
+STT_PROMPT = ("Transcribe this audio exactly as spoken. The speaker is a nurse (student) speaking Uzbek; "
+              "write the transcript in Uzbek Latin script (o', g', sh, ch, ng). Typical words: assalomu alaykum, "
+              "ahvolingiz qanday, qon bosimi, qand, dori, shifokor, ukol, og'riq, uyqu. "
+              "Return ONLY the transcript text, nothing else. If there is no speech, return an empty string.")
+
+
+async def transcribe(audio: bytes, mime: str = "audio/wav", model: str | None = None) -> tuple[str, str]:
+    """Gemini audio tushunishi orqali ovozdan matn. Qaytaradi: (matn, ishlatilgan model)."""
+    import base64
+    body = {
+        "contents": [{"role": "user", "parts": [
+            {"text": STT_PROMPT},
+            {"inlineData": {"mimeType": mime, "data": base64.b64encode(audio).decode()}}]}],
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 300,
+                             **({"thinkingConfig": {"thinkingBudget": 0}} if vertex.enabled() else {})},
+    }
+    models = [m.strip() for m in settings.stt_models.split(",") if m.strip()]
+    if model and re.fullmatch(r"[a-z0-9.\-]+", model):
+        models = [model] + [m for m in models if m != model]
+    last = "model ro'yxati bo'sh"
+    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=20, write=10, pool=5)) as c:
+        for m in healthy_first(models):
+            url, hdr = await target(m, "generateContent")
+            try:
+                r = await c.post(url, json=body, headers=hdr)
+            except httpx.TimeoutException:
+                last = f"{m}: timeout"; mark_bad(m, 60); continue
+            if r.status_code >= 400:
+                last = f"{m}: {r.status_code} {r.text[:200]}"; mark_bad(m); continue
+            try:
+                parts = r.json()["candidates"][0]["content"]["parts"]
+                return "".join(p.get("text", "") for p in parts if not p.get("thought")).strip(), m
+            except (KeyError, IndexError, ValueError):
+                return "", m  # nutq topilmadi
+    raise RuntimeError(f"Ovozdan matn xatosi. Oxirgisi: {last}")

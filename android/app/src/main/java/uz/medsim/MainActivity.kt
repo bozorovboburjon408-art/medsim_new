@@ -534,6 +534,7 @@ fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () ->
     var msg by remember { mutableStateOf("Chaqaloq manikeni tekshirilmoqda…") }
     var auto by remember { mutableStateOf(true) }
     var crying by remember { mutableStateOf(false) }
+    var laughing by remember { mutableStateOf(false) }
     var espStatus by remember { mutableStateOf<BabyStatus?>(null) }
     var isEspConnected by remember { mutableStateOf(false) }
 
@@ -543,16 +544,32 @@ fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () ->
     val level = remember { floatArrayOf(0f) }
 
     fun startCry() {
+        if (laughing) {
+            Speaker.stop()
+            laughing = false
+        }
         if (!crying) {
             crying = true
             Speaker.playAsset(ctx, "baby_cry.mp3", deviceId, loop = true)
         }
     }
 
-    fun stopCry() {
+    fun startLaugh() {
         if (crying) {
             Speaker.stop()
             crying = false
+        }
+        if (!laughing) {
+            laughing = true
+            Speaker.playAsset(ctx, "baby_laugh.m4a", deviceId, loop = true)
+        }
+    }
+
+    fun stopAllSounds() {
+        if (crying || laughing) {
+            Speaker.stop()
+            crying = false
+            laughing = false
         }
     }
 
@@ -572,8 +589,10 @@ fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () ->
                 if (auto) {
                     if (st.isCrying) {
                         startCry()
-                    } else if (crying && (st.isSoothed || st.state == "CALM" || st.state == "LAUGHING")) {
-                        stopCry()
+                    } else if (st.isLaughing || st.state == "LAUGHING") {
+                        startLaugh()
+                    } else if (crying || laughing) {
+                        stopAllSounds()
                     }
                 }
             } else {
@@ -596,7 +615,7 @@ fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () ->
         }
         if (sensor == null) hasSensor = false
         else sm.registerListener(l, sensor, SensorManager.SENSOR_DELAY_GAME)
-        onDispose { sm.unregisterListener(l); stopCry() }
+        onDispose { sm.unregisterListener(l); stopAllSounds() }
     }
 
     LaunchedEffect(isEspConnected) {
@@ -618,7 +637,7 @@ fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () ->
                     msg = "Qattiq silkitish! Chaqaloq yig'layapti"
                 }
                 crying && rockMs >= CALM_AFTER_MS -> {
-                    stopCry()
+                    stopAllSounds()
                     msg = "Chaqaloq tinchidi"
                 }
                 !crying && stillMs >= RESUME_AFTER_MS -> {
@@ -639,7 +658,11 @@ fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () ->
         Row(Modifier.weight(1f).fillMaxWidth()) {
             Surface(
                 Modifier.weight(1f).fillMaxHeight(), shape = MaterialTheme.shapes.large,
-                color = if (crying) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                color = when {
+                    crying -> MaterialTheme.colorScheme.errorContainer
+                    laughing -> MaterialTheme.colorScheme.tertiaryContainer
+                    else -> MaterialTheme.colorScheme.primaryContainer
+                },
             ) {
                 Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     val emoji = when {
@@ -733,7 +756,7 @@ fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () ->
                 Spacer(Modifier.height(8.dp))
                 FilledTonalButton(
                     {
-                        stopCry()
+                        startLaugh()
                         if (isEspConnected) scope.launch { Api.sendBabyCommand(espBabyUrl, "/trigger_laugh") }
                     },
                     Modifier.fillMaxWidth().height(48.dp)
@@ -742,7 +765,7 @@ fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () ->
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     {
-                        stopCry()
+                        stopAllSounds()
                         if (isEspConnected) scope.launch { Api.sendBabyCommand(espBabyUrl, "/stop_cry") }
                         msg = "Chaqaloq tinchitildi"
                     },
@@ -752,7 +775,7 @@ fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () ->
                 Spacer(Modifier.height(8.dp))
                 FilledTonalButton(
                     {
-                        stopCry()
+                        stopAllSounds()
                         if (isEspConnected) scope.launch { Api.sendBabyCommand(espBabyUrl, "/reset") }
                         msg = "Tizim qayta sozlandi"
                     },

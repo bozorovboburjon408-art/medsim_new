@@ -46,7 +46,21 @@ object Speaker {
             p.setDataSource(fd.fileDescriptor, fd.startOffset, fd.length)
             playPrepared(ctx, p, deviceId, loop) {}
             true
-        } catch (e: Exception) { false }
+        } catch (e: Exception) {
+            try {
+                val tmp = File(ctx.cacheDir, "asset_$name").also { f ->
+                    ctx.assets.open(name).use { input ->
+                        f.outputStream().use { output -> input.copyTo(output) }
+                    }
+                }
+                val p = MediaPlayer()
+                p.setDataSource(tmp.absolutePath)
+                playPrepared(ctx, p, deviceId, loop) {}
+                true
+            } catch (e2: Exception) {
+                false
+            }
+        }
     }
 
     private fun playPrepared(ctx: Context, p: MediaPlayer, deviceId: Int?, loop: Boolean, onDone: () -> Unit) {

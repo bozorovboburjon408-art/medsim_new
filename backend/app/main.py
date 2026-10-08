@@ -571,6 +571,13 @@ select{font-size:15px;padding:6px;width:100%}.m{font-size:14px;color:#475569;mar
 const token=new URLSearchParams(location.search).get('token')||'';
 const $=id=>document.getElementById(id);
 let ctx=null,stream=null,proc=null,chunks=[],rec=false;
+const SRC=window.SpeechRecognition||window.webkitSpeechRecognition;let sr=null,srText='',srDone=Promise.resolve();
+function srStart(){if(!SRC)return;srText='';sr=new SRC();sr.lang='uz-UZ';sr.interimResults=true;sr.continuous=true;sr.maxAlternatives=1;
+ srDone=new Promise(res=>{sr.onend=res;sr.onerror=res;});
+ sr.onresult=e=>{let t='';for(let i=0;i<e.results.length;i++)t+=e.results[i][0].transcript+' ';srText=t.trim();};
+ try{sr.start();}catch(e){}}
+async function srStop(){if(!sr)return SRC?'':null;try{sr.stop();}catch(e){}await Promise.race([srDone,new Promise(r=>setTimeout(r,1500))]);return srText;}
+
 function wav(f32,rate){const n=f32.length,b=new ArrayBuffer(44+n*2),v=new DataView(b);
  const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
  w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
@@ -586,18 +593,19 @@ async function initMic(){if(ready)return;stream=await navigator.mediaDevices.get
  src.connect(proc);proc.connect(ctx.destination);ready=true;}
 async function start(){if(rec)return;
  try{await initMic();}catch(e){$('st').textContent='Mikrofon ruxsati yo\\u2018q: '+e;return;}
- if(ctx.state==='suspended')ctx.resume();chunks=ring.slice();ring=[];ringLen=0;rec=true;$('st').textContent='Yozilyapti...';}
+ if(ctx.state==='suspended')ctx.resume();chunks=ring.slice();ring=[];ringLen=0;rec=true;srStart();$('st').textContent='Yozilyapti...';}
 async function stop(){if(!rec)return;await new Promise(r=>setTimeout(r,350));rec=false;const rate=ctx.sampleRate;$('lv').style.width='0';
  let n=0;for(const c of chunks)n+=c.length;const all=new Float32Array(n);let p=0;for(const c of chunks){all.set(c,p);p+=c.length;}
  if(n<rate*0.3){$('st').textContent='Juda qisqa, qaytadan urining';return;}
  const blob=wav(down(all,rate,16000),16000);$('st').textContent='Yuborilyapti ('+Math.round(blob.size/1024)+' KB)...';const t0=performance.now();
- try{const r=await fetch('/stt_compare',{method:'POST',headers:{'Content-Type':'audio/wav'},body:blob});
+ try{const [r,br]=await Promise.all([fetch('/stt_compare',{method:'POST',headers:{'Content-Type':'audio/wav'},body:blob}),srStop()]);
   const txt=await r.text();if(!r.ok)throw new Error('HTTP '+r.status+' '+txt.slice(0,200));
   const j=JSON.parse(txt);const sec=((performance.now()-t0)/1000).toFixed(1);
-  const f=(n,x)=>n+' ('+(x.ms/1000).toFixed(1)+' s): '+(x.error?'XATO '+x.error:(x.text||'(nutq topilmadi)'));
-  $('out').innerHTML='';for(const [n,x] of [['Gemini',j.gemini],['ElevenLabs Scribe',j.eleven]]){const d=document.createElement('div');d.textContent=f(n,x);$('out').appendChild(d);}
+  const f=(n,x)=>n+(x.ms?' ('+(x.ms/1000).toFixed(1)+' s)':'')+': '+(x.error?'XATO '+x.error:(x.text||'(nutq topilmadi)'));
+  $('out').innerHTML='';j.brauzer={text:br===null?'':br,error:br===null?'bu brauzer qo\u2018llamaydi (Chrome kerak)':'',ms:0};
+  for(const [n,x] of [['Gemini',j.gemini],['ElevenLabs Scribe',j.eleven],['Chrome/Google (uz-UZ)',j.brauzer]]){const d=document.createElement('div');d.textContent=f(n,x);$('out').appendChild(d);}
   $('st').textContent='Tayyor: '+sec+' s (ikkalasi parallel)';
-  const h=document.createElement('div');h.textContent=['Gemini: '+(j.gemini.text||j.gemini.error||'\u2014'),'Eleven: '+(j.eleven.text||j.eleven.error||'\u2014')].join('  |  ');$('h').prepend(h);}
+  const h=document.createElement('div');h.textContent=['Gemini: '+(j.gemini.text||j.gemini.error||'\u2014'),'Eleven: '+(j.eleven.text||j.eleven.error||'\u2014'),'Chrome: '+(j.brauzer.text||j.brauzer.error||'\u2014')].join('  |  ');$('h').prepend(h);}
  catch(e){$('st').textContent='Xato: '+e;}}
 initMic().catch(()=>{});
 const b=$('b');['mousedown','touchstart'].forEach(e=>b.addEventListener(e,ev=>{ev.preventDefault();start();}));

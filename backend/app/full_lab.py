@@ -19,7 +19,7 @@ button{background:#b91c1c;color:#fff;border:0;border-radius:12px;padding:18px 28
 <div class="card">
 <label>Bemor</label><select id="p">__PATIENTS__</select>
 <label>Ovoz</label><select id="e"><option value="eleven">ElevenLabs ovozi (asosiy; xato bo'lsa Edge)</option><option value="gemini">Gemini ovozi (oqim, xato bo'lsa Edge)</option><option value="edge_only">Edge ovozi</option></select>
-<label>Ovozdan matn</label><select id="se"><option value="gemini">Gemini</option><option value="eleven">ElevenLabs Scribe</option></select>
+<label>Ovozdan matn</label><select id="se"><option value="gemini">Gemini</option><option value="eleven">ElevenLabs Scribe</option><option value="browser">Chrome / Google (uz-UZ, bepul)</option></select>
 <label>Gemini matn modeli (faqat Gemini uchun)</label><select id="sm"><option value="">Avto (flash, keyin flash-lite)</option><option>gemini-2.5-flash</option><option>gemini-2.5-flash-lite</option><option>gemini-2.5-pro</option></select>
 <label>Gemini TTS modeli</label><select id="gm"><option>gemini-2.5-flash-tts</option><option>gemini-2.5-pro-tts</option><option>gemini-2.5-flash-preview-tts</option><option>gemini-2.5-pro-preview-tts</option></select>
 <label>Gemini ovozi</label><select id="gv"></select>
@@ -40,6 +40,13 @@ $('gv').innerHTML=VOICES.map(v=>'<option>'+v+'</option>').join('');
 const setSp=()=>{const q=SP[$('p').value]||{};const v=($('e').value==='eleven'?q.eleven:q.gemini)||1;$('sp').value=Math.round(v*100);$('spv').textContent=v.toFixed(2);const t=TP[$('p').value]||{tempo:1,stab:0.4};$('tp').value=Math.round(t.tempo*100);$('tpv').textContent=t.tempo.toFixed(2);$('st2').value=Math.round(t.stab*100);$('stv').textContent=$('st2').value;};
 $('sp').oninput=()=>{$('spv').textContent=($('sp').value/100).toFixed(2);};$('tp').oninput=()=>{$('tpv').textContent=($('tp').value/100).toFixed(2);};$('st2').oninput=()=>{$('stv').textContent=$('st2').value;};$('e').onchange=setSp;
 const setV=()=>{$('gv').value=DEF[$('p').value]||'Kore';$('ev').value=EVD[$('p').value]||'';$('em').value=EMD[$('p').value]||'eleven_multilingual_v2';setSp();};setV();$('p').onchange=()=>{setV();hist=[];$('log').innerHTML='';};
+const SRC=window.SpeechRecognition||window.webkitSpeechRecognition;let sr=null,srText='',srDone=Promise.resolve();
+function srStart(){if(!SRC)return;srText='';sr=new SRC();sr.lang='uz-UZ';sr.interimResults=true;sr.continuous=true;sr.maxAlternatives=1;
+ srDone=new Promise(res=>{sr.onend=res;sr.onerror=res;});
+ sr.onresult=e=>{let t='';for(let i=0;i<e.results.length;i++)t+=e.results[i][0].transcript+' ';srText=t.trim();};
+ try{sr.start();}catch(e){}}
+async function srStop(){if(!sr)return SRC?'':null;try{sr.stop();}catch(e){}await Promise.race([srDone,new Promise(r=>setTimeout(r,1500))]);return srText;}
+
 let hist=[],ctx=null,stream=null,proc=null,chunks=[],rec=false,ac=null,next=0,chain=Promise.resolve();
 function wav(f32,rate){const n=f32.length,b=new ArrayBuffer(44+n*2),v=new DataView(b);const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
  w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
@@ -57,16 +64,19 @@ async function initMic(){if(ready)return;stream=await navigator.mediaDevices.get
  src.connect(proc);proc.connect(ctx.destination);ready=true;}
 async function start(){if(rec)return;if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();ac.resume();
  try{await initMic();}catch(e){$('st').textContent='Mikrofon ruxsati yo\u2018q: '+e;return;}
- if(ctx.state==='suspended')ctx.resume();chunks=ring.slice();ring=[];ringLen=0;rec=true;$('st').textContent='Yozilyapti... gapirib bo\u2018lgach qo\u2018yib yuboring';}
+ if(ctx.state==='suspended')ctx.resume();chunks=ring.slice();ring=[];ringLen=0;rec=true;if($('se').value==='browser')srStart();$('st').textContent='Yozilyapti... gapirib bo\u2018lgach qo\u2018yib yuboring';}
 async function stop(){if(!rec)return;await new Promise(r=>setTimeout(r,350));rec=false;const T0=performance.now()-350,rate=ctx.sampleRate;$('lv').style.width='0';
  let n=0;for(const c of chunks)n+=c.length;if(n<rate*0.3){$('st').textContent='Juda qisqa, qaytadan urining';return;}
  let sq=0;for(const c of chunks)for(let i=0;i<c.length;i+=8)sq+=c[i]*c[i];if(Math.sqrt(sq/(n/8))<0.004){$('st').textContent='Ovoz juda past eshitildi (mikrofonni tekshiring), qaytadan urining';return;}
  const all=new Float32Array(n);let p=0;for(const c of chunks){all.set(c,p);p+=c.length;}
  const sec=()=>((performance.now()-T0)/1000).toFixed(1);const tm={};
  try{$('st').textContent='1/3 Gapingiz matnga aylantirilyapti...';
-  const r1=await fetch('/transcribe?engine='+$('se').value+($('sm').value?'&model='+encodeURIComponent($('sm').value):''),{method:'POST',headers:{'Content-Type':'audio/wav'},body:wav(down(all,rate,16000),16000)});
-  const t1=await r1.text();if(!r1.ok)throw new Error('Ovozdan matn: HTTP '+r1.status+' '+t1.slice(0,200));
-  const text=JSON.parse(t1).text.trim();tm.stt=sec();if(!text){$('st').textContent='Nutq topilmadi, qaytadan urining';return;}
+  let text='';
+  if($('se').value==='browser'){const br=await srStop();if(br===null)throw new Error('Bu brauzer ovozni tanimaydi (Chrome kerak)');text=br.trim();}
+  else{const r1=await fetch('/transcribe?engine='+$('se').value+($('sm').value?'&model='+encodeURIComponent($('sm').value):''),{method:'POST',headers:{'Content-Type':'audio/wav'},body:wav(down(all,rate,16000),16000)});
+   const t1=await r1.text();if(!r1.ok)throw new Error('Ovozdan matn: HTTP '+r1.status+' '+t1.slice(0,200));
+   text=JSON.parse(t1).text.trim();}
+  tm.stt=sec();if(!text){$('st').textContent='Nutq topilmadi, qaytadan urining';return;}
   addRow('Siz',text,'n1');hist.push({role:'user',content:text});
   $('st').textContent='2/3 Bemor o‘ylayapti...';
   const body={patient_id:$('p').value,history:hist,tts:$('e').value,tts_model:$('e').value==='eleven'?$('em').value:$('gm').value,gemini_voice:$('gv').value,eleven_voice:$('ev').value.trim()||null,eleven_script:$('es').value,voice_speed:($('e').value==='edge_only')?null:$('sp').value/100,eleven_tempo:$('tp').value/100,eleven_stability:$('st2').value/100};

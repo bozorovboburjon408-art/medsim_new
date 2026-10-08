@@ -206,6 +206,20 @@ fun SettingsDialog(server: String, model: String, tts: String, espBabyUrl: Strin
                     esp, { esp = it }, label = { Text("Chaqaloq manikeni IP (ESP32)") },
                     placeholder = { Text("http://192.168.1.50 yoki http://medsim-baby.local") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                 )
+                Spacer(Modifier.height(8.dp))
+                var espResult by remember { mutableStateOf("") }
+                OutlinedButton({
+                    scope.launch {
+                        espResult = "Tekshirilyapti…"
+                        val st = Api.getBabyStatus(esp)
+                        espResult = if (st != null) "✓ Maniken ulandi: ${st.stateUz} (${st.holdingText})"
+                                    else "✗ Maniken topilmadi. IP manzil va Wi-Fi ni tekshiring"
+                    }
+                }) { Text("Manikenni tekshirish") }
+                if (espResult.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(espResult, color = if (espResult.startsWith("✓")) Ok else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
 
                 Spacer(Modifier.height(14.dp))
                 Text("AI modeli (sinov uchun)", style = MaterialTheme.typography.labelLarge)
@@ -656,6 +670,23 @@ fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () ->
                             modifier = Modifier.fillMaxWidth(0.9f)
                         ) {
                             Column(Modifier.padding(12.dp)) {
+                                val isHazard = espStatus!!.shakeStatus == "VIOLENT" || espStatus!!.holdingStatus == "UPSIDE_DOWN"
+                                if (isHazard) {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.errorContainer,
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                                    ) {
+                                        Text(
+                                            "⚠️ ${if (espStatus!!.holdingStatus == "UPSIDE_DOWN") espStatus!!.holdingText else espStatus!!.shakeText}",
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(8.dp)
+                                        )
+                                    }
+                                }
+
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text("Ovunish progressi:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                                     Text("${espStatus!!.soothingProgress}%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
@@ -665,9 +696,23 @@ fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () ->
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).height(8.dp).clip(CircleShape),
                                     color = MaterialTheme.colorScheme.primary
                                 )
-                                Spacer(Modifier.height(4.dp))
+
+                                if (espStatus!!.happyProgress > 0 || espStatus!!.isLaughing) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Kulgi va quvonch:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                        Text("${espStatus!!.happyProgress}%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
+                                    }
+                                    LinearProgressIndicator(
+                                        progress = espStatus!!.happyProgress / 100f,
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).height(8.dp).clip(CircleShape),
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                }
+
+                                Spacer(Modifier.height(6.dp))
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Harakat intensivligi: ${espStatus!!.motion}", style = MaterialTheme.typography.labelSmall)
+                                    Text("Chayqatish: ${espStatus!!.shakeText}", style = MaterialTheme.typography.labelSmall)
                                     Text("Pitch: ${espStatus!!.pitch.toInt()}° | Roll: ${espStatus!!.roll.toInt()}°", style = MaterialTheme.typography.labelSmall)
                                 }
                             }
@@ -682,26 +727,37 @@ fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () ->
                         startCry()
                         if (isEspConnected) scope.launch { Api.sendBabyCommand(espBabyUrl, "/trigger_cry") }
                     },
-                    Modifier.fillMaxWidth().height(50.dp)
-                ) { Text("😭 Yig'latish", fontSize = 16.sp) }
+                    Modifier.fillMaxWidth().height(48.dp)
+                ) { Text("😭 Yig'latish", fontSize = 15.sp) }
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
                 FilledTonalButton(
                     {
+                        stopCry()
                         if (isEspConnected) scope.launch { Api.sendBabyCommand(espBabyUrl, "/trigger_laugh") }
                     },
-                    Modifier.fillMaxWidth().height(50.dp)
-                ) { Text("😄 Kuldurish", fontSize = 16.sp) }
+                    Modifier.fillMaxWidth().height(48.dp)
+                ) { Text("😄 Kuldurish", fontSize = 15.sp) }
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     {
                         stopCry()
                         if (isEspConnected) scope.launch { Api.sendBabyCommand(espBabyUrl, "/stop_cry") }
                         msg = "Chaqaloq tinchitildi"
                     },
-                    Modifier.fillMaxWidth().height(50.dp),
-                ) { Text("✅ Tinchlantirish (jim)", fontSize = 16.sp) }
+                    Modifier.fillMaxWidth().height(48.dp),
+                ) { Text("✅ Tinchlantirish (jim)", fontSize = 15.sp) }
+
+                Spacer(Modifier.height(8.dp))
+                FilledTonalButton(
+                    {
+                        stopCry()
+                        if (isEspConnected) scope.launch { Api.sendBabyCommand(espBabyUrl, "/reset") }
+                        msg = "Tizim qayta sozlandi"
+                    },
+                    Modifier.fillMaxWidth().height(48.dp),
+                ) { Text("🔄 Qayta sozlash", fontSize = 15.sp) }
 
                 Spacer(Modifier.height(14.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {

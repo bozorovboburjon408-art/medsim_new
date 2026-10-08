@@ -110,7 +110,7 @@ async def chat_stream(req: ChatRequest):
                 pit = pitch or p.eleven_speed
                 tempo = min(1.2, max(0.5, req.eleven_tempo)) if req.eleven_tempo else p.eleven_tempo
                 stab = min(1.0, max(0.0, req.eleven_stability)) if req.eleven_stability is not None else p.eleven_stability
-                text_v3 = eleven.prepare(raw) if model == "eleven_v3" else s
+                text_v3 = eleven.prepare(raw) if model in ("eleven_v3", "eleven_v4") else s  # audio teglar ([crying]) v3 va v4 da
                 cq: asyncio.Queue = asyncio.Queue()
 
                 async def start():

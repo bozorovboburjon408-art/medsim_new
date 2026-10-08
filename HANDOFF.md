@@ -59,3 +59,8 @@ Android: GitHub Actions `android.yml` debug APK quradi (artifact `1-tayyor-demo`
 - Modellar: `VERTEX_MODELS`, `VERTEX_EVAL_MODELS` (Vertex'da 3.x nomlari bo'lmasligi mumkin, hozir 2.5). Tekshirish: `/llm_check?token=...` har model uchun status va xatoni ko'rsatadi.
 - Google Cloud TTS (gemini-2.5-*-tts, Chirp3-HD) o'zbek tilini qo'llab-quvvatlamaydi (uz-UZ rad etiladi) — ishlatib bo'lmaydi.
 - Gemini TTS'da uslub ko'rsatmasi ("Say ...:" / rejissyor) ovoz chiqarib o'qiladi, foydalanib bo'lmaydi.
+
+## 8. Ovoz: ElevenLabs asosiy (oxirgi qaror)
+- Suhbat ovozi standarti: **ElevenLabs** (`CHAT_TTS=eleven`, kalit `ELEVENLABS_API_KEY` Render'da). Kalit yo'q yoki xato/9 s kechiksa avtomatik Edge'ga o'tadi. Gemini ovozi (Vertex) alohida variant (`tts="gemini"`), Edge uchun `tts="edge_only"`. Eski ilovalar yuboradigan `tts="edge"` server standartiga (ElevenLabs) tenglashtiriladi.
+- Ovozlar: buvi 6Fkh9WgMXOqBcOWxX91f, bobo xDwfBjUEPdIoQekNOXAX, homilador 132QLQIkg1RJGmpicuhR (eleven_multilingual_v2); **Madinaxon O72h9AUwisM6Zj4He72B, eleven_v3**, chalish koeffitsiyenti 1.3x (`eleven_speed`, bolalashtirish). Joyi: `backend/app/eleven.py` (DEFAULT_VOICE, DEFAULT_MODEL), `patients.py`.
+- Ovozdan matn: Gemini (Vertex) yoki ElevenLabs Scribe (`/transcribe?engine=eleven`); sinov sahifalari: `/stt_lab` (yonma-yon), `/full_lab` (to'liq zanjir), `/voice_lab`.

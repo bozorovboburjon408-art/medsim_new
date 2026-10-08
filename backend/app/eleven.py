@@ -6,7 +6,9 @@ from .config import settings
 BASE = "https://api.elevenlabs.io"
 
 # Antigravity tanlagan o'zbek kutubxona ovozlari (maxfiy emas). Bola uchun foydalanuvchi tanlaydi.
-DEFAULT_VOICE = {"buvi": "6Fkh9WgMXOqBcOWxX91f", "bobo": "xDwfBjUEPdIoQekNOXAX", "homilador": "132QLQIkg1RJGmpicuhR", "bola": ""}
+DEFAULT_VOICE = {"buvi": "6Fkh9WgMXOqBcOWxX91f", "bobo": "xDwfBjUEPdIoQekNOXAX", "homilador": "132QLQIkg1RJGmpicuhR", "bola": "O72h9AUwisM6Zj4He72B"}
+# Bemor bo'yicha model: Madinaxon eleven_v3 da qotirilgan, qolganlari standart (settings.eleven_tts_model)
+DEFAULT_MODEL = {"bola": "eleven_v3"}
 TTS_MODELS = ["eleven_multilingual_v2", "eleven_v3", "eleven_flash_v2_5", "eleven_turbo_v2_5"]
 
 

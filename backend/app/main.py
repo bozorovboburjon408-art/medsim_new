@@ -28,7 +28,7 @@ class ChatRequest(BaseModel):
     patient_id: str
     history: list[Turn]  # oxirgisi hamshiraning yangi gapi bo'lishi kerak
     model: str | None = None  # ixtiyoriy: shu model birinchi sinaladi
-    tts: str | None = None  # "gemini" bo'lsa Gemini ovozi (xato bo'lsa Edge), aks holda Edge
+    tts: str | None = None  # "eleven" | "gemini" | "edge_only"; boshqa qiymat (eski ilovalar "edge" yuboradi) = server standarti (CHAT_TTS, hozir ElevenLabs)
     tts_model: str | None = None  # Gemini TTS modeli (ixtiyoriy)
     gemini_voice: str | None = None  # Gemini ovozi nomi (ixtiyoriy)
     eleven_voice: str | None = None  # tts="eleven" bo'lsa ElevenLabs ovoz ID
@@ -88,12 +88,17 @@ async def chat_stream(req: ChatRequest):
 
         q: asyncio.Queue = asyncio.Queue()
 
+        mode = req.tts if req.tts in ("gemini", "eleven", "edge_only") else settings.chat_tts
+        if mode == "eleven" and not eleven.enabled():
+            mode = "edge_only"
+
         async def synth(s: str, t_llm: int):
             t = time.perf_counter()
-            if req.tts == "eleven":
+            if mode == "eleven":
                 try:
                     vid = req.eleven_voice if req.eleven_voice and re.fullmatch(r"[A-Za-z0-9]{10,40}", req.eleven_voice) else eleven.DEFAULT_VOICE.get(p.id, "")
-                    model = req.tts_model if req.tts_model and re.fullmatch(r"[A-Za-z0-9._-]{3,60}", req.tts_model) and req.tts_model.startswith("eleven") else ""
+                    model = (req.tts_model if req.tts_model and re.fullmatch(r"[A-Za-z0-9._-]{3,60}", req.tts_model) and req.tts_model.startswith("eleven")
+                             else eleven.DEFAULT_MODEL.get(p.id, ""))
                     pcm = await asyncio.wait_for(eleven.tts(tts.clean_for_tts(s), vid, model, req.eleven_script == "cyr"), timeout=9)
                     if pcm:
                         return s, pcm, "pcm", "elevenlabs", t_llm, int((time.perf_counter() - t) * 1000)
@@ -101,7 +106,7 @@ async def chat_stream(req: ChatRequest):
                     log.warning("ElevenLabs TTS xatosi, Edge'ga o'tildi: %s", e)
                 audio, _ = await tts.synthesize(s, p)
                 return s, audio, "mp3", "edge (elevenlabs xato)", t_llm, int((time.perf_counter() - t) * 1000)
-            if req.tts == "gemini":
+            if mode == "gemini":
                 voice = req.gemini_voice if req.gemini_voice in tts.GEMINI_VOICES else tts.GEMINI_DEFAULT_VOICE.get(p.id, "Kore")
                 model = req.tts_model if req.tts_model and re.fullmatch(r"[A-Za-z0-9._-]{3,80}", req.tts_model) else settings.gemini_tts_model
                 clean = tts.clean_for_tts(s)

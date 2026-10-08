@@ -1,66 +1,63 @@
-# MedSim — loyiha topshiriq hujjati
+# MedSim: loyiha holati (to'liq topshiriq hujjati)
 
-## 1. Maqsad
-Patronaj hamshiralik talabalari uchun **AI bemor simulyatori**. Talaba (hamshira) o'zbek tilida gapiradi, AI bemor o'zbek tilida javob beradi. Bemor ovozi har bir manekendagi **Bluetooth karnaydan** chiqadi. Mijoz: planshetdagi **native Android (Kotlin) APK**; backend Render'da. ESP32/WiFi modullar endi yo'q.
+## 1. Loyiha nima
+Patronaj hamshiralik talabalari uchun **AI bemor simulyatori**. Talaba (hamshira) planshetdagi Android ilovada o'zbekcha gapiradi, AI bemor o'zbekcha javob beradi va ovozi har maniken ichidagi Bluetooth karnaydan chiqadi.
 
 Bemorlar (`backend/app/patients.py`, ssenariylar `backend/app/scenarios/*.txt`):
-- `buvi` — Salomat buvi, 75, qandli diabet (faqat buvi gapiradi)
-- `homilador` — Nilufar, 32 haftalik homilador
-- `bola` — Madinaxon, 5 yoshli QIZALOQ (o'zi gapiradi; gelmintoz). Gemini'da bola ovozi yo'q, shuning uchun yosh qiz ovozi (Callirrhoe) PCM'ni 1.12x tezlik/balandlik bilan chalish orqali bolaga yaqinlashtirilgan (`gemini_speed`). Ssenariy matnida hozircha 'Jasurbek' ismi bor; `name_swap` uni Madinaxon deb almashtiradi. Yangi matn kelganda yangilanadi.
-- `chaqaloq` — AI yo'q: yig'laydi (baby_cry.mp3), kuladi (baby_laugh.m4a); ESP32-C6 maniken datchigi (esp32/ papkasi, Wi-Fi orqali /status) yoki planshet akselerometri bilan tinchlanadi
-- `bobo` — Hikmatilla ota, 78 yosh, yoshga doir skrining (ssenariy qo'shildi; faqat o'zi gapiradi, Edge Sardor ovozi)
+| id | Kim | Izoh |
+|---|---|---|
+| `buvi` | Salomat buvi, 75, qandli diabet | faqat o'zi gapiradi |
+| `homilador` | Nilufar, 32 haftalik homilador | |
+| `bola` | **Madinaxon**, 5 yoshli QIZALOQ, gijja | ssenariy matnida hozircha "Jasurbek" ismi, `name_swap` uni Madinaxon deb almashtiradi; yangi matn keyin yuklanadi |
+| `bobo` | Hikmatilla ota, 78, skrining | quloqlari og'ir |
+| `chaqaloq` | AI yo'q | yig'laydi/kuladi (mp3), ESP32-C6 maniken datchigi yoki planshet akselerometri bilan tinchlanadi |
 
-## 2. Arxitektura (production)
+## 2. Arxitektura
 ```
-Android: SpeechRecognizer(uz-UZ) -> matn
-  -> POST /chat_stream (NDJSON, har gap bo'yicha)
-Backend: Gemini (REST streamGenerateContent) gaplarga bo'lib -> Edge TTS (mp3) har gap -> oqim
-Android: mp3 navbati MediaPlayer bilan Bluetooth karnayga
+Android (Kotlin, Compose): ovozdan matn (hozir Android SpeechRecognizer uz-UZ)
+  -> POST /chat_stream (NDJSON, gap-gapma)
+Backend (FastAPI, Docker, Render Starter, https://medsim-backend-oyfd.onrender.com):
+  Gemini (Vertex AI, $300 kredit) gaplarga bo'lib -> ElevenLabs ovozi (oqim, PCM) har gap parallel
+Android: PCM/mp3 bo'laklarini Bluetooth karnayga chaladi (AudioTrack)
 ```
-- Birinchi ovozgacha ~2–2.5 s.
-- `/evaluate`: hamshirani baholash (5 mezon × 20 ball) — `evaluator.py`.
-- Backend: FastAPI, Docker, Render Starter ($7, uxlamaydi). URL: https://medsim-backend-oyfd.onrender.com . `render.yaml` Blueprint.
-- Render **env o'zgaruvchilari kod default'laridan ustun** (GEMINI_MODELS, TTS_PROVIDER...).
-- Gemini modellari: `GEMINI_MODELS=gemini-3.5-flash-lite,gemini-3.1-flash-lite` (thinkingLevel=low, sekin/xato modelga circuit-breaker), baholash: `GEMINI_EVAL_MODELS`.
-- Ovoz: faqat Edge TTS (uz-UZ-MadinaNeural/SardorNeural, bemorga mos rate/pitch). Gemini TTS **olib tashlangan** (xarajatning ~90%i edi, ohangi beqaror). Azure ixtiyoriy (`TTS_PROVIDER=azure`).
+- Branch: `claude/confident-volta-sfk9ep` (Render shu branchdan avtomatik deploy qiladi). Repo: github.com/bozorovboburjon408-art/medsim_new.
+- Matn modeli: Vertex AI orqali Gemini (`gemini-2.5-flash-lite`, `gemini-2.5-flash`), `backend/app/llm.py`, `vertex.py`. Kalit: Render'da `GOOGLE_SA_JSON` (service account `medsim-llm`, rol "Agent Platform User"). Tekshiruv: `/llm_check?token=...`.
+- Ovoz: **ElevenLabs asosiy** (`CHAT_TTS=eleven`, `ELEVENLABS_API_KEY`). Xato yoki 8 s kechiksa shu gap Edge TTS'da. Zaxira/variantlar: Gemini ovozi (`tts="gemini"`), Edge (`tts="edge_only"`).
+- Ovozlar (`backend/app/eleven.py`): buvi 6Fkh9WgMXOqBcOWxX91f, bobo xDwfBjUEPdIoQekNOXAX, homilador 132QLQIkg1RJGmpicuhR (model `eleven_multilingual_v2`); **Madinaxon O72h9AUwisM6Zj4He72B, model `eleven_v3`**, gapirish tezligi 0.85 (ElevenLabs sozlamasi), balandlik koeffitsiyenti 1.0 (`eleven_speed`), ifodalilik 0.5. V3 da `[crying]`/`[sobbing]` belgilari yig'lash tovushini beradi; belgilar ekranda ko'rinmaydi, `eleven.prepare/strip_tags/crying_fix`.
+- Eski Android ilova `tts="edge"` yuboradi: server uni standartga (ElevenLabs) tenglashtiradi, shuning uchun APK yangilamasdan ham ElevenLabs ishlaydi.
+- Ovozdan matn (STT) variantlari (hammasi o'zbekchada **zaif**, asosiy muammo): Gemini (`/transcribe`), ElevenLabs Scribe (`/transcribe?engine=eleven`), Chrome/Google uz-UZ (brauzerda). Android'ning o'z tanishi eng yaxshisi bo'lishi mumkin: solishtirilmoqda.
+- Baholash (`/evaluate`, `evaluator.py`, 5 mezon x 20 ball): **hozircha sozlanmaydi**, keyin qaytiladi.
 
-Fayllar: `backend/app/{main,llm,tts,patients,evaluator,config,live}.py`; Android: `android/app/src/main/java/uz/medsim/{Api,Speaker,MainActivity,Theme}.kt`.
-Maxfiy sahifalar `?token=` (env `DEBUG_TOKEN`, hozir `sinov7421`): `/voice_lab` (Edge ovoz sozlash), `/live_lab` (Gemini Live tajriba), `/models`, `/health`.
+## 3. Render muhit o'zgaruvchilari (qiymatlar faqat Render'da, hech qachon chatga/gitga yozilmaydi)
+`DEBUG_TOKEN` (sinov sahifalari uchun, hozir `sinov7421`), `GOOGLE_SA_JSON`, `ELEVENLABS_API_KEY`. Ixtiyoriy: `CHAT_TTS` (eleven|gemini|edge_only), `VERTEX_MODELS`, `STT_MODELS`. Render env kod standartlaridan ustun.
 
-## 3. Hozirgi tajriba: Gemini Live (`backend/app/live.py`)
-Maqsad: ovozdan-ovozga modelga (gemini-3.8-live) to'liq o'tish mumkinmi, aniqlash. Hozir faqat **lab** (`/live_lab`), production'ga ulanmagan. WebSocket proxy `/live_ws`: brauzer 16 kHz PCM yuboradi, 24 kHz PCM javob qaytadi; transkriptlar va token hisobi ko'rsatiladi.
+## 4. Sinov sahifalari (hammasi `?token=<DEBUG_TOKEN>`)
+- `/full_lab`: mikrofon -> ovozdan matn -> Gemini javob -> ovoz (to'liq zanjir, vaqtlar ko'rsatiladi; STT/TTS/chizg'ichlar tanlanadi).
+- `/voice_lab`: ovozlarni yonma-yon eshitish (Edge/Gemini/ElevenLabs), ElevenLabs kutubxonasidan ovoz qidirish.
+- `/stt_lab`: Gemini, Scribe va Chrome tanishini yonma-yon solishtirish.
+- `/self_test?patient=all|bola|...`: 10 savollik ssenariyli suhbat (matn) + avtomatik belgilar (takror, uzun, "yig'lay" so'zi, to'qima a'zo).
+- `/stt_selftest`: ElevenLabs bilan aytdirilgan gaplarda Gemini va Scribe so'z xatosi.
+- `/llm_check`, `/health` (deploy commit), `/models`.
 
-Natijalar:
-- Birinchi ovoz ~0.5–1.2 s (juda tez), o'zbekcha ovozli javob chiqadi.
-- Muammolar: (a) o'zbek tilini tanish sifati past (transkriptsiya tasodifiy tillarga ketadi; `language_codes=["uz-UZ"]` + lug'at qo'shildi, natijasi hali to'liq tekshirilmagan); (b) suhbat davomida **ovoz o'zgarib ketadi** (buvi -> erkak) — kontekst siqish o'chirildi va promptga qoida qo'shildi, tekshirilmagan; (c) bemor o'zini boshqa rol deb o'ylashi (Jasurbek o'zini buvi deb) — prompt boshiga `IDENT` qo'shildi, tekshirilmagan; (d) bola uchun Gemini'da bola ovozi yo'q (hozir Puck); (e) har gapda butun prompt (~4.4K token) qayta hisoblanadi, ~5–6K token/tur.
-- **Qaror mezoni:** Live mikrofon bilan o'zbekchani yaxshi tushunsa va ovoz barqaror bo'lsa — Android'ni Live'ga ko'chirish (katta ish: mikrofon oqimi WebSocket orqali, bosib-gapirish tugmasi (echo uchun), baholash uchun transkript). Aks holda — hozirgi tizim (Android STT + Flash-Lite + Edge) da qolish.
+## 5. Android ilova
+`android/app/src/main/java/uz/medsim/` (Api.kt, Speaker.kt, MainActivity.kt, Theme.kt). Bemor kartalari, mikrofon tugmasi, server holati, chaqaloq ekrani (ESP32 manikeni `esp32/` papkasi + planshet akselerometri zaxira, kulgi/yig'i ovozlari), sozlamalar. APK'ni GitHub Actions quradi (`.github/workflows/android.yml`), artifact nomi `1-tayyor-demo`. **Android hali yangilanmagan**: ilova eski STT (Android) va server standartiga tayanadi; ElevenLabs PCM oqimini (`pcm_b64`, `rate`, bo'sh matnli bo'laklar) qabul qila oladi.
 
-## 4. Ochiq vazifalar
-1. `/live_lab` ni haqiqiy mikrofon bilan sinash (agent buni qila olmagan; foydalanuvchi sinab natija beradi) va yuqoridagi (a)(b)(c) ni yopish yoki Live'dan voz kechish.
-3. Edge ovozlarni `/voice_lab` da sozlash (foydalanuvchi qiymat beradi).
-4. UI qayta dizayni (foydalanuvchi generatsiya qilgan mockup/portretlarni beradi).
-5. Ssenariy promptlarini qisqartirish (~10K belgi; hamshiraga tavsiyalar qismi bemorga kerak emas) — token tejash.
-6. Render env tozalash: eski `TTS_PROVIDER`, `GEMINI_TTS_*`, `VOICELAB_*`.
-7. Keyinroq: chaqaloq uchun haqiqiy harakat datchigi.
+## 6. Ochiq vazifalar (muhimlik tartibida)
+1. **Ovozdan matn sifati**: `/stt_lab` da Gemini/Scribe/Chrome solishtirish natijasi kutilmoqda. Chrome/Google yaxshi bo'lsa, Android'ning o'z tanishi qoladi. Aks holda: Google Cloud Speech-to-Text (Chirp, so'z maslahatlari bilan) yoki o'zbek ixtisoslashgan xizmat (UzbekVoice, Muxlisa).
+2. **Kechikish**: oxirgi o'lchov birinchi tovush ~6 s edi (STT 2.8 s + V3 ovoz). Oqimli ovoz va qisqa birinchi gap qo'shildi, natija tekshirilmagan. V3 sekin bo'lsa Madinaxon uchun `eleven_multilingual_v2` (yig'lash belgisiz).
+3. **Bemor xulq-atvori**: javob uzunligi savolga qarab, ssenariyga sodiqlik, takrorlamaslik, tushunarsizga "Nima dedingiz?", Madinaxon shikoyatlari qat'iy. Yaqinda o'zgargan, `/self_test` bilan tekshirish kerak.
+4. **Android ilovani yangilash**: ElevenLabs ovozi (ishlaydi), tanlangan STT, bola kartasi (Madinaxon, qiz), chaqaloq qismi (allaqachon bor). Keyin APK qurish.
+5. Madinaxon ssenariysining yangi matni (foydalanuvchi yuklaydi, `name_swap` olib tashlanadi).
+6. Edge ovozlarini sozlash (zaxira), UI qayta dizayn (foydalanuvchi mockup beradi), ssenariylarni qisqartirish (token tejash), baholashni qaytib sozlash.
 
-## 5. Ishga tushirish
-Backend: `cd backend && python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt && cp .env.example .env` (kalitni .env ga) `&& uvicorn app.main:app --reload`.
-Android: GitHub Actions `android.yml` debug APK quradi (artifact `1-tayyor-demo`) yoki Android Studio'da `android/` ochiladi (minSdk 28, landscape). Ilova sozlamalarida server URL: Render manzili.
+## 7. Muhim qarorlar va saboqlar
+- Gemini TTS (Vertex) qimmat va beqaror edi, uslub ko'rsatmasini ovoz chiqarib o'qib yuboradi, ba'zan 20 s kechikadi (shuning uchun qayta yuborish/Edge zaxirasi). Google Cloud TTS o'zbekchani qo'llamaydi.
+- Gemini'da haqiqiy bola ovozi yo'q. ElevenLabs'da Madinaxon uchun ovoz topildi (O72h9...). Voyaga yetmagan haqiqiy ovozni klonlash faqat vasiyning yozma roziligi bilan.
+- Matn tanish promptiga so'zlar ro'yxati qo'shish xato: model uni gapingiz deb yozib yuboradi.
+- Mikrofon: gap boshi kesilmasligi uchun doimiy oqim + 0.7 s oldingi yozuv + 0.35 s dum; to'xtatish ikki marta ishga tushmasligi uchun `stopping` bayrog'i.
+- Antigravity (boshqa agent) shu branchga yuborgan ishlar `merge -s ours` bilan bekor qilingan (tarixda saqlanadi); faqat chaqaloq/ESP32/kulgi ishlari qaytarildi. Boshqa agent bilan bir branchda ishlamang.
+- Qoidalar: foydalanuvchi bilan o'zbekcha; API kalitlarini hech qachon chatga/gitga yozmang va so'ramang (faqat Render Environment); yangi Python bog'liqliklari toza venv'da tekshirilsin; lab sahifalari JS'ini jsdom/brauzerda tekshiring.
 
-## 6. Tajribadan saboqlar
-- Gemini TTS qimmat va beqaror edi; past temperature/seed ovozni cho'zib yubordi.
-- Edge TTS Render'dan 403 berdi -> `edge-tts>=7.2.8`.
-- Bepul Render uxlaydi (30–50 s) -> Starter + ilova `/health` ping.
-- Foydalanuvchi AI'ning tezligiga (2–3 s), bir xil premium ovozga va arzonlikka e'tibor beradi; taqdimot (demo) ishonchliligi muhim.
-
-## 7. Vertex AI (Google Cloud $300 krediti) — oxirgi holat
-- AI Studio'dagi $30 prepay tugadi; $300 GCP kredit AI Studio kalitiga amal qilmaydi. Shuning uchun matn (suhbat + baholash) Vertex AI orqali chaqiriladi: `backend/app/vertex.py`, `llm.target()`.
-- Yoqish: Render env'da `GOOGLE_SA_JSON` (service account JSON matni, rol "Vertex AI User"). Bo'sh bo'lsa AI Studio kaliti ishlatiladi.
-- Modellar: `VERTEX_MODELS`, `VERTEX_EVAL_MODELS` (Vertex'da 3.x nomlari bo'lmasligi mumkin, hozir 2.5). Tekshirish: `/llm_check?token=...` har model uchun status va xatoni ko'rsatadi.
-- Google Cloud TTS (gemini-2.5-*-tts, Chirp3-HD) o'zbek tilini qo'llab-quvvatlamaydi (uz-UZ rad etiladi) — ishlatib bo'lmaydi.
-- Gemini TTS'da uslub ko'rsatmasi ("Say ...:" / rejissyor) ovoz chiqarib o'qiladi, foydalanib bo'lmaydi.
-
-## 8. Ovoz: ElevenLabs asosiy (oxirgi qaror)
-- Suhbat ovozi standarti: **ElevenLabs** (`CHAT_TTS=eleven`, kalit `ELEVENLABS_API_KEY` Render'da). Kalit yo'q yoki xato/9 s kechiksa avtomatik Edge'ga o'tadi. Gemini ovozi (Vertex) alohida variant (`tts="gemini"`), Edge uchun `tts="edge_only"`. Eski ilovalar yuboradigan `tts="edge"` server standartiga (ElevenLabs) tenglashtiriladi.
-- Ovozlar: buvi 6Fkh9WgMXOqBcOWxX91f, bobo xDwfBjUEPdIoQekNOXAX, homilador 132QLQIkg1RJGmpicuhR (eleven_multilingual_v2); **Madinaxon O72h9AUwisM6Zj4He72B, eleven_v3**, chalish koeffitsiyenti 1.3x (`eleven_speed`, bolalashtirish). Joyi: `backend/app/eleven.py` (DEFAULT_VOICE, DEFAULT_MODEL), `patients.py`.
-- Ovozdan matn: Gemini (Vertex) yoki ElevenLabs Scribe (`/transcribe?engine=eleven`); sinov sahifalari: `/stt_lab` (yonma-yon), `/full_lab` (to'liq zanjir), `/voice_lab`.
+## 8. Qanday davom etiladi
+- Kodni o'zgartirish: Claude Code (yangi, qisqa sessiya shu hujjat bilan) yoki GitHub'da qo'lda. Oddiy chat kodni ko'rmaydi va o'zgartirmaydi: undan maslahat/kod parchasi olib, qo'lda qo'yish kerak.
+- Barcha AI ko'rsatmalari (promptlar) alohida: `PROMPTS.md`.

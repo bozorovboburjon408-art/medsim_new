@@ -122,18 +122,29 @@ async def chat_stream(req: ChatRequest):
                     """eleven_v3 ba'zan 6-9 s kechikadi: 1.8 s da birinchi tovush kelmasa bir xil so'rov parallel yuboriladi, birinchi kelgani olinadi."""
                     pend = {asyncio.create_task(start())}
                     t0, hedged, err = time.perf_counter(), False, None
+                    t_all = t0
                     try:
                         while pend:
                             left = (1.8 if not hedged else 8) - (time.perf_counter() - t0)
                             done, pend = await asyncio.wait(pend, timeout=max(left, 0.05), return_when=asyncio.FIRST_COMPLETED)
+                            ok = []
                             for d in done:
                                 if d.exception():
                                     err = d.exception()
                                 else:
-                                    return d.result()
+                                    ok.append(d.result())
+                            if ok:
+                                for extra_it, _ in ok[1:]:  # ikkinchi nusxa ham tayyor bo'lib qolgan: uni yopamiz (band joy bo'shaydi)
+                                    asyncio.create_task(extra_it.aclose())
+                                return ok[0]
                             if not done:
+                                if time.perf_counter() - t_all > 12:
+                                    raise asyncio.TimeoutError("ElevenLabs juda sekin")
                                 if hedged:
                                     raise asyncio.TimeoutError("ElevenLabs birinchi tovush kelmadi")
+                                if not eleven.slots_free():  # chegara band: ikkinchi nusxa yuborilmaydi, birinchisini kutamiz
+                                    t0 = time.perf_counter() - 1.0
+                                    continue
                                 hedged = True
                                 log.info("eleven_v3 sekin (%s): ikkinchi so'rov yuborildi", p.id)
                                 pend.add(asyncio.create_task(start()))
@@ -147,8 +158,10 @@ async def chat_stream(req: ChatRequest):
 
                 async def fill():
                     n, t1 = 0, time.perf_counter()
+                    it_ref: list = []
                     try:
                         it, first = await first_chunk()
+                        it_ref.append(it)
                         n += 1
                         await cq.put(("pcm", first, int((time.perf_counter() - t1) * 1000)))
                         while True:
@@ -169,6 +182,12 @@ async def chat_stream(req: ChatRequest):
                                 await cq.put(("mp3", audio, int((time.perf_counter() - t1) * 1000)))
                             except Exception as e2:
                                 await cq.put(("error", str(e2)[:200], 0))
+                    finally:
+                        for x in it_ref:  # band joy (ElevenLabs bir vaqtdagi chegarasi) albatta bo'shatilsin
+                            try:
+                                await x.aclose()
+                            except Exception:
+                                pass
                     await cq.put(None)
 
                 bg.append(asyncio.create_task(fill()))

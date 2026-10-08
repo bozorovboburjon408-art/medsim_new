@@ -241,7 +241,7 @@ for(const [id,d] of Object.entries(P)){
  '<label>Uslub shakli</label><select class="gmo"><option value="none">Uslubsiz (tavsiya)</option><option value="say">Say ...: matn</option><option value="director">Rejissyor yozuvi</option></select>'+
  '<label>Balandlik (oʻynatish tezligi): <span class="pbv">1.00</span>x (bolaga: 1.15\u20131.35)</label><input class="pb" type="range" min="80" max="160" value="100">'+
  '<label>Matn</label><textarea class="t" rows="3">'+d.sample+'</textarea>'+
- '<button class="e">▶ Edge</button><button class="g">▶ Gemini</button><button class="c">⇄ Ketma-ket</button>'+
+ '<button class="e">▶ Edge</button><button class="g">▶ Gemini</button><button class="s" style="background:#6d28d9">⚡ Gemini oqim</button><button class="c">⇄ Ketma-ket</button>'+
  '<div class="m">Qiymat: <code class="o"></code></div><div class="m st"></div><audio controls style="width:100%"></audio></div>');
 }
 document.querySelectorAll('.card[id]').forEach(c=>{
@@ -263,9 +263,43 @@ document.querySelectorAll('.card[id]').forEach(c=>{
   catch(e){st.textContent='Xato: '+e;}};
  c.querySelector('.e').onclick=()=>play('edge');
  c.querySelector('.g').onclick=()=>play('gemini');
+ c.querySelector('.s').onclick=async()=>{st.textContent='Gemini oqim: so\u2018ralmoqda...';const t0=performance.now();
+  try{const q=new URLSearchParams({token:token,patient:c.id,text:t.value,gvoice:gv.value,gmodel:document.getElementById('gm').value,gstyle:gs.value,gmode:gmo.value});
+   const res=await fetch('/voice_stream?'+q.toString());if(!res.ok)throw new Error('HTTP '+res.status+' '+(await res.text()).slice(0,200));
+   const ac=new (window.AudioContext||window.webkitAudioContext)();await ac.resume();const rd=res.body.getReader();
+   let left=null,next=ac.currentTime+0.05,first=null,total=0;
+   for(;;){const {done,value}=await rd.read();if(done)break;if(!value||!value.length)continue;
+    if(first===null){first=(performance.now()-t0)/1000;st.textContent='Gemini oqim: birinchi tovush '+first.toFixed(1)+' s da chalinmoqda...';}
+    let b=value;if(left){const m=new Uint8Array(left.length+b.length);m.set(left);m.set(b,left.length);b=m;left=null;}
+    if(b.length%2){left=b.slice(b.length-1);b=b.slice(0,b.length-1);}
+    const n=b.length/2;if(!n)continue;const dv=new DataView(b.buffer,b.byteOffset,b.length);const f=new Float32Array(n);
+    for(let i=0;i<n;i++)f[i]=dv.getInt16(i*2,true)/32768;total+=n;
+    const buf=ac.createBuffer(1,n,24000);buf.copyToChannel(f,0);const src=ac.createBufferSource();src.buffer=buf;src.playbackRate.value=pb.value/100;src.connect(ac.destination);
+    if(next<ac.currentTime)next=ac.currentTime+0.02;src.start(next);next+=buf.duration/src.playbackRate.value;}
+   const all=((performance.now()-t0)/1000).toFixed(1);st.textContent='Gemini oqim: birinchi tovush '+first.toFixed(1)+' s, hammasi '+all+' s ('+(total/24000).toFixed(1)+' s ovoz, '+document.getElementById('gm').value+')';}
+  catch(e){st.textContent='Xato: '+e;}};
  c.querySelector('.c').onclick=async()=>{await play('edge');await play('gemini');};
 });
 </script></body></html>"""
+
+
+@app.get("/voice_stream")
+async def voice_stream(token: str = "", patient: str = "buvi", text: str = "", gvoice: str = "", gmodel: str = "",
+                       gstyle: str = "", gmode: str = "none"):
+    """Gemini ovozini oqim bilan beradi (raw PCM 24 kHz s16le): birinchi bo'lak kelishi bilan chalish mumkin."""
+    _check_token(token)
+    p = PATIENTS.get(patient)
+    if not p:
+        raise HTTPException(404, "Bemor topilmadi")
+    txt = tts.clean_for_tts(text[:300]) or SAMPLES.get(patient, "Assalomu alaykum.")
+    gv = gvoice if gvoice in tts.GEMINI_VOICES else tts.GEMINI_DEFAULT_VOICE.get(patient, "Kore")
+    if not re.fullmatch(r"[A-Za-z0-9._-]{3,80}", gmodel):
+        raise HTTPException(400, "Gemini TTS modeli tanlanmagan")
+    try:
+        gen = await tts.gemini_tts_stream(txt, gv, gmodel, gstyle, gmode if gmode in ("say", "director") else "none")
+    except Exception as e:
+        raise HTTPException(502, f"Gemini TTS: {e}")
+    return StreamingResponse(gen, media_type="application/octet-stream", headers={"X-Sample-Rate": "24000"})
 
 
 @app.get("/voice_lab", response_class=HTMLResponse)

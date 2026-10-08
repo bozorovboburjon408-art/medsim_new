@@ -3,6 +3,7 @@ Gemini faqat matn (suhbat va baholash) uchun ishlatiladi, ovoz uchun emas."""
 import asyncio
 import base64
 import io
+import json
 import logging
 import re
 import wave
@@ -152,3 +153,40 @@ async def cloud_tts_lab(text: str, voice: str, model: str, style: str = "") -> b
     if r.status_code >= 400:
         raise RuntimeError(f"{r.status_code} {r.text[:300]}")
     return base64.b64decode(r.json()["audioContent"])
+
+
+async def gemini_tts_stream(text: str, voice: str, model: str, style: str = "", mode: str = "none"):
+    """Gemini TTS oqimi: PCM (24 kHz, 16-bit, mono) bo'laklari keladigan zahoti qaytariladi.
+    Birinchi (status) tekshiruvi oqim boshlanmasdan bajariladi, xato bo'lsa RuntimeError."""
+    from . import llm
+    body = {"contents": [{"role": "user", "parts": [{"text": gemini_prompt(text, style, mode)}]}],
+            "generationConfig": {"responseModalities": ["AUDIO"],
+                                 "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}}}
+    url, hdr = await llm.target(model, "streamGenerateContent?alt=sse")
+    client = httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=40, write=5, pool=5))
+    try:
+        r = await client.send(client.build_request("POST", url, json=body, headers=hdr), stream=True)
+    except Exception:
+        await client.aclose()
+        raise
+    if r.status_code >= 400:
+        err = (await r.aread()).decode()[:200]
+        await r.aclose(); await client.aclose()
+        raise RuntimeError(f"{r.status_code} {err}")
+
+    async def gen():
+        try:
+            async for line in r.aiter_lines():
+                if not line.startswith("data:"):
+                    continue
+                try:
+                    parts = json.loads(line[5:])["candidates"][0]["content"]["parts"]
+                except (KeyError, IndexError, ValueError):
+                    continue
+                for p in parts:
+                    d = (p.get("inlineData") or {}).get("data")
+                    if d:
+                        yield base64.b64decode(d)
+        finally:
+            await r.aclose(); await client.aclose()
+    return gen()

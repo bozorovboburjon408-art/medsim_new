@@ -39,6 +39,9 @@ async def synthesize(text: str, p: Patient, provider: str | None = None) -> tupl
         return b"", "none"
 
     prov = (provider or settings.tts_provider).strip().lower()
+    # Agar alohida provider='edge' so'ralmagan bo'lsa va Gemini kaliti bo'lsa, Gemini'ni birlamchi qilamiz
+    if provider is None and settings.gemini_api_key:
+        prov = "gemini"
 
     if prov in ("gemini", "auto", ""):
         if settings.gemini_api_key:
@@ -76,7 +79,7 @@ async def _gemini(text: str, p: Patient) -> bytes:
     voice = getattr(p, "gemini_voice", None) or GEMINI_DEFAULT_VOICE.get(p.id, "Kore")
 
     body = {
-        "contents": [{"role": "user", "parts": [{"text": text}]}],
+        "contents": [{"parts": [{"text": text}]}],
         "generationConfig": {
             "temperature": 0.0,  # Ovoz va ritm tasodifiy o'zgarib ketmasligi, doim barqaror chiqishi uchun
             "responseModalities": ["AUDIO"],

@@ -323,7 +323,7 @@ async def debug_tts(text: str = "Assalomu alaykum, yaxshimisiz?", voice: str = "
     models = [m.strip() for m in settings.gemini_tts_models.split(",") if m.strip()]
     results = []
     body = {
-        "contents": [{"role": "user", "parts": [{"text": text}]}],
+        "contents": [{"parts": [{"text": text}]}],
         "generationConfig": {
             "temperature": 0.0,
             "responseModalities": ["AUDIO"],
@@ -335,20 +335,31 @@ async def debug_tts(text: str = "Assalomu alaykum, yaxshimisiz?", voice: str = "
         },
     }
     hdr = {"x-goog-api-key": settings.gemini_api_key}
-    async with httpx.AsyncClient(timeout=10) as c:
+    async with httpx.AsyncClient(timeout=20) as c:
         for m in models:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
             try:
                 r = await c.post(url, json=body, headers=hdr)
                 if r.status_code == 200:
                     data = r.json()
-                    parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                    cands = data.get("candidates", [])
+                    cand = cands[0] if cands else {}
+                    parts = cand.get("content", {}).get("parts", [])
                     has_audio = any("inlineData" in pt for pt in parts)
-                    results.append({"model": m, "status": 200, "has_audio": has_audio, "parts_count": len(parts)})
+                    results.append({
+                        "model": m,
+                        "status": 200,
+                        "finish_reason": cand.get("finishReason"),
+                        "has_audio": has_audio,
+                        "parts_count": len(parts),
+                        "cand_keys": list(cand.keys()),
+                        "content_keys": list(cand.get("content", {}).keys()) if cand.get("content") else [],
+                        "sample": str(cand)[:200]
+                    })
                 else:
                     results.append({"model": m, "status": r.status_code, "detail": r.text[:250]})
             except Exception as e:
-                results.append({"model": m, "error": str(e)})
+                results.append({"model": m, "error": f"{type(e).__name__}: {e}"})
     return {"voice": voice, "results": results}
 
 

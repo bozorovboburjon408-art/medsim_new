@@ -93,12 +93,6 @@ async def _gemini(text: str, p: Patient) -> bytes:
 
     body = {
         "contents": [{"parts": [{"text": text}]}],
-        "safetySettings": [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-        ],
         "generationConfig": {
             "temperature": 0.0,  # Ovoz va ritm tasodifiy o'zgarib ketmasligi, doim barqaror chiqishi uchun
             "responseModalities": ["AUDIO"],
@@ -112,7 +106,7 @@ async def _gemini(text: str, p: Patient) -> bytes:
     hdr = {"x-goog-api-key": settings.gemini_api_key}
 
     last_err: Exception | None = None
-    async with httpx.AsyncClient(timeout=8) as c:
+    async with httpx.AsyncClient(timeout=15) as c:
         for m in models:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
             try:

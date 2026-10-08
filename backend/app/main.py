@@ -368,21 +368,27 @@ async def test_synth(patient: str = "buvi", text: str = "Assalomu alaykum qizim"
     p = PATIENTS.get(patient)
     if not p:
         return {"error": "patient not found"}
+    res = {"patient": patient, "voice": getattr(p, "gemini_voice", None), "speed": getattr(p, "gemini_speed", 1.0)}
+    try:
+        t0 = time.perf_counter()
+        g_audio = await tts._gemini(tts.clean_for_tts(text), p)
+        res["gemini_ok"] = True
+        res["gemini_ms"] = int((time.perf_counter() - t0) * 1000)
+        res["gemini_len"] = len(g_audio)
+    except Exception as e:
+        res["gemini_ok"] = False
+        res["gemini_error"] = f"{type(e).__name__}: {e}"
+
     try:
         t0 = time.perf_counter()
         audio, used = await tts.synthesize(text, p)
-        ms = int((time.perf_counter() - t0) * 1000)
-        return {
-            "patient": patient,
-            "used": used,
-            "ms": ms,
-            "audio_len": len(audio),
-            "voice": getattr(p, "gemini_voice", None),
-            "speed": getattr(p, "gemini_speed", 1.0),
-            "header": audio[:12].hex() if audio else ""
-        }
+        res["synth_ms"] = int((time.perf_counter() - t0) * 1000)
+        res["used"] = used
+        res["audio_len"] = len(audio)
+        res["header"] = audio[:12].hex() if audio else ""
     except Exception as e:
-        return {"error": f"{type(e).__name__}: {e}"}
+        res["synth_error"] = f"{type(e).__name__}: {e}"
+    return res
 
 
 @app.get("/health")

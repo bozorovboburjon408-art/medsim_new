@@ -324,6 +324,24 @@ fun SettingsDialog(server: String, model: String, tts: String, espBabyUrl: Strin
         title = { Text("Sozlamalar", fontWeight = FontWeight.Bold) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
+                Row(
+                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
+                        .background(if (tt == "eleven") Color(0xFFFEF0C7) else MaterialTheme.colorScheme.surfaceVariant).padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("⭐ Premium ovoz (ElevenLabs)", fontWeight = FontWeight.Bold, color = if (tt == "eleven") Color(0xFF7C2D12) else MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            if (tt == "eleven") "Yoqilgan: maxsus mehmonlar uchun eng tabiiy ovoz (pullik)."
+                            else "O'chiq: oddiy mashq uchun Edge ovozi (bepul).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (tt == "eleven") Color(0xFF7C2D12) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(tt == "eleven", { tt = if (it) "eleven" else "edge_only" })
+                }
+
+                Spacer(Modifier.height(14.dp))
                 OutlinedTextField(
                     text, { text = it }, label = { Text("Server manzili (Render)") },
                     placeholder = { Text("https://....onrender.com") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
@@ -360,24 +378,6 @@ fun SettingsDialog(server: String, model: String, tts: String, espBabyUrl: Strin
                 if (espResult.isNotEmpty()) {
                     Spacer(Modifier.height(6.dp))
                     Text(espResult, color = if (espResult.startsWith("✓")) Ok else MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-
-                Spacer(Modifier.height(16.dp))
-                Row(
-                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
-                        .background(if (tt == "eleven") Color(0xFFFEF0C7) else MaterialTheme.colorScheme.surfaceVariant).padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("⭐ Premium ovoz (ElevenLabs)", fontWeight = FontWeight.Bold, color = if (tt == "eleven") Color(0xFF7C2D12) else MaterialTheme.colorScheme.onSurface)
-                        Text(
-                            if (tt == "eleven") "Yoqilgan: maxsus mehmonlar uchun eng tabiiy ovoz (pullik)."
-                            else "O'chiq: oddiy mashq uchun Edge ovozi (bepul).",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (tt == "eleven") Color(0xFF7C2D12) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(tt == "eleven", { tt = if (it) "eleven" else "edge_only" })
                 }
 
                 Spacer(Modifier.height(14.dp))

@@ -562,11 +562,11 @@ fun FaceHero(p: PatientInfo, phase: Phase, faceSize: Dp) {
 }
 
 @Composable
-fun StatusChip(phase: Phase) {
+fun StatusChip(phase: Phase, live: Boolean = false) {
     val cs = MaterialTheme.colorScheme
     val (label, color) = when (phase) {
-        Phase.IDLE -> "Bosing va gapiring" to cs.primary
-        Phase.LISTENING -> "Eshityapti · yana bosing" to cs.error
+        Phase.IDLE -> (if (live) "Live · tayyor" else "Bosing va gapiring") to cs.primary
+        Phase.LISTENING -> (if (live) "Live · gapiring" else "Eshityapti · yana bosing") to cs.error
         Phase.THINKING -> "O'ylayapti" to cs.secondary
         Phase.SPEAKING -> "Gapirmoqda" to cs.primary
     }
@@ -674,19 +674,27 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
     val errStreak = remember { intArrayOf(0) }
     val pressedAt = remember { longArrayOf(0L) }
     val gen = remember { intArrayOf(0) }  // har yangi savolda oshadi: eski javobning qolgan ovozi chalinmasin
+    // Live rejim: tugmasiz, o'zi eshitadi va javob beradi (faqat Edge ovozi)
+    var live by remember { mutableStateOf(false) }
+    val liveFlag = remember { booleanArrayOf(false) }
+    val liveStarter = remember { arrayOfNulls<() -> Unit>(1) }
 
     fun send(text: String) {
         if (server.isBlank()) { error = "Avval Sozlamalarda server manzilini kiriting"; phase = Phase.IDLE; return }
         history.add(Turn("user", text)); phase = Phase.THINKING; error = ""; firstAudio = ""
         val t0 = System.currentTimeMillis()
         val my = ++gen[0]
+        val ttsMode = if (liveFlag[0]) "edge_only" else tts
         scope.launch {
             val parts = mutableListOf<String>()
             var attempt = 0
             while (true) {
                 try {
-                    Speaker.beginStream(deviceId) { phase = Phase.IDLE }
-                    Api.chatStream(server, p.id, history.toList(), model, tts) { seg ->
+                    Speaker.beginStream(ctx, deviceId) {
+                        phase = Phase.IDLE
+                        if (liveFlag[0]) scope.launch { delay(500); if (liveFlag[0] && phase == Phase.IDLE) liveStarter[0]?.invoke() }
+                    }
+                    Api.chatStream(server, p.id, history.toList(), model, ttsMode) { seg ->
                         if (gen[0] != my) return@chatStream
                         if (parts.isEmpty() && seg.text.isNotEmpty()) {
                             firstAudio = "Birinchi ovozgacha: %.1f s\nAI %.1f s · ovoz %.1f s (%s)\n%s%s\n%s".format(
@@ -737,6 +745,11 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
                 rec.destroy(); if (recRef[0] === rec) recRef[0] = null
                 if (!t.isNullOrBlank()) { buffer.add(t); errStreak[0] = 0 }
                 partial = buffer.joinToString(" ")
+                if (liveFlag[0]) {  // Live: gap tugadi, yuboramiz; bo'sh bo'lsa yana eshitamiz
+                    if (buffer.isNotEmpty()) { held[0] = false; finish() }
+                    else scope.launch { delay(150); if (liveFlag[0] && held[0]) startRec() }
+                    return
+                }
                 // tugma hali bosilgan bo'lsa, tanish to'xtab qolgan: yana davom etamiz (gap boshi yo'qolmaydi)
                 if (held[0]) scope.launch { delay(120); if (held[0]) startRec() } else finish()
             }
@@ -748,6 +761,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
                     if (!soft) errStreak[0]++
                     if (errStreak[0] >= 4) {
                         held[0] = false; buffer.clear(); partial = ""; level = 0f
+                        liveFlag[0] = false; live = false
                         phase = Phase.IDLE; error = "Mikrofon ishlamadi (xato $e). Qayta urinib ko'ring"
                     } else scope.launch { delay(250); if (held[0]) startRec() }
                 } else finish()
@@ -767,8 +781,8 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "uz-UZ")
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 10000L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 10000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, if (liveFlag[0]) 1400L else 10000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, if (liveFlag[0]) 1100L else 10000L)
         })
     }
 
@@ -806,7 +820,23 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
         } else pressDown()
     }
 
-    DisposableEffect(p.id) { onDispose { held[0] = false; recRef[0]?.destroy(); recRef[0] = null } }
+    fun liveStart() {
+        if (!liveFlag[0] || held[0] || phase != Phase.IDLE) return
+        pressDown()
+    }
+    liveStarter[0] = { liveStart() }
+
+    fun setLive(on: Boolean) {
+        live = on; liveFlag[0] = on
+        if (on) { error = ""; if (phase == Phase.IDLE) liveStart() }
+        else {
+            held[0] = false; recRef[0]?.destroy(); recRef[0] = null
+            buffer.clear(); partial = ""; level = 0f
+            if (phase == Phase.LISTENING) phase = Phase.IDLE
+        }
+    }
+
+    DisposableEffect(p.id) { onDispose { liveFlag[0] = false; held[0] = false; recRef[0]?.destroy(); recRef[0] = null } }
 
     evalResult?.let { EvaluationDialog(it) { evalResult = null } }
     if (showInfo) AlertDialog(
@@ -819,6 +849,17 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
     Column(Modifier.fillMaxSize()) {
         val canEval = history.any { it.role == "user" } && phase == Phase.IDLE && !evaluating
         ScreenHeader(p, onBack, picker) {
+            Row(
+                Modifier.clip(CircleShape)
+                    .background(if (live) Danger else MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable { setLive(!live) }.padding(horizontal = 14.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(9.dp).clip(CircleShape).background(if (live) Color.White else Danger))
+                Spacer(Modifier.width(7.dp))
+                Text("Live", fontWeight = FontWeight.Bold, color = if (live) Color.White else MaterialTheme.colorScheme.onSurface)
+            }
+            Spacer(Modifier.width(8.dp))
             FilledTonalButton(
                 {
                     evaluating = true; error = ""
@@ -900,8 +941,8 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceEvenly,
                     ) {
                         FaceHero(p, phase, 74.dp)
-                        StatusChip(phase)
-                        MicButton(phase, level, 112.dp) { toggle() }
+                        StatusChip(phase, live)
+                        MicButton(phase, level, 112.dp) { if (liveFlag[0]) setLive(false) else toggle() }
                     }
                     messages(Modifier.weight(1f).fillMaxHeight())
                 }
@@ -910,7 +951,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
                     Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         FaceHero(p, phase, 60.dp)
                         Spacer(Modifier.width(8.dp))
-                        StatusChip(phase)
+                        StatusChip(phase, live)
                     }
                     messages(Modifier.weight(1f).fillMaxWidth())
                     Surface(
@@ -918,7 +959,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
                         shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
                     ) {
                         Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            MicButton(phase, level, 150.dp) { toggle() }
+                            MicButton(phase, level, 150.dp) { if (liveFlag[0]) setLive(false) else toggle() }
                             Text(
                                 phase.label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
                                 color = if (phase == Phase.LISTENING) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,

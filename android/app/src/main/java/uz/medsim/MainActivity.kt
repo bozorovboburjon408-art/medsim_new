@@ -111,7 +111,7 @@ fun App() {
     val savedServer = prefs.getString("server", null)
     var server by remember { mutableStateOf(if (savedServer.isNullOrBlank()) DEFAULT_SERVER else savedServer) }
     var model by remember { mutableStateOf(prefs.getString("model", "") ?: "") }
-    var tts by remember { mutableStateOf("eleven") }  // ovoz qotirilgan: ElevenLabs (xato bo'lsa server o'zi Edge'ga o'tadi)
+    var tts by remember { mutableStateOf(prefs.getString("voice_mode", "edge_only") ?: "edge_only") }  // asosiy: Edge (bepul); "eleven" = Premium ovoz (maxsus mehmonlar uchun)
 
     val savedBaby = prefs.getString("esp_baby_url", null)
     val initialBaby = if (savedBaby.isNullOrBlank() || savedBaby == "http://medsim-baby.local") DEFAULT_ESP_BABY_URL else savedBaby
@@ -143,7 +143,7 @@ fun App() {
 
     val p = current
     if (p == null) {
-        HomeScreen(speakers, serverState, onPick = { current = it }, onSettings = { showSettings = true })
+        HomeScreen(speakers, serverState, tts == "eleven", onPick = { current = it }, onSettings = { showSettings = true })
     } else {
         val picker: @Composable () -> Unit = { SpeakerPicker(speakers[p.id]) { speakers[p.id] = it } }
         val back = { Speaker.stop(); current = null }
@@ -152,7 +152,7 @@ fun App() {
     }
     if (showSettings) SettingsDialog(server, model, tts, espBabyUrl, onDismiss = { showSettings = false }) { srv, mdl, tt, esp ->
         server = srv.trim(); model = mdl; tts = tt; espBabyUrl = esp.trim()
-        prefs.edit().putString("server", server).putString("model", model).putString("tts", tts)
+        prefs.edit().putString("server", server).putString("model", model).putString("voice_mode", tts)
             .putString("esp_baby_url", espBabyUrl).apply(); showSettings = false
     }
 }
@@ -231,7 +231,7 @@ fun SectionTitle(title: String, sub: String) {
 }
 
 @Composable
-fun HomeScreen(speakers: Map<String, Int>, serverState: Int, onPick: (PatientInfo) -> Unit, onSettings: () -> Unit) {
+fun HomeScreen(speakers: Map<String, Int>, serverState: Int, premium: Boolean, onPick: (PatientInfo) -> Unit, onSettings: () -> Unit) {
     val ctx = LocalContext.current
     val family = PATIENTS.filter { !it.isBaby }
     val extra = PATIENTS.filter { it.isBaby }
@@ -247,6 +247,13 @@ fun HomeScreen(speakers: Map<String, Int>, serverState: Int, onPick: (PatientInf
                 Column(Modifier.weight(1f)) {
                     Text("MedSim", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onBackground)
                     Text("Patronaj hamshiralik simulyatori", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (premium) {
+                    Text(
+                        "⭐ Premium ovoz", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = Color(0xFFB45309),
+                        modifier = Modifier.clip(CircleShape).background(Color(0xFFFEF0C7)).padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
+                    Spacer(Modifier.width(10.dp))
                 }
                 StatusPill(serverState)
                 Spacer(Modifier.width(12.dp))
@@ -353,6 +360,24 @@ fun SettingsDialog(server: String, model: String, tts: String, espBabyUrl: Strin
                 if (espResult.isNotEmpty()) {
                     Spacer(Modifier.height(6.dp))
                     Text(espResult, color = if (espResult.startsWith("✓")) Ok else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
+                        .background(if (tt == "eleven") Color(0xFFFEF0C7) else MaterialTheme.colorScheme.surfaceVariant).padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("⭐ Premium ovoz (ElevenLabs)", fontWeight = FontWeight.Bold, color = if (tt == "eleven") Color(0xFF7C2D12) else MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            if (tt == "eleven") "Yoqilgan: maxsus mehmonlar uchun eng tabiiy ovoz (pullik)."
+                            else "O'chiq: oddiy mashq uchun Edge ovozi (bepul).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (tt == "eleven") Color(0xFF7C2D12) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(tt == "eleven", { tt = if (it) "eleven" else "edge_only" })
                 }
 
                 Spacer(Modifier.height(14.dp))

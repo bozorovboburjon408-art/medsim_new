@@ -82,7 +82,7 @@ val PATIENTS = listOf(
     PatientInfo("buvi", "Salomat buvi", "Hikmatilla otaning rafiqasi · 75 yosh", "👵", tag = "Qandli diabet", c1 = Color(0xFFF59E0B), c2 = Color(0xFFEA580C)),
     PatientInfo("bobo", "Hikmatilla ota", "Salomat buvining eri · 78 yosh", "👴", tag = "Skrining", c1 = Color(0xFF2DD4BF), c2 = Color(0xFF0F766E)),
     PatientInfo("homilador", "Nilufar opa", "Ularning kelini · 33 yosh · 32 hafta", "🤰", tag = "Homiladorlik", c1 = Color(0xFFF472B6), c2 = Color(0xFFBE185D)),
-    PatientInfo("bola", "Madinaxon", "Nilufarning qizi · 5 yosh", "👧", tag = "Gijja kasalligi", c1 = Color(0xFF38BDF8), c2 = Color(0xFF4F46E5)),
+    PatientInfo("bola", "Jasmina", "Nilufarning qizi · 5 yosh", "👧", tag = "Gijja kasalligi", c1 = Color(0xFF38BDF8), c2 = Color(0xFF4F46E5)),
     PatientInfo("chaqaloq", "Chaqaloq", "Yig'laydi, tebratilsa tinchiydi", "👶", isBaby = true, tag = "Maniken", c1 = Color(0xFFA78BFA), c2 = Color(0xFF7C3AED)),
 )
 

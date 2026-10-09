@@ -1,79 +1,61 @@
 
-5 yoshli bolada gijja kasalligi
-1. Patsiyent va ota-ona ma'lumotlari
-Bola: Jasurbek Rahimov, 5 yoshda.
+5 yoshli qiz bolada gijja kasalligi bo‘yicha patronaj hamshirasi va ona o’rtasidagi muloqot
+Patsiyent va ota-ona ma'lumotlari
+Bola: Jasmina Rahimova, 5 yoshda.
 Onasi: Nilufar Rahimova, 33 yoshda.
-Shikoyatlari: Bolada tunda orqa chiqaruv yo‘li (perianal soha) atrofida kuchli qichishish, uyquning buzilishi, injiqlik, tishlarini g‘ijirlatish, ishtahasizlik, tez-tez qornida (kindik atrofida) og‘riq bo‘lishi, vaqti-vaqti bilan ko‘ngil aynıshi hamda axlatda ingichka oq qurtchalar ko‘ringanligi. 
-2. Anamnez
-Rivojlanish anamnezi: Bola bog‘chaga boradi. Gigiyena qoidalariga (qo‘l yuvish, tirnoqlarni olish) har doim ham to‘liq rioya qilmaydi. Shaxsiy gigiyena ko‘nikmalari yetarlicha shakllanmagan. 
-Kasallik anamnezi: Oxirgi 2-3 hafta davomida bolada ishtaha pasaygan, kechasi uyqusi bezovta bo‘lib qolgan. Onasi oxirgi 3 kunda perianal sohada qichishish kuchayganini va tunda axlat joyida kichik oq qurtchalarni ko‘rganini aytadi. 
-Epidemiologik anamnez: Bog‘chadagi boshqa bolalarda ham shunday qichishish va injiqliklar kuzatilgan.
-3. Ko‘rik va tekshiruv (ob’yektiv ma'lumotlar)
-Tekshiruv turi
- | Natija
- | Izoh
- | Umumiy ko‘rik
- | Teri va ko‘z konyuktivasi biroz oqargan, ko‘z ostida to‘qlik (qorong‘u halqalar) bor. Bola injiq, tajang. 
- | Intoksikatsiya va anemiyaning dastlabki belgilari. 
- | Perianal soha ko‘rigi
- | Orqa chiqaruv yo‘li atrofi qizargan, tirnalgan izlar mavjud. 
- | Enterobiozga xos asosiy belgi. 
- | Qorin palpatsiyasi
- | Qorin yumshoq, kindik atrofida biroz og‘riqli, jigar va taloq kattalashmagan. 
- | Ichak gel'mintoziga xos belgi. 
- | Antropometriya
- | Vazni 16 kg (yoshiga nisbatan norma pastki chegarasida). 
- | Surunkali gipavitaminoz va ishtahasizlik oqibati.
- | 4. Laboratoriya tahlillari
-Umumiy qon tahlili:
-Gemoglobin: 102 g/l (yengil darajali anemiya). 
-Eozinofillar: 12% (keskin oshgan, allergik sensitizatsiya va parazitar infeksiya belgisi). 
-EChT: 12 mm/soat. 
-Perianal qirindi tahlili: enterobioz tuxumlari aniqlandi. 
-Axlatning gel'mint tuxumlariga tahlili: askarida tuxumlari aniqlandi. 
-5. Tashxis
-Asosiy tashxis: aralash gel'mintoz (enterobioz va askaridoz), o‘tkir osti kechishi.
-Hamrohi: temir tanqisligi anemiyasi, yengil daraja. Parazitar allergiya.
-Patronaj hamshirasining bola onasi bilan muloqot jarayoni va tavsiyalari
-1-BOSQICH: Muloqotni boshlash va holatni baholash
-Hamshira: Assalomu alaykum, Nilufar opa! Yaxshimisiz? Jasurbekning ahvoli, kayfiyati qanday? Bugun rejadagidek xonadoningizga bolaning salomatligini ko‘zdan kechirgani va holatidan xabar olgani keldim. 
-Nilufar: Vaalaykum assalom, hamshira opa. Yaxshi deb bo‘lmaydi... Jasurbek oxirgi kunlarda juda injiq bo‘lib qolgan. Kechalari umuman uxlamaydi, orqasini qashlab yig‘laydi. Ishtahasi yo‘q, tishlarini g‘ijirlatadi. To‘g‘risini aytsam, kechasi axlat sohasida kichik oq qurtchalarni ko‘rib qo‘rqib ketdim. 
-Hamshira: Nilufar opa, xavotirga tushmang, tushunaman, bu holat har qanday onani tashvishga soladi. Keling, avval Jasurbekning haroratini, vaznini va terisini ko‘rib chiqamiz. (Hamshira bolaning haroratini o‘lchaydi: 36,6°C, perianal sohada tirnalgan va qizargan joylarni, terining oqarganini qayd etadi). 
-Hamshira: Nilufar opa, bolada tunda qichishish, injiqlik, Ishtahasizlik va axlat atrofidagi oq qurtchalar — bu gel'mintoz (gijja kasalligi) belgilaridir. Gijjalar tunda orqa chiqaruv yo‘lidan tashqariga chiqib tuxum qo‘yadi, bu esa kuchli qichishishga va uyqu buzilishiga olib keladi. 
-2-BOSQICH: Shoshilinch chora va shifokor bilan bog‘lanish
-Hamshira: Nilufar opa, gijja faqatgina qichishish keltirib chiqarmaydi. U bolaning organizmidan oziq maddalarni va vitaminlarni so‘rib olib, anemiyaga (qon kamligiga) hamda immunitet pasayishiga olib keladi. Zudlik bilan oilaviy shifokorimiz ko‘rigidan o‘tib, aniq tahlillar topshirishimiz va to‘g‘ri dori dozasini belgilashimiz kerak. 
-Hamshira taktikasi: Hamshira darhol oilaviy shifokorga xabar beradi, perianal qirindi va axlat tahlili hamda umumiy qon tahliliga yo‘llanma rasmiylashtirishga ko‘maklashadi. 
-3-BOSQICH: Patronaj hamshirasining “Xavfli belgilar” bo‘yicha yo‘riqnomasi
-Hamshira: Nilufar opa, davolanish jarayonida va undan keyin quyidagi xavfli belgilarga juda e’tiborli bo‘ling. Agar bular kuzatilsa, darhol "Tez yordam" chaqirishingiz yoki shifokorga murojaat qilishingiz shart: 
-O‘tkir va xurujsimon qorin og‘rig‘i: Qorin o‘ng tomonida yoki kindik atrofida chidab bo‘lmaydigan og‘riq, ko‘ngil aynishi va qusish kuzatilsa (bu gijjalar to‘planib, ichak tutilishini yoki kor appenditsitni keltirib chiqargan bo‘lishi mumkin). 
-Najasda qon yoki qora rangli axlat: Ichak shilliq qavati jiddiy zararlanganidan dalolat beradi. 
-Kutilmagan allergenik reaksiyalar va nafas qisishi: Bo‘g'ilish, doimiy quruq yo‘tal, badanda to‘satdan toshmalar va shishlar paydo bo‘lishi (askarida lichinkalari o‘pka orqali migratsiya qilganda yoki kuchli intoksikatsiyada kuzatiladi). 
-Tana haroratining 38°C va undan yuqoriga ko‘tarilishi hamda intoksikatsiya: Bola lanjlanib, doimiy qussa va suyuqlik icha olmay qolsa. 
-Ruhshunoslik va nerv tizimidagi o‘zgarishlar: Tutqanoq tutishi, hushdan ketish yoki kuchli alahsirash holatlari. 
-4-BOSQICH: Patronaj hamshirasining tavsiyalari
-Hamshira onaga va oila a’zolariga qayta zararlanishning (reinfeksiya) oldini olish va kasallikni to‘liq davolash uchun quyidagi sohalar bo‘yicha atroflicha tavsiyalar beradi:
-A) Oilaviy davolanish va dori qabul qilish qoidalari:
-Barcha oila a’zolarini bir vaqtda davolash: "Nilufar opa, enterobioz juda yuqumli! Dori vositalarini (shifokor tayinlagan antiparazitar preparatni) uyda yashaydigan barcha oila a’zolari bir kunda va bir vaqtda qabul qilishi shart. Aks holda bola tuzalgan taqdirda ham, uydagilardan yana qayta gijja yuqtirib oladi". 
-Qayta kursni o‘tkazish: "Shifokor belgilagan dorini qabul qilgach, oradan 14-21 kun o‘tib dori dozasini albatta takrorlash kerak. Chunki antiparazitar dorilar kattalashgan gijjalarni o‘ldiradi, lekin ularning tuxumlariga ta’sir qilmasligi mumkin. 2-3 haftada tuxumdan chiqqan yangi parazitlarni yo‘qotish uchun takroriy kurs shart". 
-B) Shaxsiy va xonadon gigiyenasi tavsiyalari:
-Tirnoqlarni kaltalab olish: "Jasurbekning tirnoqlarini doimo juda kalta qilib oling va ostini maxsus cho‘tka bilan tozalab turing. Bola qashinganda gijja tuxumlari tirnoq ostiga kirib oladi va qo‘li orqali og‘ziga tushib, qayta zararlanadi". 
-Qo‘llarni to‘g‘ri yuvish: "Ovqatlanishdan oldin, hojatxonadan so‘ng, ko‘chadan va bog‘chadan kelgach, qo‘llarni kamida 20 soniya davomida sovunlab yuvishni bolaga o‘rgating va shaxsan nazorat qiling". 
+Shikoyatlari: tunda orqa chiqaruv yo‘li (perianal soha) va jinsiy a’zolar atrofida kuchli qichishish, uyquning buzilishi, injiqlik, tishlarini g‘ijirlatish, ishtahasizlik, tez-tez kindik atrofida og‘riq bo‘lishi, ko‘ngil aynishi hamda axlatda va ichki kiyimida ingichka oq qurtchalar ko‘ringanligi.
+Anamnez va ob’yektiv ma’lumotlar
+Anamnez: qizcha bog‘chaga boradi, shaxsiy gigiyena ko‘nikmalari yetarlicha shakllanmagan. Oxirgi 2-3 haftada ishtahasi pasaygan, uyqusida bezovta bo‘lgan. Bog‘chadagi boshqa bolalarda ham shunday qichishish kuzatilgan.
+Ko‘rik: terida oqish dog’lar bor, perianal soha va tashqi jinsiy a’zolar atrofi qizargan, tirnalgan izlar mavjud. Vazni: 15,5 kg (yoshiga nisbatan norma pastki chegarasida).
+Laboratoriya ko‘rsatkichlari: gemoglobin: 102 g/l (yengil anemiya), eozinofillar: 12% (oshgan). Perianal qirindi va axlat tahlilida enterobioz va askarida tuxumlari aniqlangan.
+Tashxis: Aralash gel’mintoz (enterobioz va askaridoz), o‘tkir osti kechishi. Hamrohi: temir tanqisligi anemiyasi (yengil daraja), parazitar allergiya, ikkilamchi vul’vovaginit (enterobioz fonida).
+SENARIY BO‘YICHA PATRONAJ HAMSHIRANING MULOQOT JARAYONI
+1-BOSQICH: Muloqotni boshlash va holatni dastlabki baholash
+Hamshira: Assalomu alaykum, Nilufar opa! Yaxshimisiz? Jasminaning ahvoli, kayfiyati qanday? Bugun rejadagidek xonadoningizga qizchaning salomatligini ko‘zdan kechirgani va holatidan xabar olgani keldim.
+Nilufar: Vaalaykum assalom, hamshira opa. Yaxshi deb bo‘lmaydi... Jasmina oxirgi kunlarda juda injiq, tajang bo‘lib qolgan. Kechalari umuman uxlamaydi, orqasini hamda oldi taraflarini qashlab yig‘laydi. Ishtahasi yo‘q, tishlarini g‘ijirlatadi. 
+Hamshira: Nilufar opa, xavotirga tushmang, tushunaman, bu holat har qanday onani tashvishga soladi. Keling, avval Jasminaning haroratini, vaznini va terisini ko‘rib chiqamiz. (Hamshira qizchaning haroratini o‘lchaydi: 36,6°C, perianal sohada va jinsiy a’zo atrofida tirnalgan va qizargan joylarni, terining oqarganini qayd etadi).
+Hamshira: Nilufar opa, qizchada tunda qichishish, injiqlik, ishtahasizlik va axlatdagi oq qurtchalar — bu gijja kasalligi belgilaridir. Gijjalar tunda orqa chiqaruv yo‘lidan tashqariga chiqib tuxum qo‘yadi. Qiz bolalarda ular ba'zan jinsiy a'zolar sohasiga ham o‘tib, qichishish va qizarish keltirib chiqarishi mumkin.
+2-BOSQICH: Skrining va laboratoriya tekshiruvlarini tushuntirish
+Hamshira: Nilufar opa, gijja turini va uning darajasini aniq bilib, Jasminaga to‘g‘ri va xavfsiz dori tayinlash uchun biz skrining tekshiruvlarini, ya’ni parazitlarni aniqlash tahlillarini o‘tkazishimiz kerak.
+Nilufar: Qanday tahlillar topshiramiz, hamshira opa? Jarayon qanday o‘tadi?
+Hamshira: Skrining tahlillari quyidagilardan iborat:
+Perianal qirindi: bu test gijja (o‘sha tunda qichishish beradigan mayda ostrisa gijjalari) tuxumlarini aniqlash uchun o‘tkaziladi.
+Tayyorgarlik va o‘tkazish qoidasi: tahlil ertalab, Jasmina hojatxonaga chiqmasdan va orqa chiqaruv hamda jinsiy a’zo sohalari yuvilmasdan oldin olinadi. Maxsus shaffof yopishqoq lentani perianal burmalar sohasiga bir oz bosib olinadi va oyna plastinkasiga yopishtiriladi. Agar ertalab yuvib qo‘yilsa, gijja tuxumlari yuvilib ketib, tahlil noto‘g‘ri chiqishi mumkin.
+Axlatning gel’mint tuxumlariga tahlili: bu tahlil orqali ichakda yashaydigan boshqa gijjalar (masalan, askarida) bor-yo‘qligi aniqlanadi. Ertalab olingan axlat namunasi maxsus idishda laboratoriyaga topshiriladi.
+Umumiy qon tahlili: gijjalar organizmda allergiya va anemiyani keltirib chiqaradi. Qonda eozinofillar miqdori va gemoglobin darajasini tekshirish orqali Jasminaning umumiy ahvolini baholaymiz.
+3-BOSQICH: Shoshilinch chora va shifokor bilan bog‘lanish
+Hamshira: Nilufar opa, gijja faqatgina qichishish keltirib chiqarmaydi. U qizchaning organizmidan oziq moddalarni va vitaminlarni so‘rib olib, anemiyaga hamda immunitet pasayishiga olib keladi. Zudlik bilan oilaviy shifokorimiz ko‘rigidan o‘tib, aniq tahlillar topshirishimiz va to‘g‘ri dori dozasini belgilashimiz kerak.
+(Hamshira darhol oilaviy shifokorga xabar beradi, perianal qirindi, axlat hamda umumiy qon tahliliga yo‘llanma rasmiylashtirishga ko‘maklashadi).
+4-BOSQICH: Patronaj hamshirasining “Xavfli belgilar” bo‘yicha yo‘riqnomasi
+Hamshira: Nilufar opa, davolanish jarayonida va undan keyin quyidagi xavfli belgilarga juda e’tiborli bo‘ling. Agar bular kuzatilsa, darhol "Tez yordam" chaqirishingiz yoki shifokorga murojaat qilishingiz shart:
+O‘tkir va xurujsimon qorin og‘rig‘i: qorin o‘ng tomonida yoki kindik atrofida chidab bo‘lmaydigan og‘riq, ko‘ngil aynishi va qusish kuzatilsa (bu gijjalar to‘planib, ichak tutilishini yoki o‘tkir appenditsitni keltirib chiqargan bo‘lishi mumkin).
+Najasda qon yoki qora rangli axlat: ichak shilliq qavati jiddiy zararlanganidan dalolat beradi.
+Kutilmagan allergik reaksiyalar va nafas qisishi: bo‘g'ilish, doimiy quruq yo‘tal, badanda to‘satdan toshmalar va shishlar paydo bo‘lishi (askarida lichinkalari o‘pka orqali migratsiya qilganda kuzatiladi).
+Tana haroratining 38°C va undan yuqoriga ko‘tarilishi hamda intoksikatsiya: qizcha lanjlanib, doimiy qussa va suyuqlik icha olmay qolsa.
+Siydik-jinsiy a’zolardagi asoratlar: siyganda og‘riq, achishish yoki jinsiy a’zolardan g‘ayritabiiy ajralmalar kelishi (gijjalar jinsiy a’zolarga o‘tganda yallig‘lanish chaqirishi mumkin).
+Ruhiyat va nerv tizimidagi o‘zgarishlar: tutqanoq tutishi, hushdan ketish yoki kuchli alahsirash holatlari.
+5-BOSQICH: Patronaj hamshirasining tavsiyalari va reinfeksiyaning oldini olish
+Oilaviy davolanish va dori qabul qilish qoidalari:
+Barcha oila a’zolarini bir vaqtda davolash: "Nilufar opa, enterobioz juda yuqumli! Dori vositalarini uyda yashaydigan barcha oila a’zolari bir kunda va bir vaqtda qabul qilishi shart. Aks holda Jasmina tuzalgan taqdirda ham, uydagilardan yana qayta gijja yuqtirib oladi".
+Qayta kursni o‘tkazish: "Shifokor belgilagan dorini qabul qilgach, oradan 14-21 kun o‘tib dori dozasini albatta takrorlash kerak. Chunki antiparazitar dorilar kattalashgan gijjalarni o‘ldiradi, lekin ularning tuxumlariga ta’sir qilmasligi mumkin. 2-3 haftada tuxumdan chiqqan yangi parazitlarni yo‘qotish uchun takroriy kurs shart".
+Shaxsiy va xonadon gigiyenasi tavsiyalari:
+Tirnoqlarni kaltalab olish: "Jasminaning tirnoqlarini doimo juda kalta qilib oling va ostini maxsus cho‘tka bilan tozalab turing. Qizcha qashinganda gijja tuxumlari tirnoq ostiga kirib oladi va qo‘li orqali og‘ziga tushib, qayta zararlanadi".
+Qo‘llarni to‘g‘ri yuvish: "Ovqatlanishdan oldin, hojatxonadan so‘ng, ko‘chadan va bog‘chadan kelgach, qo‘llarni kamida 20 soniya davomida sovunlab yuvishni Jasminaga o‘rgating va shaxsan nazorat qiling".
 Ichki kiyim va o‘rin-joylarga ishlov berish:
-"Bolaga kechasi va kunduzi zich yopishib turadigan paxtali ichki kiyim kiygizing. Bu gijjalarning to‘shakka va atrofga tarqalishini cheklaydi". 
-"Ertalab bolaning ichki kiyimini va o‘rin-joy choyshablarini ehtiyotkorlik bilan almashtiring". 
-"Barcha kiyim va choyshablarni kamida 60°C haroratda yuvib, albatta ikkala tomonini qizdirib dazmollash kerak. Qaynoq dazmol gijja tuxumlarini bir zumda o‘ldiradi". 
+Qizchaga kechasi va kunduzi zich yopishib turadigan paxtali ichki kiyim kiygizing. Bu gijjalarning jinsiy a’zolarga o‘tishi hamda to‘shakka tarqalishini cheklaydi.
+Ertalab Jasminaning ichki kiyimini va o‘rin-joy choyshablarini ehtiyotkorlik bilan almashtiring.
+Barcha kiyim va choyshablarni kamida 60°C haroratda yuvib, albatta ikkala tomonini qizdirib dazmollash kerak. Qaynoq dazmol gijja tuxumlarini yo‘q qiladi.
 Xonadonni namli tozalash va o‘yinchoqlar sanitariyasi:
-"Uyda har kuni vositalar yordamida namli tozalash o‘tkazing. Gilam va yumshoq mebellarni changyutgich bilan yaxshilab tozalang". 
-"Bolaning barcha plastmassa va rezinali o‘yinchoqlarini qaynoq suv va sovun bilan yuving". 
-C) Parvarish va perianal soha parvarishi:
-Ertalabki gigiyena: "Har kuni ertalab bolaning orqa chiqaruv a’zosi va perianal sohasini iliq suv va sovun bilan yuvib tashlang. Bu tunda qo‘yilgan gijja tuxumlarini yuvib ketishga yordam beradi". 
-Tirnalgan joylarni parvarish qilish: "Perianal soha qizargan va tirnalgan bo‘lsa, infeksiya tushmasligi uchun yuvgandan so‘ng quritib, shifokor tavsiya etgan tinchlantiruvchi krem yoki baby-krem surting". 
-D) Parhez va diyetoterapiya:
-Shirinliklarni cheklash: "Davolanish davrida va undan keyin shirinliklar, shakar, pishiriqlar hamda gazlangan ichimliklarni qat’iyan cheklang! Shirin muhit ichakda gijjalar va zamburug‘larning ko‘payishi uchun eng qulay sharoitdir". 
-Ishtahani va ichak faoliyatini tiklash: "Bolaga ko‘proq sabzavotlar (sabzi, lavlagi), xo'l mevalar, qatiq, kefir va kletchatkaga boy taomlarni bering. Ular ichak peristaltikasini yaxshilab, o‘lik gijjalarning tezgina tashqariga chiqib ketishiga yordam beradi". 
-Suv rejasi: "Kun davomida bolaga yetarli miqdorda toza qaynatilgan iliq suv ichiring". 
-E) Nazorat va qayta tahlillar bo‘yicha tushuntirish:
-Hamshira: Nilufar opa, dori ichirgach va ushbu gigiyenik qoidalarga to‘liq rioya qilgach, davolanish tugaganidan 2 hafta o‘tib takroran perianal qirindi va axlat tahlilini topshirishimiz shart. Ketma-ket 3 marta topshirilgan tahlil natijasi manfiy (toza) chiqsa, Jasurbek to‘liq tuzaldi deb hisoblanadi. 
-Hamshira: Nilufar opa, xavotir olmang, gel'mintoz to‘g‘ri yondashuv va gigiyena orqali asoratsiz to‘liq tuzaladigan kasallikdir. Asosiysi, berilgan tavsiyalarga barcha oila a’zolari birgalikda amal qilishi kerak. Hozir birgalikda shifokorimizga boramiz va kerakli retseptlarni olamiz. Siz va bolangiz salomatligi biz uchun eng muhimi! 
-Nilufar: Katta rahmat, barcha aytganlaringizni bajaraman. 
-
+Uyda har kuni vositalar yordamida namli tozalash o‘tkazing, gilam va yumshoq mebellarni changyutgich bilan tozalang.
+Jasminaning barcha plastmassa, rezinali va yumshoq o‘yinchoqlarini yuvib, tozalab turing.
+Parvarish va perianal hamda jinsiy soha gigiyenasi:
+Ertalabki va kechki gigiyena: "Har kuni ertalab va kechasi qizchaning perianal sohasini va jinsiy a’zolarini iliq suv va bolalar sovuni bilan oldidan orqaga qarab (ichak mikrobi jinsiy a’zoga tushmasligi uchun) yuvib bering".
+Tirnalgan va qizargan joylarni parvarish qilish: "Qizargan joylarga infeksiya tushmasligi uchun yuvib-quritgach, shifokor tavsiya etgan tinchlantiruvchi krem, moychechak damlamasi bilan yuving yoki baby-krem surting".
+Parhez va diyetoterapiya:
+Shirinliklarni cheklash: "Davolanish davrida va undan keyin shirinliklar, shakar, pishiriqlar hamda gazlangan ichimliklarni qat’iyan cheklang! Shirin muhit ichakda gijjalar ko‘payishi uchun eng qulay sharoitdir".
+Ishtahani va ichak faoliyatini tiklash: "Jasminaga ko‘proq sabzavotlar (sabzi, lavlagi), xo'l mevalar, qatiq, kefir va kletchatkaga boy taomlarni bering. Ular ichak peristaltikasini yaxshilab, o‘lik gijjalarning tezgina tashqariga chiqib ketishiga yordam beradi".
+Suv rejasi: "Kun davomida qizchaga yetarli miqdorda toza qaynatilgan iliq suv ichiring".
+6-BOSQICH: Qayta nazorat va yakun
+Hamshira: Nilufar opa, dori ichirgach va ushbu gigiyenik qoidalarga to‘liq rioya qilgach, davolanish tugaganidan 2 hafta o‘tib takroran perianal qirindi va axlat tahlilini topshirishimiz shart. Ketma-ket 3 marta topshirilgan tahlil natijasi manfiy (toza) chiqsa, Jasmina to‘liq tuzaldi deb hisoblanadi.
+Hamshira: Nilufar opa, xavotir olmang, gel’mintoz to‘g‘ri yondashuv va gigiyena orqali asoratsiz to‘liq tuzaladigan kasallikdir. Asosiysi, berilgan tavsiyalarga barcha oila a’zolari birgalikda amal qilishi kerak. Hozir birgalikda shifokorimizga boramiz va kerakli retsept hamda tahlil yo‘llanmalarini olamiz. Jasminaning salomatligi biz uchun eng muhimi!
+Nilufar: Katta rahmat, hamshira opa, tahlillarni qanday topshirishni ham, qizchamga qanday qarashni ham yaxshi tushunib oldim. Aytganlaringizning barchasini qunt bilan bajaraman.

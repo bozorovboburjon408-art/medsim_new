@@ -561,6 +561,18 @@ async def cloud_voices_ep(token: str = "", lang: str = "uz-UZ"):
         raise HTTPException(502, f"Cloud TTS: {e}")
 
 
+@app.get("/eleven_status")
+async def eleven_status(token: str = ""):
+    """ElevenLabs krediti qancha qolgan (diagnostika)."""
+    _check_token(token)
+    if not eleven.enabled():
+        raise HTTPException(400, "ELEVENLABS_API_KEY o'rnatilmagan")
+    try:
+        return await eleven.subscription()
+    except Exception as e:
+        raise HTTPException(502, str(e))
+
+
 @app.get("/tts_models")
 async def tts_models(token: str = ""):
     _check_token(token)

@@ -134,6 +134,18 @@ def slots_free() -> bool:
     return _SLOTS._value > 0
 
 
+async def subscription() -> dict:
+    """Tarif va qolgan kredit (diagnostika)."""
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.get(f"{BASE}/v1/user/subscription", headers=_hdr())
+    if r.status_code >= 400:
+        raise RuntimeError(f"ElevenLabs {r.status_code}: {r.text[:200]}")
+    d = r.json()
+    return {"tarif": d.get("tier"), "ishlatilgan": d.get("character_count"), "limit": d.get("character_limit"),
+            "qolgan": (d.get("character_limit") or 0) - (d.get("character_count") or 0),
+            "yangilanadi_unix": d.get("next_character_count_reset_unix"), "holat": d.get("status")}
+
+
 async def tts_stream(text: str, voice_id: str, model: str = "", cyrillic: bool = False, speed: float = 1.0,
                      stability: float = 0.4, style: float = 0.15):
     """PCM (24 kHz, 16-bit) bo'laklari keladigan zahoti qaytariladi. Status oqim boshlanmasdan tekshiriladi."""

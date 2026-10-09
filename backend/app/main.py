@@ -75,6 +75,11 @@ async def chat(req: ChatRequest):
                         llm_ms=int((t1 - t0) * 1000), tts_ms=int((t2 - t1) * 1000))
 
 
+def soften(t: str) -> str:
+    """Ovozga uzatiladigan matnda gap ichidagi nuqtalarni vergulga almashtiradi: butun javob bitta uzluksiz ovoz bo'ladi."""
+    return re.sub(r"(?<=\w)\.\s+(\S)", lambda m: ", " + m.group(1).lower(), t)
+
+
 @app.post("/chat_stream")
 async def chat_stream(req: ChatRequest):
     """NDJSON oqimi: har qator = bitta gap {"text","audio_b64","ms"} yoki {"error"}."""
@@ -103,6 +108,7 @@ async def chat_stream(req: ChatRequest):
             if p.id == "bola":
                 raw = eleven.crying_fix(raw)
             s = eleven.strip_tags(raw)  # ekranda va boshqa ovoz xizmatlarida belgilarsiz
+            sp = soften(s)  # ovozga uzatiladigan matn (nuqtalar vergul)
             if mode == "eleven":
                 vid = req.eleven_voice if req.eleven_voice and re.fullmatch(r"[A-Za-z0-9]{10,40}", req.eleven_voice) else eleven.DEFAULT_VOICE.get(p.id, "")
                 model = (req.tts_model if req.tts_model and re.fullmatch(r"[A-Za-z0-9._-]{3,60}", req.tts_model) and req.tts_model.startswith("eleven")
@@ -110,7 +116,7 @@ async def chat_stream(req: ChatRequest):
                 pit = pitch or p.eleven_speed
                 tempo = min(1.2, max(0.5, req.eleven_tempo)) if req.eleven_tempo else p.eleven_tempo
                 stab = min(1.0, max(0.0, req.eleven_stability)) if req.eleven_stability is not None else p.eleven_stability
-                text_v3 = eleven.prepare(raw) if model in ("eleven_v3", "eleven_v4") else s  # audio teglar ([crying]) v3 va v4 da
+                text_v3 = eleven.prepare(soften(raw)) if model in ("eleven_v3", "eleven_v4") else sp  # audio teglar ([crying]) v3 va v4 da
                 cq: asyncio.Queue = asyncio.Queue()
 
                 async def start():
@@ -178,7 +184,7 @@ async def chat_stream(req: ChatRequest):
                         info.setdefault("tries", []).append(f"ElevenLabs {p.id}: {str(e)[:160]}")  # ilovada "Texnik ma'lumot" da ko'rinadi
                         if n == 0:  # hech narsa chalinmagan: shu gap Edge ovozida
                             try:
-                                audio, _ = await tts.synthesize(s, p)
+                                audio, _ = await tts.synthesize(sp, p)
                                 await cq.put(("mp3", audio, int((time.perf_counter() - t1) * 1000)))
                             except Exception as e2:
                                 await cq.put(("error", str(e2)[:200], 0))
@@ -195,7 +201,7 @@ async def chat_stream(req: ChatRequest):
             if mode == "gemini":
                 voice = req.gemini_voice if req.gemini_voice in tts.GEMINI_VOICES else tts.GEMINI_DEFAULT_VOICE.get(p.id, "Kore")
                 model = req.tts_model if req.tts_model and re.fullmatch(r"[A-Za-z0-9._-]{3,80}", req.tts_model) else settings.gemini_tts_model
-                clean = tts.clean_for_tts(s)
+                clean = tts.clean_for_tts(sp)
 
                 async def one() -> bytes:
                     gen = await tts.gemini_tts_stream(clean, voice, model)
@@ -220,25 +226,21 @@ async def chat_stream(req: ChatRequest):
                     for x in pending:
                         x.cancel()
                 log.warning("Gemini TTS vaqtida javob bermadi, Edge'ga o'tildi")
-                audio, _ = await tts.synthesize(s, p)
+                audio, _ = await tts.synthesize(sp, p)
                 return s, audio, "mp3", "edge (gemini xato)", t_llm, int((time.perf_counter() - t) * 1000)
-            audio, used = await tts.synthesize(s, p)
+            audio, used = await tts.synthesize(sp, p)
             return s, audio, "mp3", used, t_llm, int((time.perf_counter() - t) * 1000)
 
         async def producer():
-            cry = ""  # javob ichida yig'lash boshlangan bo'lsa, keyingi gaplar ham shu belgi bilan aytiladi (belgi faqat bitta gapga ta'sir qiladi)
             try:
-                async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model):
-                    if p.id == "bola":
-                        m = re.match(r"\s*\[(crying|sobbing)\]", eleven.crying_fix(s), re.I)
-                        if m:
-                            cry = m.group(0).strip()
-                        elif cry and eleven.strip_tags(s):
-                            s = f"{cry} {s}"
-                    if not eleven.strip_tags(eleven.crying_fix(s) if p.id == "bola" else s):
-                        continue
+                parts: list[str] = []
+                async for sent in llm.stream_sentences(p.system_prompt(), history, info, req.model):
+                    if eleven.strip_tags(eleven.crying_fix(sent) if p.id == "bola" else sent):
+                        parts.append(sent.strip())
+                if parts:
                     t_llm = int((time.perf_counter() - t0) * 1000)
-                    await q.put(asyncio.create_task(synth(s, t_llm)))  # TTS parallel boshlanadi
+                    # butun javob BITTA ovoz: gaplar orasida pauza va qayta ishga tushish yo'q (Bluetooth kalonka gap boshini yutmaydi)
+                    await q.put(asyncio.create_task(synth(" ".join(parts), t_llm)))
             except Exception as e:
                 await q.put(RuntimeError(f"AI xatosi: {e}"))
             await q.put(None)

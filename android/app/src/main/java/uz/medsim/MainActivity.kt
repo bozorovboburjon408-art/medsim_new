@@ -9,12 +9,14 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
+import android.util.Log
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -23,6 +25,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -30,6 +33,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -63,6 +67,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 data class PatientInfo(
@@ -71,10 +79,10 @@ data class PatientInfo(
 )
 
 val PATIENTS = listOf(
-    PatientInfo("buvi", "Salomat buvi", "75 yosh · 2-tip qandli diabet", "👵", tag = "Qandli diabet", c1 = Color(0xFFF59E0B), c2 = Color(0xFFEA580C)),
-    PatientInfo("homilador", "Nilufar opa", "33 yosh · 32 haftalik homiladorlik", "🤰", tag = "Homiladorlik", c1 = Color(0xFFF472B6), c2 = Color(0xFFBE185D)),
-    PatientInfo("bola", "Madinaxon", "5 yosh · qizaloq, gijja kasalligi", "👧", tag = "Bolalar", c1 = Color(0xFF38BDF8), c2 = Color(0xFF4F46E5)),
-    PatientInfo("bobo", "Hikmatilla ota", "78 yosh · yoshga doir skrining", "👴", tag = "Skrining", c1 = Color(0xFF2DD4BF), c2 = Color(0xFF0F766E)),
+    PatientInfo("buvi", "Salomat buvi", "Hikmatilla otaning rafiqasi · 75 yosh", "👵", tag = "Qandli diabet", c1 = Color(0xFFF59E0B), c2 = Color(0xFFEA580C)),
+    PatientInfo("bobo", "Hikmatilla ota", "Salomat buvining eri · 78 yosh", "👴", tag = "Skrining", c1 = Color(0xFF2DD4BF), c2 = Color(0xFF0F766E)),
+    PatientInfo("homilador", "Nilufar opa", "Ularning kelini · 33 yosh · 32 hafta", "🤰", tag = "Homiladorlik", c1 = Color(0xFFF472B6), c2 = Color(0xFFBE185D)),
+    PatientInfo("bola", "Madinaxon", "Nilufarning qizi · 5 yosh", "👧", tag = "Gijja kasalligi", c1 = Color(0xFF38BDF8), c2 = Color(0xFF4F46E5)),
     PatientInfo("chaqaloq", "Chaqaloq", "Yig'laydi, tebratilsa tinchiydi", "👶", isBaby = true, tag = "Maniken", c1 = Color(0xFFA78BFA), c2 = Color(0xFF7C3AED)),
 )
 
@@ -152,11 +160,27 @@ fun App() {
 // ───────────────────────── Kichik umumiy qismlar ─────────────────────────
 
 @Composable
-fun Avatar(p: PatientInfo, size: Dp) {
+fun Avatar(p: PatientInfo, size: Dp, speaking: Boolean = false, sad: Boolean = false) {
     Box(
         Modifier.size(size).clip(CircleShape).background(Brush.linearGradient(listOf(p.c1, p.c2))),
+        contentAlignment = Alignment.BottomCenter,
+    ) { PatientFace(p.id, Modifier.fillMaxSize(), speaking, sad) }
+}
+
+/** MedSim belgisi: gradient yumaloq kvadrat ichida oq tibbiy plyus. */
+@Composable
+fun LogoMark(size: Dp) {
+    Box(
+        Modifier.size(size).clip(RoundedCornerShape(size * 0.3f)).background(Brush.linearGradient(listOf(BrandLight, Brand, BrandDark))),
         contentAlignment = Alignment.Center,
-    ) { Text(p.emoji, fontSize = (size.value * 0.5f).sp) }
+    ) {
+        Canvas(Modifier.size(size * 0.56f)) {
+            val w = this.size.width
+            val t = w * 0.34f
+            drawRoundRect(Color.White, Offset((w - t) / 2f, 0f), Size(t, w), CornerRadius(t * 0.35f))
+            drawRoundRect(Color.White, Offset(0f, (w - t) / 2f), Size(w, t), CornerRadius(t * 0.35f))
+        }
+    }
 }
 
 @Composable
@@ -199,70 +223,82 @@ fun SpeakingBars(color: Color) {
 // ───────────────────────── Bosh sahifa ─────────────────────────
 
 @Composable
+fun SectionTitle(title: String, sub: String) {
+    Column(Modifier.padding(top = 6.dp)) {
+        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+        Text(sub, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
 fun HomeScreen(speakers: Map<String, Int>, serverState: Int, onPick: (PatientInfo) -> Unit, onSettings: () -> Unit) {
     val ctx = LocalContext.current
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp).padding(top = 18.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(Brush.linearGradient(listOf(Brand, BrandLight))),
-                contentAlignment = Alignment.Center,
-            ) { Text("M", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold) }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text("MedSim", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onBackground)
-                Text("Patronaj hamshiralik simulyatori", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val family = PATIENTS.filter { !it.isBaby }
+    val extra = PATIENTS.filter { it.isBaby }
+    LazyVerticalGrid(
+        GridCells.Adaptive(340.dp), Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 28.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LogoMark(52.dp)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("MedSim", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onBackground)
+                    Text("Patronaj hamshiralik simulyatori", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                StatusPill(serverState)
+                Spacer(Modifier.width(12.dp))
+                RoundButton("⚙", onSettings, 46.dp)
             }
-            RoundButton("⚙", onSettings, 44.dp)
         }
-        Spacer(Modifier.height(14.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Bemorni tanlang", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            StatusPill(serverState)
+        item(span = { GridItemSpan(maxLineSpan) }) { SectionTitle("Rahimovlar oilasi", "Bitta xonadon, 4 a'zo. Hamshira butun oilani tekshirgani keladi.") }
+        items(family) { p ->
+            val dev = speakers[p.id]?.let { id -> Speaker.bluetoothDevices(ctx).firstOrNull { it.id == id }?.productName?.toString() }
+            PatientCard(p, dev) { onPick(p) }
         }
-        Spacer(Modifier.height(14.dp))
-        LazyVerticalGrid(
-            GridCells.Adaptive(310.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            contentPadding = PaddingValues(bottom = 24.dp),
-        ) {
-            items(PATIENTS) { p ->
-                val dev = speakers[p.id]?.let { id -> Speaker.bluetoothDevices(ctx).firstOrNull { it.id == id }?.productName?.toString() }
-                PatientCard(p, dev) { onPick(p) }
-            }
+        item(span = { GridItemSpan(maxLineSpan) }) { SectionTitle("Qo'shimcha mashq", "Maniken bilan ishlash: chaqaloqni tinchlantirish") }
+        items(extra) { p ->
+            val dev = speakers[p.id]?.let { id -> Speaker.bluetoothDevices(ctx).firstOrNull { it.id == id }?.productName?.toString() }
+            PatientCard(p, dev) { onPick(p) }
         }
     }
 }
 
 @Composable
 fun PatientCard(p: PatientInfo, speakerName: String?, onClick: () -> Unit) {
-    Surface(
-        Modifier.fillMaxWidth().shadow(4.dp, MaterialTheme.shapes.large, clip = false).clip(MaterialTheme.shapes.large).clickable(onClick = onClick),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surface,
+    val cs = MaterialTheme.colorScheme
+    val shape = MaterialTheme.shapes.large
+    Box(
+        Modifier.fillMaxWidth().shadow(6.dp, shape, clip = false).clip(shape)
+            .background(Brush.linearGradient(listOf(p.c1.copy(alpha = 0.26f), cs.surface, cs.surface)))
+            .border(1.dp, p.c1.copy(alpha = 0.30f), shape)
+            .clickable(onClick = onClick),
     ) {
-        Column {
-            Box(Modifier.fillMaxWidth().height(6.dp).background(Brush.horizontalGradient(listOf(p.c1, p.c2))))
-            Row(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Avatar(p, 66.dp)
-                Spacer(Modifier.width(16.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(p.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(p.subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (p.tag.isNotEmpty()) Text(
-                            p.tag, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = p.c2,
-                            modifier = Modifier.clip(CircleShape).background(p.c1.copy(alpha = 0.16f)).padding(horizontal = 10.dp, vertical = 4.dp),
-                        )
-                        if (speakerName != null) {
-                            Spacer(Modifier.width(8.dp))
-                            Text("🔊 $speakerName", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
+        Row(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Avatar(p, 84.dp)
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(p.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(p.subtitle, style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant, maxLines = 2)
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (p.tag.isNotEmpty()) Text(
+                        p.tag, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = p.c2,
+                        modifier = Modifier.clip(CircleShape).background(p.c1.copy(alpha = 0.20f)).padding(horizontal = 11.dp, vertical = 4.dp),
+                    )
+                    if (speakerName != null) {
+                        Spacer(Modifier.width(8.dp))
+                        Text("🔊 $speakerName", style = MaterialTheme.typography.labelMedium, color = cs.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                Text("›", fontSize = 30.sp, color = MaterialTheme.colorScheme.outline)
             }
+            Spacer(Modifier.width(8.dp))
+            Box(
+                Modifier.size(42.dp).clip(CircleShape).background(Brush.linearGradient(listOf(p.c1, p.c2))),
+                contentAlignment = Alignment.Center,
+            ) { Text("›", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold) }
         }
     }
 }
@@ -350,8 +386,6 @@ fun ScreenHeader(p: PatientInfo, onBack: () -> Unit, picker: @Composable () -> U
         Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             RoundButton("‹", onBack)
             Spacer(Modifier.width(10.dp))
-            Avatar(p, 46.dp)
-            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(p.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(p.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -401,7 +435,7 @@ fun SpeakerPicker(selected: Int?, onPick: (Int) -> Unit) {
 // ───────────────────────── Bosib turib gapirish tugmasi ─────────────────────────
 
 enum class Phase(val label: String) {
-    IDLE("Bosib turing va gapiring"), LISTENING("Eshityapman… gapirib bo'lgach qo'yib yuboring"),
+    IDLE("Bosing va gapiring"), LISTENING("Tugatgach yana bosing"),
     THINKING("Bemor o'ylayapti…"), SPEAKING("Bemor gapirmoqda…")
 }
 
@@ -418,54 +452,106 @@ fun MicIcon(color: Color, modifier: Modifier = Modifier) {
     }
 }
 
-/** Bosib turilganda yoziladi, qo'yib yuborilganda xabar jo'natiladi. [level] 0..1: ovoz balandligiga qarab halqa kattalashadi. */
+/** Bir marta bosish: yozishni boshlaydi, ikkinchi marta: to'xtatadi. Yozish paytida atrofda ovozga javob beradigan chiziqli to'lqin. */
 @Composable
-fun HoldToTalkButton(phase: Phase, level: Float, onPress: () -> Unit, onRelease: () -> Unit) {
+fun MicButton(phase: Phase, level: Float, boxSize: Dp, onTap: () -> Unit) {
     val listening = phase == Phase.LISTENING
     val busy = phase == Phase.THINKING
-    val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
-        1f, 1.07f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "p",
-    )
-    val lv by animateFloatAsState(level, tween(110), label = "lv")
+    val tr = rememberInfiniteTransition(label = "mic")
+    val spin by tr.animateFloat(0f, (2 * PI).toFloat(), infiniteRepeatable(tween(2200, easing = LinearEasing)), label = "spin")
+    val pulse by tr.animateFloat(1f, 1.07f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "pulse")
+    val lv by animateFloatAsState(level, tween(100), label = "lv")
+    val busyState by rememberUpdatedState(busy)
+    val onTapState by rememberUpdatedState(onTap)
+    val k = boxSize.value / 172f
     val grad = when {
         listening -> Brush.linearGradient(listOf(Color(0xFFEF4444), DangerDark))
         busy -> Brush.linearGradient(listOf(Color(0xFF94A3B8), Color(0xFF64748B)))
         else -> Brush.linearGradient(listOf(BrandLight, Brand))
     }
-    val ringColor = if (listening) Danger else Brand
-    val busyState by rememberUpdatedState(busy)
-    val onPressState by rememberUpdatedState(onPress)
-    val onReleaseState by rememberUpdatedState(onRelease)
-    val scale = if (listening) 1f + 0.10f * lv else 1f
-    Box(Modifier.size(156.dp), contentAlignment = Alignment.Center) {
-        if (listening) {
-            Box(Modifier.size((110f + 44f * lv).dp).clip(CircleShape).background(ringColor.copy(alpha = 0.16f)))
-            Box(Modifier.size((110f + 18f * lv).dp * pulse).clip(CircleShape).background(ringColor.copy(alpha = 0.18f)))
-        } else if (!busy) {
-            Box(Modifier.size(124.dp * pulse).clip(CircleShape).background(ringColor.copy(alpha = 0.08f)))
+    val scale = if (listening) 1f + 0.06f * lv else 1f
+    Box(
+        Modifier.size(boxSize).pointerInput(Unit) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false)
+                if (!busyState) onTapState()  // bir marta bosish: boshlash yoki tugatish
+                do {
+                    val event = awaitPointerEvent()
+                } while (event.changes.any { it.pressed })
+            }
+        },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val c = Offset(this.size.width / 2f, this.size.height / 2f)
+            val un = this.size.width / 172f
+            if (listening) {
+                val n = 32
+                for (i in 0 until n) {
+                    val a = i * 2.0 * PI / n
+                    val amp = (0.22f + 0.78f * abs(sin(spin * 2f + i * 0.7f))) * (0.30f + 0.95f * lv)
+                    val r1 = 62f * un
+                    val r2 = r1 + (4f + 20f * amp) * un
+                    val dx = cos(a).toFloat()
+                    val dy = sin(a).toFloat()
+                    drawLine(Danger.copy(alpha = 0.85f), c + Offset(dx * r1, dy * r1), c + Offset(dx * r2, dy * r2), 3.2f * un, StrokeCap.Round)
+                }
+            } else if (busy) {
+                drawArc(
+                    Color(0xFF94A3B8), spin * 57.29578f, 100f, false, Offset(c.x - 64f * un, c.y - 64f * un), Size(128f * un, 128f * un),
+                    style = Stroke(5f * un, cap = StrokeCap.Round),
+                )
+            } else {
+                drawCircle(Brand.copy(alpha = 0.10f), 74f * un * pulse, c)
+                drawCircle(Brand.copy(alpha = 0.18f), 64f * un, c, style = Stroke(2f * un))
+            }
         }
         Box(
-            Modifier.size(104.dp)
+            Modifier.size((104f * k).dp)
                 .graphicsLayer { scaleX = scale; scaleY = scale }
-                .shadow(10.dp, CircleShape)
-                .clip(CircleShape).background(grad)
-                .pointerInput(Unit) {
-                    awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false)
-                        val active = !busyState
-                        if (active) onPressState()
-                        // barmoq tugmadan siljib chiqib ketsa ham bosilgan hisoblanadi; faqat butunlay ko'tarilganda tugaydi
-                        do {
-                            val event = awaitPointerEvent()
-                        } while (event.changes.any { it.pressed })
-                        if (active) onReleaseState()
-                    }
-                },
+                .shadow((10f * k).dp, CircleShape)
+                .clip(CircleShape).background(grad),
             contentAlignment = Alignment.Center,
         ) {
-            if (busy) CircularProgressIndicator(Modifier.size(38.dp), color = Color.White, strokeWidth = 4.dp)
-            else MicIcon(Color.White, Modifier.size(46.dp))
+            if (busy) CircularProgressIndicator(Modifier.size((38f * k).dp), color = Color.White, strokeWidth = 4.dp)
+            else MicIcon(Color.White, Modifier.size((46f * k).dp))
         }
+    }
+}
+
+/** Bemorning katta yuzi: gapirganda og'zi harakatlanadi va atrofida nur yonadi. */
+@Composable
+fun FaceHero(p: PatientInfo, phase: Phase, faceSize: Dp) {
+    val speaking = phase == Phase.SPEAKING
+    val tr = rememberInfiniteTransition(label = "hero")
+    val glow by tr.animateFloat(0.92f, 1.10f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "glow")
+    val halo = if (speaking) glow else 1f
+    Box(Modifier.size(faceSize * 1.45f), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.size(faceSize * 1.45f * halo).clip(CircleShape)
+                .background(Brush.radialGradient(listOf(p.c1.copy(alpha = if (speaking) 0.60f else 0.30f), Color.Transparent))),
+        )
+        Box(Modifier.size(faceSize + 8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface))
+        Avatar(p, faceSize, speaking)
+    }
+}
+
+@Composable
+fun StatusChip(phase: Phase) {
+    val cs = MaterialTheme.colorScheme
+    val (label, color) = when (phase) {
+        Phase.IDLE -> "Bosing va gapiring" to cs.primary
+        Phase.LISTENING -> "Eshityapti · yana bosing" to cs.error
+        Phase.THINKING -> "O'ylayapti" to cs.secondary
+        Phase.SPEAKING -> "Gapirmoqda" to cs.primary
+    }
+    Row(
+        Modifier.clip(CircleShape).background(color.copy(alpha = 0.14f)).padding(horizontal = 14.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (phase == Phase.SPEAKING) SpeakingBars(color) else Box(Modifier.size(9.dp).clip(CircleShape).background(color))
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = color)
     }
 }
 
@@ -497,6 +583,45 @@ fun Bubble(t: Turn, patient: PatientInfo) {
     }
 }
 
+@Composable
+fun LiveBubble(text: String) {
+    val tr = rememberInfiniteTransition(label = "live")
+    val a by tr.animateFloat(0.35f, 1f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "a")
+    val shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp, bottomStart = 22.dp, bottomEnd = 6.dp)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                "Siz (hamshira) · eshityapman…", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+            )
+            Box(
+                Modifier.widthIn(max = 520.dp).clip(shape).background(Brand.copy(alpha = 0.12f))
+                    .border(1.5.dp, Danger.copy(alpha = a), shape).padding(horizontal = 16.dp, vertical = 12.dp),
+            ) { Text(if (text.isBlank()) "…" else text, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface) }
+        }
+    }
+}
+
+@Composable
+fun TypingBubble(patient: PatientInfo) {
+    val tr = rememberInfiniteTransition(label = "typing")
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+        Avatar(patient, 32.dp)
+        Spacer(Modifier.width(8.dp))
+        Surface(
+            shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp, bottomStart = 6.dp, bottomEnd = 22.dp),
+            color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp,
+        ) {
+            Row(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                repeat(3) { i ->
+                    val al by tr.animateFloat(0.25f, 1f, infiniteRepeatable(tween(500, delayMillis = i * 160), RepeatMode.Reverse), label = "d$i")
+                    Box(Modifier.size(9.dp).clip(CircleShape).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = al)))
+                }
+            }
+        }
+    }
+}
+
 // ───────────────────────── Suhbat ─────────────────────────
 
 @Composable
@@ -514,7 +639,8 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
     var showMenu by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
-    LaunchedEffect(history.size) { if (history.isNotEmpty()) listState.animateScrollToItem(history.size - 1) }
+    val liveRows = if (phase == Phase.LISTENING || phase == Phase.THINKING) 1 else 0
+    LaunchedEffect(history.size, liveRows) { val n = history.size + liveRows; if (n > 0) listState.animateScrollToItem(n - 1) }
 
     // Bosib turib gapirish holati
     val recRef = remember { arrayOfNulls<SpeechRecognizer>(1) }
@@ -522,7 +648,6 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
     val held = remember { booleanArrayOf(false) }
     val errStreak = remember { intArrayOf(0) }
     val pressedAt = remember { longArrayOf(0L) }
-    val pendingUp = remember { arrayOfNulls<kotlinx.coroutines.Job>(1) }
     val gen = remember { intArrayOf(0) }  // har yangi savolda oshadi: eski javobning qolgan ovozi chalinmasin
 
     fun send(text: String) {
@@ -575,7 +700,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
         recRef[0]?.destroy(); recRef[0] = null
         val text = buffer.joinToString(" ").trim()
         buffer.clear(); partial = ""; level = 0f
-        if (text.isBlank()) { phase = Phase.IDLE; error = "Eshitilmadi. Tugmani bosib turib, aniqroq gapiring" } else send(text)
+        if (text.isBlank()) { phase = Phase.IDLE; error = "Eshitilmadi. Tugmani bosib, aniqroq gapiring" } else send(text)
     }
 
     fun startRec() {
@@ -591,6 +716,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
                 if (held[0]) scope.launch { delay(120); if (held[0]) startRec() } else finish()
             }
             override fun onError(e: Int) {
+                Log.d("PTT", "tanish xatosi $e held=${held[0]}")
                 rec.destroy(); if (recRef[0] === rec) recRef[0] = null
                 val soft = e == SpeechRecognizer.ERROR_NO_MATCH || e == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
                 if (held[0]) {
@@ -622,8 +748,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
     }
 
     fun pressDown() {
-        val pu = pendingUp[0]
-        if (pu != null && pu.isActive) { pu.cancel(); pendingUp[0] = null; return }  // barmoq 0.35 s ichida qaytdi: bir xil bosish davom etadi
+        Log.d("PTT", "pressDown held=${held[0]} phase=$phase")
         if (ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             error = "Mikrofonga ruxsat bering (Sozlamalar → Ilovalar → MedSim)"; return
         }
@@ -633,11 +758,12 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
     }
 
     fun releaseNow() {
+        Log.d("PTT", "releaseNow held=${held[0]} buffer=${buffer.size}")
         if (!held[0]) return
         held[0] = false
         if (System.currentTimeMillis() - pressedAt[0] < 400 && buffer.isEmpty()) {  // tasodifan tegib ketdi
             recRef[0]?.destroy(); recRef[0] = null
-            partial = ""; level = 0f; phase = Phase.IDLE; error = "Tugmani bosib turing va gapiring"
+            partial = ""; level = 0f; phase = Phase.IDLE; error = "Tugmani bosing va gapiring"
             return
         }
         val r = recRef[0]
@@ -647,13 +773,15 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
         } else finish()
     }
 
-    fun pressUp() {
-        if (!held[0]) return
-        pendingUp[0]?.cancel()
-        pendingUp[0] = scope.launch { delay(350); releaseNow() }  // qisqa uzilishlar (barmoq titrashi) e'tiborsiz qoldiriladi
+    // Bir marta bosish: yozishni boshlaydi, ikkinchi marta bosish: to'xtatib xabarni jo'natadi
+    fun toggle() {
+        if (held[0]) {
+            if (System.currentTimeMillis() - pressedAt[0] < 700) return  // tasodifiy ikki marta tegish: e'tiborsiz
+            releaseNow()
+        } else pressDown()
     }
 
-    DisposableEffect(p.id) { onDispose { pendingUp[0]?.cancel(); held[0] = false; recRef[0]?.destroy(); recRef[0] = null } }
+    DisposableEffect(p.id) { onDispose { held[0] = false; recRef[0]?.destroy(); recRef[0] = null } }
 
     evalResult?.let { EvaluationDialog(it) { evalResult = null } }
     if (showInfo) AlertDialog(
@@ -693,76 +821,86 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
             }
         }
 
-        val chatArea: @Composable (Modifier) -> Unit = { mod ->
-            Box(mod, contentAlignment = Alignment.TopCenter) {
-                Box(Modifier.widthIn(max = 820.dp).fillMaxSize()) {
-                    if (history.isEmpty()) {
-                        Column(
-                            Modifier.fillMaxSize().padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
-                        ) {
-                            Avatar(p, 84.dp)
-                            Spacer(Modifier.height(14.dp))
-                            Text("${p.name} bilan suhbat", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                            Spacer(Modifier.height(8.dp))
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            val landscape = maxWidth > maxHeight
+            // Xabarlar ro'yxati: jonli matn va "o'ylayapti" ro'yxatning ichida, shuning uchun hech narsa siljib ketmaydi
+            val messages: @Composable (Modifier) -> Unit = { mod ->
+                Box(mod, contentAlignment = Alignment.TopCenter) {
+                    Box(Modifier.widthIn(max = 820.dp).fillMaxSize()) {
+                        if (history.isEmpty() && liveRows == 0) {
+                            Column(
+                                Modifier.fillMaxSize().padding(28.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+                            ) {
+                                Text("${p.name} bilan suhbat", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    "Mikrofon tugmasini bosing, gapiring va tugatgach yana bosing.",
+                                    textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp,
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    "Masalan: «Assalomu alaykum, ahvollaringiz qanday?»",
+                                    textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f), fontSize = 15.sp,
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                state = listState, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize(),
+                            ) {
+                                items(history) { Bubble(it, p) }
+                                if (phase == Phase.LISTENING) item { LiveBubble(partial) }
+                                if (phase == Phase.THINKING) item { TypingBubble(p) }
+                            }
+                        }
+                        if (error.isNotEmpty()) {
+                            Surface(
+                                Modifier.align(Alignment.TopCenter).padding(12.dp), shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.errorContainer, shadowElevation = 4.dp,
+                            ) {
+                                Text(
+                                    error, Modifier.padding(horizontal = 14.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onErrorContainer, maxLines = 3, overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            if (landscape) {
+                Row(Modifier.fillMaxSize()) {
+                    Column(
+                        Modifier.width(240.dp).fillMaxHeight().padding(vertical = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceEvenly,
+                    ) {
+                        FaceHero(p, phase, 74.dp)
+                        StatusChip(phase)
+                        MicButton(phase, level, 112.dp) { toggle() }
+                    }
+                    messages(Modifier.weight(1f).fillMaxHeight())
+                }
+            } else {
+                Column(Modifier.fillMaxSize()) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        FaceHero(p, phase, 60.dp)
+                        Spacer(Modifier.width(8.dp))
+                        StatusChip(phase)
+                    }
+                    messages(Modifier.weight(1f).fillMaxWidth())
+                    Surface(
+                        Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surface, shadowElevation = 14.dp,
+                        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            MicButton(phase, level, 150.dp) { toggle() }
                             Text(
-                                "Mikrofon tugmasini bosib turing, gapiring va qo'yib yuboring.\nMasalan: «Assalomu alaykum, ahvollaringiz qanday?»",
-                                textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp,
+                                phase.label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
+                                color = if (phase == Phase.LISTENING) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                    } else {
-                        LazyColumn(
-                            state = listState, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize(),
-                        ) { items(history) { Bubble(it, p) } }
                     }
                 }
-            }
-        }
-
-        // side = true: yotiq (past) ekranda panel o'ng tomonda, aks holda pastda
-        val dock: @Composable (Boolean) -> Unit = { side ->
-            Surface(
-                if (side) Modifier.width(260.dp).fillMaxHeight() else Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface, shadowElevation = 14.dp,
-                shape = if (side) RoundedCornerShape(topStart = 30.dp, bottomStart = 30.dp) else RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
-            ) {
-                Column(
-                    (if (side) Modifier.fillMaxSize() else Modifier.fillMaxWidth()).padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    // Doimiy balandlikdagi joy: matn/xato paydo bo'lganda tugma siljib ketmasin
-                    Box(Modifier.fillMaxWidth().height(if (side) 78.dp else 62.dp), contentAlignment = Alignment.Center) {
-                        if (error.isNotEmpty()) {
-                            Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.errorContainer) {
-                                Text(error, Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                            }
-                        } else if (phase == Phase.LISTENING && partial.isNotBlank()) {
-                            Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant) {
-                                Text(partial, Modifier.padding(horizontal = 12.dp, vertical = 6.dp), fontSize = 15.sp, maxLines = if (side) 3 else 2, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                    }
-                    HoldToTalkButton(phase, level, onPress = { pressDown() }, onRelease = { pressUp() })
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (phase == Phase.SPEAKING) { SpeakingBars(MaterialTheme.colorScheme.primary); Spacer(Modifier.width(10.dp)) }
-                        Text(
-                            phase.label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
-                            color = if (phase == Phase.LISTENING) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
-
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-            if (maxHeight < 480.dp) Row(Modifier.fillMaxSize()) {
-                chatArea(Modifier.weight(1f).fillMaxHeight())
-                dock(true)
-            } else Column(Modifier.fillMaxSize()) {
-                chatArea(Modifier.weight(1f).fillMaxWidth())
-                dock(false)
             }
         }
     }

@@ -12,7 +12,7 @@ Bemorlar (`backend/app/patients.py`, ssenariylar `backend/app/scenarios/*.txt`):
 | `bobo` | Hikmatilla ota, 78, skrining | quloqlari og'ir |
 | `chaqaloq` | AI yo'q | yig'laydi/kuladi (mp3), ESP32-C6 maniken datchigi yoki planshet akselerometri bilan tinchlanadi |
 
-Oila (`patients.py` FAMILY_COMMON): hamma bemor bitta oila. Hikmatilla ota (78) va Salomat buvi (75) er-xotin; o'g'li Asilbek (35) Rossiyada (Moskvada) ishlaydi; uning rafiqasi Nilufar (33, 32 haftalik homilador) ularning kelini; qizi Jasmina (5) ularning nevarasi. Har bemorning promptida shu oila va o'z munosabatlari bor.
+Oila (`patients.py` FAMILY_COMMON): hamma bemor bitta oila. Hikmatilla ota (78) va Salomat buvi (75) er-xotin; o'g'li Sardor (35) oddiy ishda ishlaydi (kunduzi ishda, kechqurun uyda); uning rafiqasi Nilufar (33, 32 haftalik homilador) ularning kelini; qizi Jasmina (5) ularning nevarasi. Har bemorning promptida shu oila va o'z munosabatlari bor.
 
 ## 2. Arxitektura
 ```

@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     vertex_tts_models: str = "gemini-2.5-flash-tts,gemini-2.5-pro-tts,gemini-2.5-flash-preview-tts,gemini-2.5-pro-preview-tts"
     stt_models: str = "gemini-2.5-flash,gemini-2.5-flash-lite"  # Gemini orqali ovozdan matn (Vertex'da)
     gemini_tts_model: str = "gemini-2.5-flash-tts"  # tts="gemini" rejimi uchun (Vertex yoki AI Studio)
-    chat_tts: str = "eleven"  # suhbat ovozi: eleven (kalit bo'lmasa/xato bo'lsa Edge), gemini yoki edge_only
+    chat_tts: str = "edge_only"  # standart suhbat ovozi: edge_only (bepul). Premium (eleven) ilovada sozlamalardan yoqiladi
     elevenlabs_api_key: str = ""
     eleven_stt_model: str = "scribe_v1"
     chirp_region: str = "us-central1"

@@ -337,7 +337,7 @@ fun SettingsDialog(server: String, model: String, tts: String, espBabyUrl: Strin
                     Column(Modifier.weight(1f)) {
                         Text("⭐ Premium ovoz (ElevenLabs)", fontWeight = FontWeight.Bold, color = if (tt == "eleven") Color(0xFF7C2D12) else MaterialTheme.colorScheme.onSurface)
                         Text(
-                            if (tt == "eleven") "Yoqilgan: maxsus mehmonlar uchun eng tabiiy ovoz (pullik)."
+                            if (tt == "eleven") "Yoqilgan: maxsus mehmonlar uchun eng tabiiy ovoz (pullik). Live rejimda ham ishlaydi."
                             else "O'chiq: oddiy mashq uchun Edge ovozi (bepul).",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (tt == "eleven") Color(0xFF7C2D12) else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -691,7 +691,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
         history.add(Turn("user", text)); phase = Phase.THINKING; error = ""; firstAudio = ""
         val t0 = System.currentTimeMillis()
         val my = ++gen[0]
-        val ttsMode = if (liveFlag[0]) "edge_only" else tts
+        val ttsMode = tts  // Live ham sozlamadagi ovozga bo'ysunadi: Premium yoqilgan bo'lsa ElevenLabs, aks holda Edge
         scope.launch {
             val parts = mutableListOf<String>()
             var attempt = 0
@@ -867,7 +867,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
             ) {
                 Box(Modifier.size(9.dp).clip(CircleShape).background(if (live) Color.White else Danger))
                 Spacer(Modifier.width(7.dp))
-                Text("Live", fontWeight = FontWeight.Bold, color = if (live) Color.White else MaterialTheme.colorScheme.onSurface)
+                Text(if (tts == "eleven") "Live ⭐" else "Live", fontWeight = FontWeight.Bold, color = if (live) Color.White else MaterialTheme.colorScheme.onSurface)
             }
             Spacer(Modifier.width(8.dp))
             FilledTonalButton(

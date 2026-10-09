@@ -87,6 +87,11 @@ val PATIENTS = listOf(
 )
 
 class MainActivity : ComponentActivity() {
+    override fun onPause() {
+        super.onPause()
+        Beep.unmute(this)  // hech qachon tizim ovozi o'chiq qolib ketmasin
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -562,11 +567,11 @@ fun FaceHero(p: PatientInfo, phase: Phase, faceSize: Dp) {
 }
 
 @Composable
-fun StatusChip(phase: Phase, live: Boolean = false) {
+fun StatusChip(phase: Phase, live: Boolean = false, ready: Boolean = true) {
     val cs = MaterialTheme.colorScheme
     val (label, color) = when (phase) {
         Phase.IDLE -> (if (live) "Live · tayyor" else "Bosing va gapiring") to cs.primary
-        Phase.LISTENING -> (if (live) "Live · gapiring" else "Eshityapti · yana bosing") to cs.error
+        Phase.LISTENING -> (if (!ready) "Tayyorlanmoqda…" else if (live) "Live · gapiring" else "Eshityapti · yana bosing") to cs.error
         Phase.THINKING -> "O'ylayapti" to cs.secondary
         Phase.SPEAKING -> "Gapirmoqda" to cs.primary
     }
@@ -609,7 +614,7 @@ fun Bubble(t: Turn, patient: PatientInfo) {
 }
 
 @Composable
-fun LiveBubble(text: String) {
+fun LiveBubble(text: String, ready: Boolean = true) {
     val tr = rememberInfiniteTransition(label = "live")
     val a by tr.animateFloat(0.35f, 1f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "a")
     val shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp, bottomStart = 22.dp, bottomEnd = 6.dp)
@@ -622,7 +627,7 @@ fun LiveBubble(text: String) {
             Box(
                 Modifier.widthIn(max = 520.dp).clip(shape).background(Brand.copy(alpha = 0.12f))
                     .border(1.5.dp, Danger.copy(alpha = a), shape).padding(horizontal = 16.dp, vertical = 12.dp),
-            ) { Text(if (text.isBlank()) "…" else text, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface) }
+            ) { Text(if (text.isBlank()) (if (ready) "🎙 Gapiring, eshityapman…" else "Tayyorlanmoqda…") else text, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface) }
         }
     }
 }
@@ -661,6 +666,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
     var evalResult by remember { mutableStateOf<EvalResult?>(null) }
     var partial by remember { mutableStateOf("") }
     var level by remember { mutableStateOf(0f) }
+    var recReady by remember { mutableStateOf(false) }  // tanish moduli tayyor: endi gapirish mumkin
     var showMenu by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -681,6 +687,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
 
     fun send(text: String) {
         if (server.isBlank()) { error = "Avval Sozlamalarda server manzilini kiriting"; phase = Phase.IDLE; return }
+        Beep.unmute(ctx); recReady = false
         history.add(Turn("user", text)); phase = Phase.THINKING; error = ""; firstAudio = ""
         val t0 = System.currentTimeMillis()
         val my = ++gen[0]
@@ -730,6 +737,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
     }
 
     fun finish() {
+        Beep.unmute(ctx); recReady = false
         recRef[0]?.destroy(); recRef[0] = null
         val text = buffer.joinToString(" ").trim()
         buffer.clear(); partial = ""; level = 0f
@@ -761,12 +769,12 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
                     if (!soft) errStreak[0]++
                     if (errStreak[0] >= 4) {
                         held[0] = false; buffer.clear(); partial = ""; level = 0f
-                        liveFlag[0] = false; live = false
+                        liveFlag[0] = false; live = false; Beep.unmute(ctx); recReady = false
                         phase = Phase.IDLE; error = "Mikrofon ishlamadi (xato $e). Qayta urinib ko'ring"
                     } else scope.launch { delay(250); if (held[0]) startRec() }
                 } else finish()
             }
-            override fun onReadyForSpeech(p: Bundle?) {}
+            override fun onReadyForSpeech(p: Bundle?) { recReady = true }
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(v: Float) { level = ((v + 2f) / 12f).coerceIn(0f, 1f) }
             override fun onBufferReceived(b: ByteArray?) {}
@@ -777,6 +785,8 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
             }
             override fun onEvent(t: Int, b: Bundle?) {}
         })
+        recReady = false
+        Beep.mute(ctx)  // tanish moduli "qung" tovushi chiqarmasin
         rec.startListening(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "uz-UZ")
@@ -801,7 +811,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
         if (!held[0]) return
         held[0] = false
         if (System.currentTimeMillis() - pressedAt[0] < 400 && buffer.isEmpty()) {  // tasodifan tegib ketdi
-            recRef[0]?.destroy(); recRef[0] = null
+            recRef[0]?.destroy(); recRef[0] = null; Beep.unmute(ctx); recReady = false
             partial = ""; level = 0f; phase = Phase.IDLE; error = "Tugmani bosing va gapiring"
             return
         }
@@ -830,13 +840,13 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
         live = on; liveFlag[0] = on
         if (on) { error = ""; if (phase == Phase.IDLE) liveStart() }
         else {
-            held[0] = false; recRef[0]?.destroy(); recRef[0] = null
+            held[0] = false; recRef[0]?.destroy(); recRef[0] = null; Beep.unmute(ctx); recReady = false
             buffer.clear(); partial = ""; level = 0f
             if (phase == Phase.LISTENING) phase = Phase.IDLE
         }
     }
 
-    DisposableEffect(p.id) { onDispose { liveFlag[0] = false; held[0] = false; recRef[0]?.destroy(); recRef[0] = null } }
+    DisposableEffect(p.id) { onDispose { liveFlag[0] = false; held[0] = false; recRef[0]?.destroy(); recRef[0] = null; Beep.unmute(ctx) } }
 
     evalResult?.let { EvaluationDialog(it) { evalResult = null } }
     if (showInfo) AlertDialog(
@@ -916,7 +926,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
                                 verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize(),
                             ) {
                                 items(history) { Bubble(it, p) }
-                                if (phase == Phase.LISTENING) item { LiveBubble(partial) }
+                                if (phase == Phase.LISTENING) item { LiveBubble(partial, recReady) }
                                 if (phase == Phase.THINKING) item { TypingBubble(p) }
                             }
                         }
@@ -941,7 +951,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceEvenly,
                     ) {
                         FaceHero(p, phase, 74.dp)
-                        StatusChip(phase, live)
+                        StatusChip(phase, live, recReady)
                         MicButton(phase, level, 112.dp) { if (liveFlag[0]) setLive(false) else toggle() }
                     }
                     messages(Modifier.weight(1f).fillMaxHeight())
@@ -951,7 +961,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
                     Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         FaceHero(p, phase, 60.dp)
                         Spacer(Modifier.width(8.dp))
-                        StatusChip(phase, live)
+                        StatusChip(phase, live, recReady)
                     }
                     messages(Modifier.weight(1f).fillMaxWidth())
                     Surface(

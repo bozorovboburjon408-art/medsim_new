@@ -333,3 +333,32 @@ class PcmPlayer(private val rate: Int, private val deviceId: Int?, private val b
         }
     }
 }
+
+
+/**
+ * Ovoz tanish moduli boshlanganda/tugaganda "qung" tovushi chiqaradi. Eshitish paytida tizim ovozlarini vaqtincha o'chirib turamiz
+ * (faqat o'zimiz o'chirganlarni qaytaramiz); bemor gapirishidan oldin qaytariladi.
+ */
+object Beep {
+    private val streams = intArrayOf(AudioManager.STREAM_MUSIC, AudioManager.STREAM_NOTIFICATION, AudioManager.STREAM_SYSTEM)
+    private val ours = mutableSetOf<Int>()
+
+    fun mute(ctx: Context) {
+        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        for (st in streams) {
+            if (st in ours) continue
+            try {
+                if (!am.isStreamMute(st)) { am.adjustStreamVolume(st, AudioManager.ADJUST_MUTE, 0); ours.add(st) }
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun unmute(ctx: Context) {
+        if (ours.isEmpty()) return
+        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        for (st in ours) {
+            try { am.adjustStreamVolume(st, AudioManager.ADJUST_UNMUTE, 0) } catch (_: Exception) {}
+        }
+        ours.clear()
+    }
+}

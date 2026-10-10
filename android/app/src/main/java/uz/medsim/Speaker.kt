@@ -59,6 +59,14 @@ object Speaker {
 
     data class Spk(val address: String, val name: String, val connected: Boolean)
 
+    /** 0 = qurilmada Bluetooth yo'q, 1 = o'chiq, 2 = yoqilgan, 3 = ruxsat berilmagan. */
+    @SuppressLint("MissingPermission")
+    fun btState(ctx: Context): Int {
+        if (ctx.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) return 3
+        val ad = (ctx.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter ?: return 0
+        return if (ad.isEnabled) 2 else 1
+    }
+
     /** Hozir ulangan Bluetooth ovoz qurilmalari manzillari (A2DP profili bo'yicha, bir nechta bo'lishi mumkin). */
     @SuppressLint("MissingPermission")
     private suspend fun a2dpConnected(ctx: Context, adapter: BluetoothAdapter): Set<String> = withTimeoutOrNull(1500) {

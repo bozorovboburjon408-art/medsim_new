@@ -448,33 +448,38 @@ fun SpeakerPicker(selected: String?, onPick: (String?, String) -> Unit) {
     val ctx = LocalContext.current
     var list by remember { mutableStateOf<List<Speaker.Spk>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
-    val granted = ctx.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+    var bt by remember { mutableStateOf(Speaker.btState(ctx)) }
+    val granted = bt != 3
     // ro'yxat ochiq turganda har 4 soniyada yangilanadi (yangi ulangan kalonka o'zi paydo bo'ladi)
     LaunchedEffect(Unit) {
         while (true) {
-            list = Speaker.speakers(ctx); loading = false
+            bt = Speaker.btState(ctx); list = Speaker.speakers(ctx); loading = false
             delay(4000)
         }
     }
     Column(Modifier.verticalScroll(rememberScrollState())) {
-        Text(
-            "Bemor ovozi tanlangan kalonkadan chiqadi (har bemorga alohida). Tanlov eslab qolinadi.",
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(10.dp))
         FilterChip(
             selected == null, { onPick(null, "") }, { Text("📱 Telefon dinamigi") },
             modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
         )
-        if (!granted) Text("Bluetooth ruxsati berilmagan: Sozlamalar → Ilovalar → MedSim → Ruxsatlar.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        if (bt == 3) Text("Bluetooth ruxsati berilmagan: Sozlamalar → Ilovalar → MedSim → Ruxsatlar → Yaqin atrofdagi qurilmalar.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        if (bt == 1) {
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 6.dp).clip(MaterialTheme.shapes.small).background(MaterialTheme.colorScheme.errorContainer).padding(start = 12.dp, top = 6.dp, bottom = 6.dp, end = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Telefonda Bluetooth o'chiq.", Modifier.weight(1f), color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodyMedium)
+                Button({ ctx.startActivity(Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) { Text("Yoqish") }
+            }
+        }
         if (loading) Text("Qidirilmoqda…", style = MaterialTheme.typography.bodyMedium)
-        else if (list.isEmpty() && granted) Text("Juftlangan Bluetooth kalonka topilmadi. Avval telefon sozlamalarida kalonkani juftlang.", style = MaterialTheme.typography.bodyMedium)
+        else if (list.isEmpty() && bt == 2) Text("Juftlangan Bluetooth kalonka topilmadi. Avval telefon sozlamalarida kalonkani juftlang.", style = MaterialTheme.typography.bodyMedium)
         list.forEach { d ->
             FilterChip(
-                selected.equals(d.address, true), { onPick(d.address, d.name) },
+                selected.equals(d.address, true), { onPick(d.address, "${d.name} · ${d.address.takeLast(5)}") },
                 {
                     Column {
-                        Text("🔊 ${d.name}")
+                        Text("🔊 ${d.name} · ${d.address.takeLast(5)}")
                         Text(
                             if (d.connected) "● ulangan" else "○ ulanmagan (avval ulang)",
                             style = MaterialTheme.typography.labelSmall,

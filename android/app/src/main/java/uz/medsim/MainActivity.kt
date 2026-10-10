@@ -330,6 +330,7 @@ fun PatientCard(p: PatientInfo, speakerName: String?, speakerOn: Boolean?, onCli
 
 @Composable
 fun SettingsDialog(server: String, model: String, tts: String, espBabyUrl: String, onDismiss: () -> Unit, onSave: (String, String, String, String) -> Unit) {
+    val ctx0 = LocalContext.current
     var text by remember { mutableStateOf(server) }
     var mdl by remember { mutableStateOf(model) }
     var tt by remember { mutableStateOf(tts) }
@@ -396,6 +397,20 @@ fun SettingsDialog(server: String, model: String, tts: String, espBabyUrl: Strin
                 if (espResult.isNotEmpty()) {
                     Spacer(Modifier.height(6.dp))
                     Text(espResult, color = if (espResult.startsWith("✓")) Ok else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
+                Spacer(Modifier.height(10.dp))
+                val ownPrefs = remember { ctx0.getSharedPreferences("medsim", Context.MODE_PRIVATE) }
+                var ownAlways by remember { mutableStateOf(ownPrefs.getBoolean("own_mic_always", false)) }
+                Row(
+                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.surfaceVariant).padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("🎙 Mikrofon: har doim planshetning o'zidan", fontWeight = FontWeight.Bold)
+                        Text("Sinov: Bluetooth kalonka ulanmagan bo'lsa ham ichki mikrofon oqimi ishlatiladi (Android 13+). Odatda faqat kalonka ishlatilganda yoqiladi.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(ownAlways, { ownAlways = it; ownPrefs.edit().putBoolean("own_mic_always", it).apply() })
                 }
 
                 Spacer(Modifier.height(14.dp))
@@ -851,8 +866,10 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
         recReady = false
         Beep.mute(ctx)  // tanish moduli "qung" tovushi chiqarmasin
         ownMic[0]?.stop(); ownMic[0] = null
-        val useOwn = android.os.Build.VERSION.SDK_INT >= 33 && Speaker.resolve(ctx, speakerAddr) != null
+        val alwaysOwn = ctx.getSharedPreferences("medsim", Context.MODE_PRIVATE).getBoolean("own_mic_always", false)
+        val useOwn = android.os.Build.VERSION.SDK_INT >= 33 && (alwaysOwn || Speaker.resolve(ctx, speakerAddr) != null)
         if (useOwn) ownMic[0] = try { OwnMic(ctx) { lv -> level = lv } } catch (e: Exception) { Log.d("PTT", "ichki mikrofon ochilmadi: $e"); null }
+        Log.d("PTT", "tanish boshlandi: ichki mikrofon oqimi=${ownMic[0] != null}")
         val mic = ownMic[0]
         rec.startListening(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             if (mic != null && android.os.Build.VERSION.SDK_INT >= 33) {

@@ -46,9 +46,11 @@ data class BabyStatus(
 )
 
 object Api {
+    // Bo'sh turgan ulanishni qayta ishlatmaymiz: planshet Wi-Fi'si uni jimgina uzadi va birinchi so'rov 45 s osilib qoladi
     private val http = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(45, TimeUnit.SECONDS).build()
+        .connectionPool(okhttp3.ConnectionPool(0, 1, TimeUnit.MINUTES))
+        .readTimeout(25, TimeUnit.SECONDS).build()
 
     private fun normalize(u: String): String {
         val t = u.trim().trimEnd('/')

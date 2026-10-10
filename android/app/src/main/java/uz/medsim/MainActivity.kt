@@ -867,7 +867,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
         Beep.mute(ctx)  // tanish moduli "qung" tovushi chiqarmasin
         ownMic[0]?.stop(); ownMic[0] = null
         val alwaysOwn = ctx.getSharedPreferences("medsim", Context.MODE_PRIVATE).getBoolean("own_mic_always", false)
-        val useOwn = android.os.Build.VERSION.SDK_INT >= 33 && (alwaysOwn || Speaker.resolve(ctx, speakerAddr) != null)
+        val useOwn = android.os.Build.VERSION.SDK_INT >= 33 && alwaysOwn  // Google tanish moduli tashqi oqimni qabul qilmadi (natija bo'sh): faqat sinov tugmasi yoqilganda
         if (useOwn) ownMic[0] = try { OwnMic(ctx) { lv -> level = lv } } catch (e: Exception) { Log.d("PTT", "ichki mikrofon ochilmadi: $e"); null }
         Log.d("PTT", "tanish boshlandi: ichki mikrofon oqimi=${ownMic[0] != null}")
         val mic = ownMic[0]

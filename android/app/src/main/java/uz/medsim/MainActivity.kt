@@ -457,6 +457,7 @@ fun SpeakerPicker(selected: String?, onPick: (String?, String) -> Unit) {
     var list by remember { mutableStateOf<List<Speaker.Spk>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var bt by remember { mutableStateOf(Speaker.btState(ctx)) }
+    var testMsg by remember { mutableStateOf("") }
     val granted = bt != 3
     // ro'yxat ochiq turganda har 4 soniyada yangilanadi (yangi ulangan kalonka o'zi paydo bo'ladi)
     LaunchedEffect(Unit) {
@@ -482,7 +483,9 @@ fun SpeakerPicker(selected: String?, onPick: (String?, String) -> Unit) {
         }
         if (loading) Text("Qidirilmoqda…", style = MaterialTheme.typography.bodyMedium)
         else if (list.isEmpty() && bt == 2) Text("Juftlangan Bluetooth kalonka topilmadi. Avval telefon sozlamalarida kalonkani juftlang.", style = MaterialTheme.typography.bodyMedium)
+        if (testMsg.isNotEmpty()) Text(testMsg, style = MaterialTheme.typography.bodySmall, color = Warn, modifier = Modifier.padding(bottom = 6.dp))
         list.forEach { d ->
+          Row(verticalAlignment = Alignment.CenterVertically) {
             FilterChip(
                 selected.equals(d.address, true), { onPick(d.address, "${d.name} · ${d.address.takeLast(5)}") },
                 {
@@ -495,8 +498,13 @@ fun SpeakerPicker(selected: String?, onPick: (String?, String) -> Unit) {
                         )
                     }
                 },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                modifier = Modifier.weight(1f).padding(bottom = 6.dp),
             )
+            TextButton({
+                val ok = Speaker.testTone(ctx, d.address)
+                testMsg = if (ok) "Signal yuborildi: ${d.name}. Eshitilmasa, bu kalonka faol emas." else "${d.name} hozir faol emas (ulanmagan yoki boshqa kalonka faol). Ovoz tizimi panelidan tanlang."
+            }) { Text("▶ Sinash") }
+          }
         }
         val sel = list.firstOrNull { selected.equals(it.address, true) }
         if (selected != null && (sel == null || !sel.connected)) {
@@ -506,6 +514,7 @@ fun SpeakerPicker(selected: String?, onPick: (String?, String) -> Unit) {
             )
         }
         Spacer(Modifier.height(4.dp))
+        TextButton({ Speaker.openOutputSwitcher(ctx) }) { Text("🔊 Faol kalonkani almashtirish (tizim paneli)") }
         TextButton({
             ctx.startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }) { Text("⚙ Bluetooth sozlamalarini ochish") }
@@ -717,6 +726,9 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
     var partial by remember { mutableStateOf("") }
     var level by remember { mutableStateOf(0f) }
     var recReady by remember { mutableStateOf(false) }  // tanish moduli tayyor: endi gapirish mumkin
+    // tanlangan kalonka hozir ovoz tizimida faolmi (faol bo'lmasa ovoz boshqa joydan chiqadi)
+    var spkInactive by remember { mutableStateOf(false) }
+    LaunchedEffect(speakerAddr) { while (true) { spkInactive = speakerAddr != null && Speaker.resolve(ctx, speakerAddr) == null; delay(2500) } }
     var showMenu by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -978,6 +990,17 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
                                 items(history) { Bubble(it, p) }
                                 if (phase == Phase.LISTENING) item { LiveBubble(partial, recReady) }
                                 if (phase == Phase.THINKING) item { TypingBubble(p) }
+                            }
+                        }
+                        if (spkInactive && error.isEmpty()) {
+                            Row(
+                                Modifier.align(Alignment.BottomCenter).padding(12.dp).clip(MaterialTheme.shapes.medium)
+                                    .background(MaterialTheme.colorScheme.tertiaryContainer).padding(start = 14.dp, top = 6.dp, bottom = 6.dp, end = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("🔊 Tanlangan kalonka faol emas: ovoz boshqa joydan chiqadi", Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                                Spacer(Modifier.width(8.dp))
+                                Button({ Speaker.openOutputSwitcher(ctx) }, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) { Text("Tanlash") }
                             }
                         }
                         if (error.isNotEmpty()) {

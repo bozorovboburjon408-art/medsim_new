@@ -59,6 +59,34 @@ object Speaker {
 
     data class Spk(val address: String, val name: String, val connected: Boolean)
 
+    /** Tanlangan kalonkaga qisqa sinov signali (880 Hz). Kalonka ovoz tizimida faol bo'lmasa false. */
+    fun testTone(ctx: Context, address: String): Boolean {
+        val id = resolve(ctx, address) ?: return false
+        val p = PcmPlayer(RATE, id, bluetoothDevices(ctx))
+        val n = RATE * 600 / 1000
+        val b = ByteArray(n * 2)
+        for (i in 0 until n) {
+            val env = minOf(1.0, minOf(i, n - i) / (RATE * 0.04))
+            val v = (Math.sin(2.0 * Math.PI * 880.0 * i / RATE) * 9000.0 * env).toInt()
+            b[i * 2] = (v and 0xFF).toByte(); b[i * 2 + 1] = (v shr 8).toByte()
+        }
+        p.write(b); p.finish {}
+        return true
+    }
+
+    /** Tizimning "ovoz chiqishi" paneli (faol Bluetooth kalonkani almashtirish). Eski Android'da Bluetooth sozlamalari. */
+    fun openOutputSwitcher(ctx: Context) {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 34) {
+                android.media.MediaRouter2.getInstance(ctx).showSystemOutputSwitcher()
+                return
+            }
+        } catch (_: Exception) {}
+        try {
+            ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: Exception) {}
+    }
+
     /** 0 = qurilmada Bluetooth yo'q, 1 = o'chiq, 2 = yoqilgan, 3 = ruxsat berilmagan. */
     @SuppressLint("MissingPermission")
     fun btState(ctx: Context): Int {

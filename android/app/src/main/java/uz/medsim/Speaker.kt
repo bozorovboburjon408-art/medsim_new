@@ -47,7 +47,8 @@ object Speaker {
     /** Telefon ovoz tizimidagi hozirgi Bluetooth chiqishlar (A2DP, LE Audio va h.k.). */
     fun bluetoothDevices(ctx: Context): List<AudioDeviceInfo> {
         val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        val types = mutableSetOf(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_HEARING_AID)
+        // SCO (telefon qo'ng'irog'i kanali) ataylab kiritilmagan: bir kalonka A2DP va SCO sifatida ikki marta ko'rinadi, SCO ga ovoz yuborsak jim bo'lib qoladi
+        val types = mutableSetOf(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_HEARING_AID)
         if (android.os.Build.VERSION.SDK_INT >= 31) {
             types.add(AudioDeviceInfo.TYPE_BLE_HEADSET); types.add(AudioDeviceInfo.TYPE_BLE_SPEAKER)
         }
@@ -66,12 +67,15 @@ object Speaker {
     fun testTone(ctx: Context, address: String): Boolean {
         val id = resolve(ctx, address) ?: return false
         val p = PcmPlayer(RATE, id, bluetoothDevices(ctx))
-        val n = RATE * 600 / 1000
+        val beep = RATE * 700 / 1000
+        val gap = RATE * 350 / 1000
+        val n = beep * 2 + gap
         val b = ByteArray(n * 2)
-        for (i in 0 until n) {
-            val env = minOf(1.0, minOf(i, n - i) / (RATE * 0.04))
-            val v = (Math.sin(2.0 * Math.PI * 880.0 * i / RATE) * 9000.0 * env).toInt()
-            b[i * 2] = (v and 0xFF).toByte(); b[i * 2 + 1] = (v shr 8).toByte()
+        for (k in 0 until 2) for (i in 0 until beep) {
+            val env = minOf(1.0, minOf(i, beep - i) / (RATE * 0.05))
+            val v = (Math.sin(2.0 * Math.PI * 880.0 * i / RATE) * 14000.0 * env).toInt()
+            val idx = (k * (beep + gap) + i) * 2
+            b[idx] = (v and 0xFF).toByte(); b[idx + 1] = (v shr 8).toByte()
         }
         p.write(b); p.finish {}
         return true
@@ -357,7 +361,12 @@ class PcmPlayer(private val rate: Int, private val deviceId: Int?, private val b
             .setBufferSizeInBytes(maxOf(min, rate * 2 * 2)) // ~2 soniya bufer
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
-        deviceId?.let { id -> btDevices.firstOrNull { it.id == id }?.let { t.setPreferredDevice(it) } }
+        deviceId?.let { id ->
+            val d = btDevices.firstOrNull { it.id == id }
+            // faol A2DP kalonka yagona bo'lsa, tizim ovozni o'zi shu yerga yo'naltiradi; setPreferredDevice trekni 'o'ldirib' qayta yaratadi
+            val onlyA2dp = d != null && d.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP && btDevices.count { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP } == 1
+            if (d != null && !onlyA2dp) t.setPreferredDevice(d)
+        }
         return t
     }
 
@@ -406,7 +415,7 @@ class PcmPlayer(private val rate: Int, private val deviceId: Int?, private val b
     private fun run() {
         try {
             track.play()
-            writeAll(quiet(700))  // 0.7 s kuchsiz shovqin: ovoz yo'li va kalonka uyg'onadi
+            writeAll(quiet(1100))  // 1.1 s kuchsiz shovqin: ovoz yo'li va kalonka uyg'onadi
             Log.d("SPK", "PCM oqimi ishga tushdi (yo'l uyg'otildi)")
             var total = 0L
             while (true) {

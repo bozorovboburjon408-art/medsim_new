@@ -4,6 +4,7 @@ import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
+import android.util.Log
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -46,6 +47,7 @@ data class BabyStatus(
 
 object Api {
     private val http = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(45, TimeUnit.SECONDS).build()
 
     private fun normalize(u: String): String {
@@ -87,7 +89,9 @@ object Api {
                 .url(normalize(baseUrl) + "/chat_stream")
                 .post(body.toString().toRequestBody("application/json".toMediaType()))
                 .build()
+            Log.d("API", "chat_stream so'rovi yuborilmoqda: ${normalize(baseUrl)} patient=$patientId tts=$tts")
             http.newCall(req).execute().use { r ->
+                Log.d("API", "chat_stream javob kodi=${r.code}")
                 if (!r.isSuccessful) {
                     val raw = r.body!!.string()
                     error("Server xatosi ${r.code}: " + (runCatching { JSONObject(raw).getString("detail") }.getOrDefault(raw)).take(300))
@@ -96,6 +100,7 @@ object Api {
                 while (true) {
                     val line = src.readUtf8Line() ?: break
                     if (line.isBlank()) continue
+                    Log.d("API", "qator keldi (${line.length} belgi)")
                     val j = JSONObject(line)
                     if (j.has("error")) error(j.getString("error"))
                     val isPcm = j.has("pcm_b64")

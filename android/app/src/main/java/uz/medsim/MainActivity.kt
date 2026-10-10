@@ -106,6 +106,13 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Qotirilgan kalonkalar: bemor id -> "Bluetooth manzili|ko'rinadigan nom". Foydalanuvchi o'zi tanlamagan bo'lsa shu ishlatiladi.
+ * Manikenlarga o'rnatib sinab bo'lingach shu yerga haqiqiy manzillar yoziladi (hozircha bo'sh: tanlov ilovada qo'lda).
+ * Misol: "buvi" to "59:8D:8D:1B:B2:1A|Buvi kalonkasi"
+ */
+val DEFAULT_SPEAKERS: Map<String, String> = mapOf()
+
 private const val DEFAULT_SERVER = "https://medsim-backend-oyfd.onrender.com"
 private const val DEFAULT_ESP_BABY_URL = "http://10.186.157.233"
 
@@ -132,7 +139,7 @@ fun App() {
     }
     var current by remember { mutableStateOf<PatientInfo?>(null) }
     // manikenga biriktirilgan kalonka: patient.id -> "manzil|nom" (qurilmada saqlanadi, ulanishdan ulanishga o'zgarmaydi)
-    val speakers = remember { mutableStateMapOf<String, String>().apply { PATIENTS.forEach { pt -> prefs.getString("spk_${pt.id}", null)?.let { put(pt.id, it) } } } }
+    val speakers = remember { mutableStateMapOf<String, String>().apply { PATIENTS.forEach { pt -> (prefs.getString("spk_${pt.id}", null) ?: DEFAULT_SPEAKERS[pt.id])?.let { put(pt.id, it) } } } }
 
     // Server holati: 0 noma'lum, 1 tayyor, 2 uyg'onmoqda, 3 aloqa yo'q. Ilova ochiq turganda server uxlamaydi.
     var serverState by remember { mutableStateOf(0) }

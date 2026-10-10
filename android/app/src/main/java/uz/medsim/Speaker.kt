@@ -1,6 +1,13 @@
 package uz.medsim
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothClass
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.content.Context
+import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
@@ -19,6 +26,9 @@ import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
 
 /**
  * Bemor ovozi. Hamma gaplar (ElevenLabs PCM ham, Edge mp3 ham) bitta uzluksiz AudioTrack oqimiga tushadi:
@@ -31,10 +41,65 @@ object Speaker {
     private val main = Handler(Looper.getMainLooper())
     private val decodeExec = Executors.newSingleThreadExecutor()
 
+    /** Telefon ovoz tizimidagi hozirgi Bluetooth chiqishlar (A2DP, LE Audio va h.k.). */
     fun bluetoothDevices(ctx: Context): List<AudioDeviceInfo> {
         val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        return am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-            .filter { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP }
+        val types = mutableSetOf(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_HEARING_AID)
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            types.add(AudioDeviceInfo.TYPE_BLE_HEADSET); types.add(AudioDeviceInfo.TYPE_BLE_SPEAKER)
+        }
+        return am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter { it.type in types }
+    }
+
+    /** Saqlangan manzil bo'yicha hozirgi ovoz qurilmasi (ulangan bo'lsa), aks holda null: ovoz telefon dinamigidan chiqadi. */
+    fun resolve(ctx: Context, address: String?): Int? {
+        if (address.isNullOrBlank()) return null
+        return bluetoothDevices(ctx).firstOrNull { it.address.equals(address, true) }?.id
+    }
+
+    data class Spk(val address: String, val name: String, val connected: Boolean)
+
+    /** Hozir ulangan Bluetooth ovoz qurilmalari manzillari (A2DP profili bo'yicha, bir nechta bo'lishi mumkin). */
+    @SuppressLint("MissingPermission")
+    private suspend fun a2dpConnected(ctx: Context, adapter: BluetoothAdapter): Set<String> = withTimeoutOrNull(1500) {
+        suspendCancellableCoroutine<Set<String>> { cont ->
+            val l = object : BluetoothProfile.ServiceListener {
+                override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
+                    val set = try { proxy.connectedDevices.map { it.address }.toSet() } catch (_: Exception) { emptySet() }
+                    try { adapter.closeProfileProxy(profile, proxy) } catch (_: Exception) {}
+                    if (cont.isActive) cont.resume(set)
+                }
+                override fun onServiceDisconnected(profile: Int) {}
+            }
+            val ok = try { adapter.getProfileProxy(ctx, l, BluetoothProfile.A2DP) } catch (_: Exception) { false }
+            if (!ok && cont.isActive) cont.resume(emptySet())
+        }
+    } ?: emptySet()
+
+    /** Telefonga juftlangan (paired) HAMMA audio qurilmalar + hozir ulangan/faol qurilmalar. Ulanganlar tepada. */
+    @SuppressLint("MissingPermission")
+    suspend fun speakers(ctx: Context): List<Spk> {
+        val out = linkedMapOf<String, Spk>()
+        val active = bluetoothDevices(ctx)
+        val activeAddr = active.map { it.address.uppercase() }.toSet()
+        val granted = ctx.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+        val adapter = (ctx.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
+        if (granted && adapter != null) {
+            val connected = a2dpConnected(ctx, adapter).map { it.uppercase() }.toSet() + activeAddr
+            try {
+                for (d in adapter.bondedDevices) {
+                    val major = d.bluetoothClass?.majorDeviceClass
+                    if (major != null && major != BluetoothClass.Device.Major.AUDIO_VIDEO) continue  // telefon, soat va h.k. emas
+                    val nm = (if (android.os.Build.VERSION.SDK_INT >= 30) d.alias else null) ?: d.name ?: d.address
+                    out[d.address.uppercase()] = Spk(d.address, nm, d.address.uppercase() in connected)
+                }
+            } catch (_: SecurityException) {}
+        }
+        for (d in active) {  // ro'yxatda yo'q, lekin faol qurilma
+            val k = d.address.uppercase()
+            if (k !in out) out[k] = Spk(d.address, d.productName?.toString() ?: d.address, true)
+        }
+        return out.values.sortedWith(compareByDescending<Spk> { it.connected }.thenBy { it.name.lowercase() })
     }
 
     // ---- Oddiy fayllar (chaqaloq yig'isi/kulgisi)

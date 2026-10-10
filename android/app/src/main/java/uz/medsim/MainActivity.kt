@@ -131,8 +131,8 @@ fun App() {
         if (changed) ed.apply()
     }
     var current by remember { mutableStateOf<PatientInfo?>(null) }
-    // manikenga biriktirilgan kalonka: patient.id -> AudioDeviceInfo.id
-    val speakers = remember { mutableStateMapOf<String, Int>() }
+    // manikenga biriktirilgan kalonka: patient.id -> "manzil|nom" (qurilmada saqlanadi, ulanishdan ulanishga o'zgarmaydi)
+    val speakers = remember { mutableStateMapOf<String, String>().apply { PATIENTS.forEach { pt -> prefs.getString("spk_${pt.id}", null)?.let { put(pt.id, it) } } } }
 
     // Server holati: 0 noma'lum, 1 tayyor, 2 uyg'onmoqda, 3 aloqa yo'q. Ilova ochiq turganda server uxlamaydi.
     var serverState by remember { mutableStateOf(0) }
@@ -150,10 +150,15 @@ fun App() {
     if (p == null) {
         HomeScreen(speakers, serverState, tts == "eleven", onPick = { current = it }, onSettings = { showSettings = true })
     } else {
-        val picker: @Composable () -> Unit = { SpeakerPicker(speakers[p.id]) { speakers[p.id] = it } }
+        val picker: @Composable () -> Unit = {
+            SpeakerPicker(speakers[p.id]?.substringBefore('|')) { addr, name ->
+                if (addr == null) { speakers.remove(p.id); prefs.edit().remove("spk_${p.id}").apply() }
+                else { speakers[p.id] = "$addr|$name"; prefs.edit().putString("spk_${p.id}", "$addr|$name").apply() }
+            }
+        }
         val back = { Speaker.stop(); current = null }
-        if (p.isBaby) BabyScreen(p, espBabyUrl, speakers[p.id], back, picker)
-        else ChatScreen(p, server, model, tts, speakers[p.id], back, picker)
+        if (p.isBaby) BabyScreen(p, espBabyUrl, speakers[p.id]?.substringBefore('|'), back, picker)
+        else ChatScreen(p, server, model, tts, speakers[p.id]?.substringBefore('|'), back, picker)
     }
     if (showSettings) SettingsDialog(server, model, tts, espBabyUrl, onDismiss = { showSettings = false }) { srv, mdl, tt, esp ->
         server = srv.trim(); model = mdl; tts = tt; espBabyUrl = esp.trim()
@@ -236,7 +241,7 @@ fun SectionTitle(title: String, sub: String) {
 }
 
 @Composable
-fun HomeScreen(speakers: Map<String, Int>, serverState: Int, premium: Boolean, onPick: (PatientInfo) -> Unit, onSettings: () -> Unit) {
+fun HomeScreen(speakers: Map<String, String>, serverState: Int, premium: Boolean, onPick: (PatientInfo) -> Unit, onSettings: () -> Unit) {
     val ctx = LocalContext.current
     val family = PATIENTS.filter { !it.isBaby }
     val extra = PATIENTS.filter { it.isBaby }
@@ -267,12 +272,12 @@ fun HomeScreen(speakers: Map<String, Int>, serverState: Int, premium: Boolean, o
         }
         item(span = { GridItemSpan(maxLineSpan) }) { SectionTitle("Rahimovlar oilasi", "Bitta xonadon, 4 a'zo. Hamshira butun oilani tekshirgani keladi.") }
         items(family) { p ->
-            val dev = speakers[p.id]?.let { id -> Speaker.bluetoothDevices(ctx).firstOrNull { it.id == id }?.productName?.toString() }
+            val dev = speakers[p.id]?.substringAfter('|')
             PatientCard(p, dev) { onPick(p) }
         }
         item(span = { GridItemSpan(maxLineSpan) }) { SectionTitle("Qo'shimcha mashq", "Maniken bilan ishlash: chaqaloqni tinchlantirish") }
         items(extra) { p ->
-            val dev = speakers[p.id]?.let { id -> Speaker.bluetoothDevices(ctx).firstOrNull { it.id == id }?.productName?.toString() }
+            val dev = speakers[p.id]?.substringAfter('|')
             PatientCard(p, dev) { onPick(p) }
         }
     }
@@ -439,26 +444,58 @@ fun ScreenHeader(p: PatientInfo, onBack: () -> Unit, picker: @Composable () -> U
 }
 
 @Composable
-fun SpeakerPicker(selected: Int?, onPick: (Int) -> Unit) {
+fun SpeakerPicker(selected: String?, onPick: (String?, String) -> Unit) {
     val ctx = LocalContext.current
-    var devices by remember { mutableStateOf(Speaker.bluetoothDevices(ctx)) }
-    Column {
+    var list by remember { mutableStateOf<List<Speaker.Spk>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    val granted = ctx.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+    // ro'yxat ochiq turganda har 4 soniyada yangilanadi (yangi ulangan kalonka o'zi paydo bo'ladi)
+    LaunchedEffect(Unit) {
+        while (true) {
+            list = Speaker.speakers(ctx); loading = false
+            delay(4000)
+        }
+    }
+    Column(Modifier.verticalScroll(rememberScrollState())) {
         Text(
-            "Bemor ovozi shu kalonkadan chiqadi (har bemorga alohida).",
+            "Bemor ovozi tanlangan kalonkadan chiqadi (har bemorga alohida). Tanlov eslab qolinadi.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(10.dp))
-        if (devices.isEmpty()) Text(
-            "Bluetooth kalonka ulanmagan. Ovoz telefon dinamigidan chiqadi.",
-            style = MaterialTheme.typography.bodyMedium,
+        FilterChip(
+            selected == null, { onPick(null, "") }, { Text("📱 Telefon dinamigi") },
+            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
         )
-        devices.forEach { d ->
+        if (!granted) Text("Bluetooth ruxsati berilmagan: Sozlamalar → Ilovalar → MedSim → Ruxsatlar.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        if (loading) Text("Qidirilmoqda…", style = MaterialTheme.typography.bodyMedium)
+        else if (list.isEmpty() && granted) Text("Juftlangan Bluetooth kalonka topilmadi. Avval telefon sozlamalarida kalonkani juftlang.", style = MaterialTheme.typography.bodyMedium)
+        list.forEach { d ->
             FilterChip(
-                selected == d.id, { onPick(d.id) }, { Text(d.productName.toString()) },
+                selected.equals(d.address, true), { onPick(d.address, d.name) },
+                {
+                    Column {
+                        Text("🔊 ${d.name}")
+                        Text(
+                            if (d.connected) "● ulangan" else "○ ulanmagan (avval ulang)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (d.connected) Ok else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
             )
         }
-        TextButton({ devices = Speaker.bluetoothDevices(ctx) }) { Text("↻ Ro'yxatni yangilash") }
+        val sel = list.firstOrNull { selected.equals(it.address, true) }
+        if (selected != null && (sel == null || !sel.connected)) {
+            Text(
+                "Tanlangan kalonka hozir ulanmagan, ovoz vaqtincha telefondan chiqadi. Kalonkani ulang, ro'yxat o'zi yangilanadi.",
+                style = MaterialTheme.typography.bodySmall, color = Warn,
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        TextButton({
+            ctx.startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }) { Text("⚙ Bluetooth sozlamalarini ochish") }
     }
 }
 
@@ -655,7 +692,7 @@ fun TypingBubble(patient: PatientInfo) {
 // ───────────────────────── Suhbat ─────────────────────────
 
 @Composable
-fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, deviceId: Int?, onBack: () -> Unit, picker: @Composable () -> Unit) {
+fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speakerAddr: String?, onBack: () -> Unit, picker: @Composable () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val history = remember(p.id) { mutableStateListOf<Turn>() }
@@ -697,7 +734,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, devic
             var attempt = 0
             while (true) {
                 try {
-                    Speaker.beginStream(ctx, deviceId) {
+                    Speaker.beginStream(ctx, Speaker.resolve(ctx, speakerAddr)) {
                         phase = Phase.IDLE
                         if (liveFlag[0]) scope.launch { delay(500); if (liveFlag[0] && phase == Phase.IDLE) liveStarter[0]?.invoke() }
                     }
@@ -1061,7 +1098,7 @@ private const val RESUME_AFTER_MS = 10000L
 private const val SHAKE_AFTER_MS = 1000L
 
 @Composable
-fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () -> Unit, picker: @Composable () -> Unit) {
+fun BabyScreen(p: PatientInfo, espBabyUrl: String, speakerAddr: String?, onBack: () -> Unit, picker: @Composable () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var msg by remember { mutableStateOf("Chaqaloq manikeni tekshirilmoqda…") }
@@ -1083,7 +1120,7 @@ fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () ->
         }
         if (!crying) {
             crying = true
-            Speaker.playAsset(ctx, "baby_cry.mp3", deviceId, loop = true)
+            Speaker.playAsset(ctx, "baby_cry.mp3", Speaker.resolve(ctx, speakerAddr), loop = true)
         }
     }
 
@@ -1094,7 +1131,7 @@ fun BabyScreen(p: PatientInfo, espBabyUrl: String, deviceId: Int?, onBack: () ->
         }
         if (!laughing) {
             laughing = true
-            Speaker.playAsset(ctx, "baby_laugh.m4a", deviceId, loop = true)
+            Speaker.playAsset(ctx, "baby_laugh.m4a", Speaker.resolve(ctx, speakerAddr), loop = true)
         }
     }
 

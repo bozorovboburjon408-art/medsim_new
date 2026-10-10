@@ -162,7 +162,7 @@ fun App() {
         }
         val back = { Speaker.stop(); current = null }
         if (p.isBaby) BabyScreen(p, espBabyUrl, speakers[p.id]?.substringBefore('|'), back, picker)
-        else ChatScreen(p, server, model, tts, speakers[p.id]?.substringBefore('|'), back, picker)
+        else ChatScreen(p, server, model, tts, speakers[p.id]?.substringBefore('|'), speakers[p.id]?.substringAfter('|'), back, picker)
     }
     if (showSettings) SettingsDialog(server, model, tts, espBabyUrl, onDismiss = { showSettings = false }) { srv, mdl, tt, esp ->
         server = srv.trim(); model = mdl; tts = tt; espBabyUrl = esp.trim()
@@ -435,7 +435,7 @@ fun SettingsDialog(server: String, model: String, tts: String, espBabyUrl: Strin
 // ───────────────────────── Ekran sarlavhasi ─────────────────────────
 
 @Composable
-fun ScreenHeader(p: PatientInfo, onBack: () -> Unit, picker: @Composable () -> Unit, trailing: @Composable RowScope.() -> Unit = {}) {
+fun ScreenHeader(p: PatientInfo, onBack: () -> Unit, picker: @Composable () -> Unit, speakerLabel: String? = null, speakerOk: Boolean = true, trailing: @Composable RowScope.() -> Unit = {}) {
     var showSpeakers by remember { mutableStateOf(false) }
     Surface(
         color = MaterialTheme.colorScheme.surface, shadowElevation = 6.dp,
@@ -449,10 +449,20 @@ fun ScreenHeader(p: PatientInfo, onBack: () -> Unit, picker: @Composable () -> U
                 Text(p.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.width(8.dp))
-            Box(
-                Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer)
+            Row(
+                Modifier.clip(CircleShape)
+                    .background(if (!speakerOk) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer)
                     .clickable { showSpeakers = true }.padding(horizontal = 12.dp, vertical = 8.dp),
-            ) { Text("🔊", fontSize = 16.sp) }
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(if (!speakerOk) "⚠️" else if (speakerLabel == null) "📱" else "🔊", fontSize = 16.sp)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    speakerLabel ?: "Telefon", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 150.dp),
+                    color = if (!speakerOk) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
             Spacer(Modifier.width(8.dp))
             trailing()
         }
@@ -729,7 +739,7 @@ fun TypingBubble(patient: PatientInfo) {
 // ───────────────────────── Suhbat ─────────────────────────
 
 @Composable
-fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speakerAddr: String?, onBack: () -> Unit, picker: @Composable () -> Unit) {
+fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speakerAddr: String?, speakerName: String?, onBack: () -> Unit, picker: @Composable () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val history = remember(p.id) { mutableStateListOf<Turn>() }
@@ -888,6 +898,12 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
 
     fun pressDown() {
         Log.d("PTT", "pressDown held=${held[0]} phase=$phase")
+        if (spkInactive) {  // tanlangan kalonka faol emas: noto'g'ri kalonkadan gapirib yubormaslik uchun bloklaymiz
+            Log.d("PTT", "BLOKLANDI: tanlangan kalonka ($speakerName) faol emas")
+            liveFlag[0] = false; live = false; held[0] = false
+            error = "Tanlangan kalonka (${speakerName ?: ""}) faol emas, gapirish to'xtatildi. Kalonkani ulang yoki yuqoridagi 🔊 tugmasidan to'g'ri kalonkani tanlang"
+            return
+        }
         if (ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             error = "Mikrofonga ruxsat bering (Sozlamalar → Ilovalar → MedSim)"; return
         }
@@ -948,7 +964,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
 
     Column(Modifier.fillMaxSize()) {
         val canEval = history.any { it.role == "user" } && phase == Phase.IDLE && !evaluating
-        ScreenHeader(p, onBack, picker) {
+        ScreenHeader(p, onBack, picker, speakerLabel = speakerName, speakerOk = !spkInactive) {
             Row(
                 Modifier.clip(CircleShape)
                     .background(if (live) Danger else MaterialTheme.colorScheme.surfaceVariant)

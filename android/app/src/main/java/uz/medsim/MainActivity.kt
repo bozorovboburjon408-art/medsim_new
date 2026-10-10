@@ -130,6 +130,7 @@ fun App() {
     var espBabyUrl by remember { mutableStateOf(initialBaby) }
     var showSettings by remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) { Speaker.gain = prefs.getFloat("gain", 2.0f) }
     LaunchedEffect(Unit) {
         val ed = prefs.edit()
         var changed = false
@@ -418,6 +419,19 @@ fun SettingsDialog(server: String, model: String, tts: String, espBabyUrl: Strin
                         Text("Sinov: Bluetooth kalonka ulanmagan bo'lsa ham ichki mikrofon oqimi ishlatiladi (Android 13+). Odatda faqat kalonka ishlatilganda yoqiladi.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Switch(ownAlways, { ownAlways = it; ownPrefs.edit().putBoolean("own_mic_always", it).apply() })
+                }
+
+                Spacer(Modifier.height(14.dp))
+                var gainSel by remember { mutableStateOf(Speaker.gain) }
+                Text("🔊 Bemor ovozi kuchi (kalonka past eshitilsa oshiring)", style = MaterialTheme.typography.labelLarge)
+                Row(Modifier.horizontalScroll(rememberScrollState())) {
+                    listOf(1.0f to "Oddiy", 2.0f to "Baland", 3.5f to "Juda baland", 5.0f to "Maksimal").forEach { (g, label) ->
+                        FilterChip(
+                            kotlin.math.abs(gainSel - g) < 0.01f,
+                            { gainSel = g; Speaker.gain = g; ownPrefs.edit().putFloat("gain", g).apply() },
+                            { Text(label) }, modifier = Modifier.padding(end = 8.dp),
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(14.dp))

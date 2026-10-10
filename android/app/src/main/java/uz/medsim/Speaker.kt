@@ -213,9 +213,30 @@ object Speaker {
         Log.d("SPK", "beginStream: oqim ochildi, yo'l uyg'otilmoqda")
     }
 
+    /** Ovoz kuchaytirish koeffitsiyenti (1 = o'zgarishsiz). Sozlamalardan o'rnatiladi. */
+    @Volatile var gain = 2.0f
+
+    /** Raqamli kuchaytirish: 60% dan yuqori cho'qqilar yumshoq cheklanadi (tanh), shuning uchun baqirmaydi va buzilmaydi. */
+    private fun amplify(b: ByteArray): ByteArray {
+        val g = gain
+        if (g <= 1.001f) return b
+        val out = ByteArray(b.size)
+        var i = 0
+        while (i + 1 < b.size) {
+            val v = ((b[i].toInt() and 0xFF) or (b[i + 1].toInt() shl 8)).toShort().toInt()
+            val x = v * g / 32768.0
+            val ax = Math.abs(x)
+            val y = if (ax < 0.6) x else Math.signum(x) * (0.6 + 0.4 * Math.tanh((ax - 0.6) / 0.4))
+            val o = (y * 32767.0).toInt().coerceIn(-32768, 32767)
+            out[i] = (o and 0xFF).toByte(); out[i + 1] = (o shr 8).toByte()
+            i += 2
+        }
+        return out
+    }
+
     fun writePcm(ctx: Context, bytes: ByteArray, rate: Int) {
         val p = pcm ?: PcmPlayer(RATE, dev, bluetoothDevices(ctx)).also { pcm = it }
-        p.write(if (rate == RATE) bytes else resample(bytes, rate, RATE))
+        p.write(amplify(if (rate == RATE) bytes else resample(bytes, rate, RATE)))
     }
 
     /** Edge mp3 bo'lagi: PCM ga aylantirilib (orqa oqimda, tartib saqlanadi) umumiy oqimga yoziladi. */

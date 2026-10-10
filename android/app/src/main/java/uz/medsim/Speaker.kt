@@ -12,6 +12,9 @@ import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
+import android.media.AudioRecord
+import android.media.MediaRecorder
+import android.os.ParcelFileDescriptor
 import android.media.AudioTrack
 import android.media.MediaCodec
 import android.media.MediaExtractor
@@ -461,5 +464,54 @@ object Beep {
             try { am.adjustStreamVolume(st, AudioManager.ADJUST_UNMUTE, 0) } catch (_: Exception) {}
         }
         ours.clear()
+    }
+}
+
+
+/**
+ * Planshetning ICHKI mikrofonidan yozadi va ovoz tanish moduliga (Android 13+: EXTRA_AUDIO_SOURCE) oqim sifatida beradi.
+ * Shunda Bluetooth kalonka faqat ovoz chiqarish uchun ishlaydi: tanish moduli kalonkaning mikrofoniga (garnitura rejimi) o'tmaydi.
+ */
+class OwnMic(ctx: Context, private val onLevel: (Float) -> Unit) {
+    private val pipe = ParcelFileDescriptor.createPipe()
+    val readFd: ParcelFileDescriptor get() = pipe[0]
+    @Volatile private var running = true
+    private val main = Handler(Looper.getMainLooper())
+
+    init {
+        val rate = 16000
+        val min = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+        val r = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, rate * 2))
+        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        am.getDevices(AudioManager.GET_DEVICES_INPUTS).firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_MIC }?.let { r.setPreferredDevice(it) }
+        Thread { loop(r) }.start()
+    }
+
+    private fun loop(r: AudioRecord) {
+        val out = ParcelFileDescriptor.AutoCloseOutputStream(pipe[1])
+        val buf = ByteArray(3200)  // 0.1 s
+        try {
+            r.startRecording()
+            while (running) {
+                val n = r.read(buf, 0, buf.size)
+                if (n <= 0) break
+                out.write(buf, 0, n)
+                var sum = 0.0
+                var i = 0
+                while (i + 1 < n) { val v = (buf[i].toInt() and 0xFF) or (buf[i + 1].toInt() shl 8); sum += v.toDouble() * v; i += 2 }
+                val rms = Math.sqrt(sum / (n / 2))
+                main.post { onLevel((rms / 2500.0).toFloat().coerceIn(0f, 1f)) }
+            }
+        } catch (_: Exception) {
+        } finally {
+            try { r.stop() } catch (_: Exception) {}
+            r.release()
+            try { out.close() } catch (_: Exception) {}
+        }
+    }
+
+    fun stop() {
+        running = false
+        try { pipe[0].close() } catch (_: Exception) {}
     }
 }

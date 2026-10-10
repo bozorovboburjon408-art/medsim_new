@@ -737,6 +737,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
 
     // Bosib turib gapirish holati
     val recRef = remember { arrayOfNulls<SpeechRecognizer>(1) }
+    val ownMic = remember { arrayOfNulls<OwnMic>(1) }  // planshet ichki mikrofoni (Bluetooth kalonka ishlatilganda)
     val buffer = remember { mutableListOf<String>() }
     val held = remember { booleanArrayOf(false) }
     val errStreak = remember { intArrayOf(0) }
@@ -800,7 +801,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
 
     fun finish() {
         Beep.unmute(ctx); recReady = false
-        recRef[0]?.destroy(); recRef[0] = null
+        recRef[0]?.destroy(); recRef[0] = null; ownMic[0]?.stop(); ownMic[0] = null
         val text = buffer.joinToString(" ").trim()
         buffer.clear(); partial = ""; level = 0f
         if (text.isBlank()) { phase = Phase.IDLE; error = "Eshitilmadi. Tugmani bosib, aniqroq gapiring" } else send(text)
@@ -812,7 +813,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
         rec.setRecognitionListener(object : RecognitionListener {
             override fun onResults(b: Bundle?) {
                 val t = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
-                rec.destroy(); if (recRef[0] === rec) recRef[0] = null
+                rec.destroy(); if (recRef[0] === rec) { recRef[0] = null; ownMic[0]?.stop(); ownMic[0] = null }
                 if (!t.isNullOrBlank()) { buffer.add(t); errStreak[0] = 0 }
                 partial = buffer.joinToString(" ")
                 if (liveFlag[0]) {  // Live: gap tugadi, yuboramiz; bo'sh bo'lsa yana eshitamiz
@@ -825,7 +826,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
             }
             override fun onError(e: Int) {
                 Log.d("PTT", "tanish xatosi $e held=${held[0]}")
-                rec.destroy(); if (recRef[0] === rec) recRef[0] = null
+                rec.destroy(); if (recRef[0] === rec) { recRef[0] = null; ownMic[0]?.stop(); ownMic[0] = null }
                 val soft = e == SpeechRecognizer.ERROR_NO_MATCH || e == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
                 if (held[0]) {
                     if (!soft) errStreak[0]++
@@ -849,7 +850,17 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
         })
         recReady = false
         Beep.mute(ctx)  // tanish moduli "qung" tovushi chiqarmasin
+        ownMic[0]?.stop(); ownMic[0] = null
+        val useOwn = android.os.Build.VERSION.SDK_INT >= 33 && Speaker.resolve(ctx, speakerAddr) != null
+        if (useOwn) ownMic[0] = try { OwnMic(ctx) { lv -> level = lv } } catch (e: Exception) { Log.d("PTT", "ichki mikrofon ochilmadi: $e"); null }
+        val mic = ownMic[0]
         rec.startListening(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            if (mic != null && android.os.Build.VERSION.SDK_INT >= 33) {
+                putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, mic.readFd)
+                putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT, 1)
+                putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING, android.media.AudioFormat.ENCODING_PCM_16BIT)
+                putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_SAMPLING_RATE, 16000)
+            }
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "uz-UZ")
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
@@ -873,7 +884,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
         if (!held[0]) return
         held[0] = false
         if (System.currentTimeMillis() - pressedAt[0] < 400 && buffer.isEmpty()) {  // tasodifan tegib ketdi
-            recRef[0]?.destroy(); recRef[0] = null; Beep.unmute(ctx); recReady = false
+            recRef[0]?.destroy(); recRef[0] = null; ownMic[0]?.stop(); ownMic[0] = null; Beep.unmute(ctx); recReady = false
             partial = ""; level = 0f; phase = Phase.IDLE; error = "Tugmani bosing va gapiring"
             return
         }
@@ -902,13 +913,13 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
         live = on; liveFlag[0] = on
         if (on) { error = ""; if (phase == Phase.IDLE) liveStart() }
         else {
-            held[0] = false; recRef[0]?.destroy(); recRef[0] = null; Beep.unmute(ctx); recReady = false
+            held[0] = false; recRef[0]?.destroy(); recRef[0] = null; ownMic[0]?.stop(); ownMic[0] = null; Beep.unmute(ctx); recReady = false
             buffer.clear(); partial = ""; level = 0f
             if (phase == Phase.LISTENING) phase = Phase.IDLE
         }
     }
 
-    DisposableEffect(p.id) { onDispose { liveFlag[0] = false; held[0] = false; recRef[0]?.destroy(); recRef[0] = null; Beep.unmute(ctx) } }
+    DisposableEffect(p.id) { onDispose { liveFlag[0] = false; held[0] = false; recRef[0]?.destroy(); recRef[0] = null; ownMic[0]?.stop(); ownMic[0] = null; Beep.unmute(ctx) } }
 
     evalResult?.let { EvaluationDialog(it) { evalResult = null } }
     if (showInfo) AlertDialog(

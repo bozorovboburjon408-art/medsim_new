@@ -146,9 +146,13 @@ fun App() {
         }
     }
 
+    // hozir ulangan Bluetooth kalonkalar (bosh sahifada har bemorning kalonkasi ulanganmi ko'rsatish uchun)
+    var btConnected by remember { mutableStateOf<Set<String>>(emptySet()) }
+    LaunchedEffect(Unit) { while (true) { btConnected = Speaker.speakers(ctx).filter { it.connected }.map { it.address.uppercase() }.toSet(); delay(5000) } }
+
     val p = current
     if (p == null) {
-        HomeScreen(speakers, serverState, tts == "eleven", onPick = { current = it }, onSettings = { showSettings = true })
+        HomeScreen(speakers, btConnected, serverState, tts == "eleven", onPick = { current = it }, onSettings = { showSettings = true })
     } else {
         val picker: @Composable () -> Unit = {
             SpeakerPicker(speakers[p.id]?.substringBefore('|')) { addr, name ->
@@ -241,7 +245,7 @@ fun SectionTitle(title: String, sub: String) {
 }
 
 @Composable
-fun HomeScreen(speakers: Map<String, String>, serverState: Int, premium: Boolean, onPick: (PatientInfo) -> Unit, onSettings: () -> Unit) {
+fun HomeScreen(speakers: Map<String, String>, btConnected: Set<String>, serverState: Int, premium: Boolean, onPick: (PatientInfo) -> Unit, onSettings: () -> Unit) {
     val ctx = LocalContext.current
     val family = PATIENTS.filter { !it.isBaby }
     val extra = PATIENTS.filter { it.isBaby }
@@ -272,19 +276,19 @@ fun HomeScreen(speakers: Map<String, String>, serverState: Int, premium: Boolean
         }
         item(span = { GridItemSpan(maxLineSpan) }) { SectionTitle("Rahimovlar oilasi", "Bitta xonadon, 4 a'zo. Hamshira butun oilani tekshirgani keladi.") }
         items(family) { p ->
-            val dev = speakers[p.id]?.substringAfter('|')
-            PatientCard(p, dev) { onPick(p) }
+            val saved = speakers[p.id]
+            PatientCard(p, saved?.substringAfter('|'), saved?.let { it.substringBefore('|').uppercase() in btConnected }) { onPick(p) }
         }
         item(span = { GridItemSpan(maxLineSpan) }) { SectionTitle("Qo'shimcha mashq", "Maniken bilan ishlash: chaqaloqni tinchlantirish") }
         items(extra) { p ->
-            val dev = speakers[p.id]?.substringAfter('|')
-            PatientCard(p, dev) { onPick(p) }
+            val saved = speakers[p.id]
+            PatientCard(p, saved?.substringAfter('|'), saved?.let { it.substringBefore('|').uppercase() in btConnected }) { onPick(p) }
         }
     }
 }
 
 @Composable
-fun PatientCard(p: PatientInfo, speakerName: String?, onClick: () -> Unit) {
+fun PatientCard(p: PatientInfo, speakerName: String?, speakerOn: Boolean?, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val shape = MaterialTheme.shapes.large
     Box(
@@ -307,7 +311,11 @@ fun PatientCard(p: PatientInfo, speakerName: String?, onClick: () -> Unit) {
                     )
                     if (speakerName != null) {
                         Spacer(Modifier.width(8.dp))
-                        Text("🔊 $speakerName", style = MaterialTheme.typography.labelMedium, color = cs.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            "🔊 $speakerName" + if (speakerOn == false) " · ulanmagan" else "",
+                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
+                            color = if (speakerOn == false) Warn else Ok, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 }
             }

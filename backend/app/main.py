@@ -228,7 +228,16 @@ async def chat_stream(req: ChatRequest):
                 log.warning("Gemini TTS vaqtida javob bermadi, Edge'ga o'tildi")
                 audio, _ = await tts.synthesize(sp, p)
                 return s, audio, "mp3", "edge (gemini xato)", t_llm, int((time.perf_counter() - t) * 1000)
-            audio, used = await tts.synthesize(sp, p)
+            try:
+                audio, used = await tts.synthesize(sp, p)
+            except Exception as e:  # Edge (Microsoft) ba'zan 403 beradi: ElevenLabs bo'lsa o'sha gap shu bilan aytiladi, bemor jim qolmasin
+                if not eleven.enabled():
+                    raise
+                log.warning("Edge TTS xatosi, ElevenLabs'ga o'tildi: %s", str(e)[:120])
+                info.setdefault("tries", []).append(f"Edge xato -> ElevenLabs: {str(e)[:80]}")
+                vid = eleven.DEFAULT_VOICE.get(p.id, "")
+                audio = await eleven.tts(sp, vid, eleven.DEFAULT_MODEL.get(p.id, ""), False, "mp3_44100_128")
+                used = "elevenlabs (edge xato)"
             return s, audio, "mp3", used, t_llm, int((time.perf_counter() - t) * 1000)
 
         async def producer():

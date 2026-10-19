@@ -63,3 +63,12 @@ Android: PCM/mp3 bo'laklarini Bluetooth karnayga chaladi (AudioTrack)
 ## 8. Qanday davom etiladi
 - Kodni o'zgartirish: Claude Code (yangi, qisqa sessiya shu hujjat bilan) yoki GitHub'da qo'lda. Oddiy chat kodni ko'rmaydi va o'zgartirmaydi: undan maslahat/kod parchasi olib, qo'lda qo'yish kerak.
 - Barcha AI ko'rsatmalari (promptlar) alohida: `PROMPTS.md`.
+
+## 9. Oxirgi yangilanishlar (2026-10 oxiri) — shuni ham o'qing
+- **Ovoz:** standart Edge (bepul, `edge-tts>=7.3.1`: Microsoft 2026-10 da eski versiyaga 403 bergan, shuning uchun versiyani pasaytirmang). Premium = ElevenLabs `eleven_v4` (ilovada Sozlamalar tugmasi). Edge xato bersa server o'sha gapni ElevenLabs'da aytadi. Butun javob bitta ovoz (gaplar orasida pauza yo'q), `soften()` nuqtalarni vergulga almashtiradi.
+- **Oila:** hamma bemor bitta oila (`patients.py` FAMILY_COMMON): Hikmatilla ota va Salomat buvi er-xotin, ularning o'g'li Sardor (oddiy ishda ishlaydi), kelin Nilufar (32 hafta homilador), nevara Jasmina (5 yosh, qiz bola ssenariysi foydalanuvchi hujjatidan).
+- **Android:** yangi dizayn (chizilgan yuzlar `Faces.kt`), bir marta bosib boshlash/to'xtatish, **Live rejim** (qo'lsiz suhbat, sukut 1.4 s), uzluksiz AudioTrack oqimi (`Speaker.kt`: Edge mp3 PCM ga aylantiriladi, pauzada kuchsiz shovqin yoziladi: Bluetooth kalonka gap boshini yutmasin), ovoz kuchi sozlamasi, eshitishdagi "qung" tovushi o'chiriladi (`Beep`), "Eshitilmadi" xabarida kod bor.
+- **Bluetooth kalonkalar:** har bemorga alohida kalonka (manzil bo'yicha saqlanadi), tanlangan kalonka faol bo'lmasa gapirish bloklanadi. **Cheklov:** Android bir vaqtda ko'pi bilan 2 ta kalonka ulaydi (`MaxConnectedAudioDevices: 2`), faol bitta. 4-5 ta manikenga alohida kalonka uchun ESP32/Wi-Fi yo'li kerak bo'lishi mumkin. Qotirilgan kalonkalar `MainActivity.kt` dagi `DEFAULT_SPEAKERS` da (hozircha bo'sh).
+- **Sinalmagan/ishlamagan:** ichki mikrofon oqimi (`OwnMic`, Google tanish moduli `EXTRA_AUDIO_SOURCE` ni qabul qilmadi): faqat Sozlamalardagi sinov tugmasi bilan yoqiladi.
+- **Qurilmalar:** sinov telefoni Samsung A56, planshet HONOR Pad X8b (adb: simli USB ishlamadi, drayver yo'q; simsiz debugging ishlaydi). Mahalliy APK imzosi GitHub APK imzosidan farq qiladi: almashtirishdan oldin ilovani o'chirish kerak.
+- **Mahalliy qurish:** `JAVA_HOME` = Android Studio `jbr`, Gradle 8.14.3 (`~/.gradle/wrapper/dists`), `gradle assembleDebug --no-daemon`.

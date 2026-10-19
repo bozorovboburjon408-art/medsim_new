@@ -772,6 +772,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
     var partial by remember { mutableStateOf("") }
     var level by remember { mutableStateOf(0f) }
     var recReady by remember { mutableStateOf(false) }  // tanish moduli tayyor: endi gapirish mumkin
+    var lastErr by remember { mutableStateOf(0) }  // tanish moduli oxirgi xato kodi (diagnostika uchun xabarda ko'rsatiladi)
     // tanlangan kalonka hozir ovoz tizimida faolmi (faol bo'lmasa ovoz boshqa joydan chiqadi)
     var spkInactive by remember { mutableStateOf(false) }
     LaunchedEffect(speakerAddr) { while (true) { spkInactive = speakerAddr != null && Speaker.resolve(ctx, speakerAddr) == null; delay(2500) } }
@@ -850,7 +851,23 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
         recRef[0]?.destroy(); recRef[0] = null; ownMic[0]?.stop(); ownMic[0] = null
         val text = buffer.joinToString(" ").trim()
         buffer.clear(); partial = ""; level = 0f
-        if (text.isBlank()) { phase = Phase.IDLE; error = "Eshitilmadi. Tugmani bosib, aniqroq gapiring" } else send(text)
+        if (text.isBlank()) {
+            phase = Phase.IDLE
+            val why = when (lastErr) {
+                0 -> "gap tanilmadi"
+                1, 2, 4, 11 -> "internet/server muammosi, tarmoqni tekshiring"
+                3 -> "mikrofon yozmayapti"
+                5, 8 -> "tanish moduli band, qayta urining"
+                6 -> "hech narsa eshitilmadi (jimlik)"
+                7 -> "gap tanilmadi, aniqroq gapiring"
+                9 -> "mikrofon ruxsati yo'q"
+                10 -> "juda ko'p so'rov, biroz kuting"
+                12, 13 -> "o'zbek tili tanish moduli yuklanmagan (Google ilovasini yangilang)"
+                else -> "noma'lum xato"
+            }
+            error = "Eshitilmadi (kod $lastErr: $why)"
+            Log.d("PTT", "bo'sh natija, oxirgi xato=$lastErr ($why)")
+        } else send(text)
     }
 
     fun startRec() {
@@ -872,6 +889,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
             }
             override fun onError(e: Int) {
                 Log.d("PTT", "tanish xatosi $e held=${held[0]}")
+                lastErr = e
                 rec.destroy(); if (recRef[0] === rec) { recRef[0] = null; ownMic[0]?.stop(); ownMic[0] = null }
                 val soft = e == SpeechRecognizer.ERROR_NO_MATCH || e == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
                 if (held[0]) {
@@ -928,7 +946,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
         if (ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             error = "Mikrofonga ruxsat bering (Sozlamalar → Ilovalar → MedSim)"; return
         }
-        gen[0]++; Speaker.stop(); error = ""; buffer.clear(); partial = ""; errStreak[0] = 0
+        gen[0]++; Speaker.stop(); error = ""; buffer.clear(); partial = ""; errStreak[0] = 0; lastErr = 0
         held[0] = true; pressedAt[0] = System.currentTimeMillis(); phase = Phase.LISTENING
         startRec()
     }

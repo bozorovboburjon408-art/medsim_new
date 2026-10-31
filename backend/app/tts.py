@@ -1,5 +1,5 @@
 """Matnni o'zbekcha ovozga aylantirish. Ovoz faqat Edge (bepul) yoki Azure (ixtiyoriy) orqali.
-Gemini faqat matn (suhbat va baholash) uchun ishlatiladi, ovoz uchun emas."""
+Gemini faqat matn uchun ishlatiladi, ovoz uchun emas."""
 import asyncio
 import base64
 import io

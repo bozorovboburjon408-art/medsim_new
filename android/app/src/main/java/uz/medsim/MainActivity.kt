@@ -767,8 +767,6 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
     var phase by remember { mutableStateOf(Phase.IDLE) }
     var error by remember { mutableStateOf("") }
     var firstAudio by remember { mutableStateOf("") }
-    var evaluating by remember { mutableStateOf(false) }
-    var evalResult by remember { mutableStateOf<EvalResult?>(null) }
     var partial by remember { mutableStateOf("") }
     var level by remember { mutableStateOf(0f) }
     var recReady by remember { mutableStateOf(false) }  // tanish moduli tayyor: endi gapirish mumkin
@@ -993,7 +991,6 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
 
     DisposableEffect(p.id) { onDispose { liveFlag[0] = false; held[0] = false; recRef[0]?.destroy(); recRef[0] = null; ownMic[0]?.stop(); ownMic[0] = null; Beep.unmute(ctx) } }
 
-    evalResult?.let { EvaluationDialog(it) { evalResult = null } }
     if (showInfo) AlertDialog(
         onDismissRequest = { showInfo = false }, shape = MaterialTheme.shapes.large,
         title = { Text("Texnik ma'lumot", fontWeight = FontWeight.Bold) },
@@ -1002,7 +999,6 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
     )
 
     Column(Modifier.fillMaxSize()) {
-        val canEval = history.any { it.role == "user" } && phase == Phase.IDLE && !evaluating
         ScreenHeader(p, onBack, picker, speakerLabel = speakerName, speakerOk = !spkInactive) {
             Row(
                 Modifier.clip(CircleShape)
@@ -1013,21 +1009,6 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
                 Box(Modifier.size(9.dp).clip(CircleShape).background(if (live) Color.White else Danger))
                 Spacer(Modifier.width(7.dp))
                 Text(if (tts == "eleven") "Live ⭐" else "Live", fontWeight = FontWeight.Bold, color = if (live) Color.White else MaterialTheme.colorScheme.onSurface)
-            }
-            Spacer(Modifier.width(8.dp))
-            FilledTonalButton(
-                {
-                    evaluating = true; error = ""
-                    scope.launch {
-                        try { evalResult = Api.evaluate(server, p.id, history.toList(), model) }
-                        catch (e: Exception) { error = "Baholash xatosi: ${e.message}" }
-                        finally { evaluating = false }
-                    }
-                },
-                enabled = canEval, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-            ) {
-                if (evaluating) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                else Text("📋 Baholash", fontWeight = FontWeight.SemiBold)
             }
             Spacer(Modifier.width(8.dp))
             Box {
@@ -1136,75 +1117,6 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
             }
         }
     }
-}
-
-// ───────────────────────── Baholash natijasi ─────────────────────────
-
-@Composable
-fun ScoreRing(total: Int, color: Color) {
-    val track = MaterialTheme.colorScheme.surfaceVariant
-    Box(Modifier.size(104.dp), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val s = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round)
-            val inset = 6.dp.toPx()
-            val sz = Size(size.width - inset * 2, size.height - inset * 2)
-            drawArc(track, -90f, 360f, false, Offset(inset, inset), sz, style = s)
-            drawArc(color, -90f, 360f * (total.coerceIn(0, 100) / 100f), false, Offset(inset, inset), sz, style = s)
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("$total", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = color)
-            Text("/ 100", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-fun EvaluationDialog(r: EvalResult, onDismiss: () -> Unit) {
-    val color = when { r.total >= 80 -> Ok; r.total >= 60 -> Warn; else -> MaterialTheme.colorScheme.error }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        modifier = Modifier.fillMaxWidth(0.92f).widthIn(max = 720.dp),
-        shape = MaterialTheme.shapes.large,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-        title = { Text("Baholash natijasi", fontWeight = FontWeight.Bold) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    ScoreRing(r.total, color)
-                    Spacer(Modifier.width(16.dp))
-                    if (r.summary.isNotBlank()) Text(r.summary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                }
-                r.stages.forEach { st ->
-                    Spacer(Modifier.height(10.dp))
-                    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)) {
-                        Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                            Row {
-                                Text(st.name, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-                                Text("${st.score}/${st.max}", fontWeight = FontWeight.Bold)
-                            }
-                            Spacer(Modifier.height(6.dp))
-                            LinearProgressIndicator(
-                                progress = st.score.toFloat() / st.max, color = if (st.score * 100 / st.max >= 60) Ok else Warn,
-                                trackColor = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            st.done.forEach { Text("✓ $it", color = Ok, style = MaterialTheme.typography.bodyMedium) }
-                            st.missed.forEach { Text("✗ $it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
-                        }
-                    }
-                }
-                if (r.strengths.isNotEmpty()) {
-                    Spacer(Modifier.height(16.dp)); Text("Kuchli tomonlar", fontWeight = FontWeight.Bold)
-                    r.strengths.forEach { Text("• $it") }
-                }
-                if (r.advice.isNotEmpty()) {
-                    Spacer(Modifier.height(12.dp)); Text("Yaxshilash uchun", fontWeight = FontWeight.Bold)
-                    r.advice.forEach { Text("• $it") }
-                }
-            }
-        },
-        confirmButton = { Button(onDismiss) { Text("Yopish") } },
-    )
 }
 
 // ───────────────────────── Chaqaloq ─────────────────────────

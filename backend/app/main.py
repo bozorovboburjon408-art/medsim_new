@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import chirp, eleven, evaluator, full_lab, live, llm, selftest, tts
+from . import chirp, eleven, full_lab, live, llm, selftest, tts
 from .config import settings
 from .patients import PATIENTS
 
@@ -301,27 +301,6 @@ async def chat_stream(req: ChatRequest):
                 x.cancel()
 
     return StreamingResponse(gen(), media_type="application/x-ndjson")
-
-
-class EvalRequest(BaseModel):
-    patient_id: str
-    history: list[Turn]
-    model: str | None = None
-
-
-@app.post("/evaluate")
-async def evaluate(req: EvalRequest):
-    """Suhbat tugagach hamshirani 5 mezon bo'yicha baholaydi."""
-    p = PATIENTS.get(req.patient_id)
-    if not p:
-        raise HTTPException(404, "Bemor topilmadi")
-    history = [t.model_dump() for t in req.history if t.content.strip()]
-    if not any(t["role"] == "user" for t in history):
-        raise HTTPException(400, "Baholash uchun suhbat kerak")
-    try:
-        return await evaluator.evaluate(p, history, req.model)
-    except Exception as e:
-        raise HTTPException(502, f"Baholash xatosi: {e}"[:400])
 
 
 VOICES = ("uz-UZ-MadinaNeural", "uz-UZ-SardorNeural")

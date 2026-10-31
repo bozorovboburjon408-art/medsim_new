@@ -69,7 +69,7 @@ Android: PCM/mp3 bo'laklarini Bluetooth karnayga chaladi (AudioTrack)
 - Har faylda: "SENING AHVOLING", "SENING SAVOLLARING" (bemor o'zi so'raydi), "HAMSHIRA AYTADIGAN NARSALAR" (faqat ma'lumot).
 - `COMMON_RULES` yangilandi: bemor o'z savollarini bittadan so'raydi; tavsiyaga (sayr, mashq) rozi bo'ladi, "kasalman, turolmayman" demaydi; umumiy savolga faqat o'zi haqida javob beradi.
 - `/self_test` har bemor uchun yangi ssenariyli savollar bilan; "QARSHILIK" va "o'z SAVOLI" belgilari qo'shildi.
-- Tekshirilmagan: sandboxda LLM kaliti yo'q. Render'da `/self_test?token=...` bilan tekshirish kerak. Baholash (`evaluator.py`) hali eski 4 bosqichli mezonda, keyinroq yangilanadi.
+- Tekshirilmagan: sandboxda LLM kaliti yo'q. Render'da `/self_test?token=...` bilan tekshirish kerak. Baholash (evaluator, /evaluate, ilovadagi tugma) butunlay olib tashlandi.
 
 ## 9. Oxirgi yangilanishlar (2026-10 oxiri) — shuni ham o'qing
 - **Ovoz:** standart Edge (bepul, `edge-tts>=7.3.1`: Microsoft 2026-10 da eski versiyaga 403 bergan, shuning uchun versiyani pasaytirmang). Premium = ElevenLabs `eleven_v4` (ilovada Sozlamalar tugmasi). Edge xato bersa server o'sha gapni ElevenLabs'da aytadi. Butun javob bitta ovoz (gaplar orasida pauza yo'q), `soften()` nuqtalarni vergulga almashtiradi.

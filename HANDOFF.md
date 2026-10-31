@@ -8,9 +8,11 @@ Bemorlar (`backend/app/patients.py`, ssenariylar `backend/app/scenarios/*.txt`):
 |---|---|---|
 | `buvi` | Salomat buvi, 75, qandli diabet | faqat o'zi gapiradi |
 | `homilador` | Nilufar, 32 haftalik homilador | |
-| `bola` | **Madinaxon**, 5 yoshli QIZALOQ, gijja | ssenariy matnida hozircha "Jasurbek" ismi, `name_swap` uni Madinaxon deb almashtiradi; yangi matn keyin yuklanadi |
+| `bola` | **Jasmina**, 5 yoshli QIZALOQ, gijja | ssenariy: foydalanuvchi bergan "5 yoshli qiz bola" hujjati (ism: Jasmina Rahimova) |
 | `bobo` | Hikmatilla ota, 78, skrining | quloqlari og'ir |
 | `chaqaloq` | AI yo'q | yig'laydi/kuladi (mp3), ESP32-C6 maniken datchigi yoki planshet akselerometri bilan tinchlanadi |
+
+Oila (`patients.py` FAMILY_COMMON): hamma bemor bitta oila. Hikmatilla ota (78) va Salomat buvi (75) er-xotin; o'g'li Sardor (35) oddiy ishda ishlaydi (kunduzi ishda, kechqurun uyda); uning rafiqasi Nilufar (33, 32 haftalik homilador) ularning kelini; qizi Jasmina (5) ularning nevarasi. Har bemorning promptida shu oila va o'z munosabatlari bor.
 
 ## 2. Arxitektura
 ```
@@ -23,7 +25,7 @@ Android: PCM/mp3 bo'laklarini Bluetooth karnayga chaladi (AudioTrack)
 - Branch: `claude/confident-volta-sfk9ep` (Render shu branchdan avtomatik deploy qiladi). Repo: github.com/bozorovboburjon408-art/medsim_new.
 - Matn modeli: Vertex AI orqali Gemini (`gemini-2.5-flash-lite`, `gemini-2.5-flash`), `backend/app/llm.py`, `vertex.py`. Kalit: Render'da `GOOGLE_SA_JSON` (service account `medsim-llm`, rol "Agent Platform User"). Tekshiruv: `/llm_check?token=...`.
 - Ovoz: **ElevenLabs asosiy** (`CHAT_TTS=eleven`, `ELEVENLABS_API_KEY`). Xato yoki 8 s kechiksa shu gap Edge TTS'da. Zaxira/variantlar: Gemini ovozi (`tts="gemini"`), Edge (`tts="edge_only"`).
-- Ovozlar (`backend/app/eleven.py`): buvi 6Fkh9WgMXOqBcOWxX91f, bobo xDwfBjUEPdIoQekNOXAX, homilador 132QLQIkg1RJGmpicuhR (model `eleven_multilingual_v2`); **Madinaxon O72h9AUwisM6Zj4He72B, model `eleven_v3`**, gapirish tezligi 0.85 (ElevenLabs sozlamasi), balandlik koeffitsiyenti 1.0 (`eleven_speed`), ifodalilik 0.5. V3 da `[crying]`/`[sobbing]` belgilari yig'lash tovushini beradi; belgilar ekranda ko'rinmaydi, `eleven.prepare/strip_tags/crying_fix`.
+- Ovozlar (`backend/app/eleven.py`): buvi 6Fkh9WgMXOqBcOWxX91f, bobo xDwfBjUEPdIoQekNOXAX, homilador 132QLQIkg1RJGmpicuhR (model `eleven_multilingual_v2`); **Jasmina O72h9AUwisM6Zj4He72B, model `eleven_v3`**, gapirish tezligi 0.85 (ElevenLabs sozlamasi), balandlik koeffitsiyenti 1.0 (`eleven_speed`), ifodalilik 0.5. V3 da `[crying]`/`[sobbing]` belgilari yig'lash tovushini beradi; belgilar ekranda ko'rinmaydi, `eleven.prepare/strip_tags/crying_fix`.
 - Eski Android ilova `tts="edge"` yuboradi: server uni standartga (ElevenLabs) tenglashtiradi, shuning uchun APK yangilamasdan ham ElevenLabs ishlaydi.
 - Ovozdan matn (STT) variantlari (hammasi o'zbekchada **zaif**, asosiy muammo): Gemini (`/transcribe`), ElevenLabs Scribe (`/transcribe?engine=eleven`), Chrome/Google uz-UZ (brauzerda). Android'ning o'z tanishi eng yaxshisi bo'lishi mumkin: solishtirilmoqda.
 - Baholash (`/evaluate`, `evaluator.py`, 5 mezon x 20 ball): **hozircha sozlanmaydi**, keyin qaytiladi.
@@ -44,15 +46,15 @@ Android: PCM/mp3 bo'laklarini Bluetooth karnayga chaladi (AudioTrack)
 
 ## 6. Ochiq vazifalar (muhimlik tartibida)
 1. **Ovozdan matn sifati**: `/stt_lab` da Gemini/Scribe/Chrome solishtirish natijasi kutilmoqda. Chrome/Google yaxshi bo'lsa, Android'ning o'z tanishi qoladi. Aks holda: Google Cloud Speech-to-Text (Chirp, so'z maslahatlari bilan) yoki o'zbek ixtisoslashgan xizmat (UzbekVoice, Muxlisa).
-2. **Kechikish**: oxirgi o'lchov birinchi tovush ~6 s edi (STT 2.8 s + V3 ovoz). Oqimli ovoz va qisqa birinchi gap qo'shildi, natija tekshirilmagan. V3 sekin bo'lsa Madinaxon uchun `eleven_multilingual_v2` (yig'lash belgisiz).
-3. **Bemor xulq-atvori**: javob uzunligi savolga qarab, ssenariyga sodiqlik, takrorlamaslik, tushunarsizga "Nima dedingiz?", Madinaxon shikoyatlari qat'iy. Yaqinda o'zgargan, `/self_test` bilan tekshirish kerak.
-4. **Android ilovani yangilash**: ElevenLabs ovozi (ishlaydi), tanlangan STT, bola kartasi (Madinaxon, qiz), chaqaloq qismi (allaqachon bor). Keyin APK qurish.
-5. Madinaxon ssenariysining yangi matni (foydalanuvchi yuklaydi, `name_swap` olib tashlanadi).
+2. **Kechikish**: oxirgi o'lchov birinchi tovush ~6 s edi (STT 2.8 s + V3 ovoz). Oqimli ovoz va qisqa birinchi gap qo'shildi, natija tekshirilmagan. V3 sekin bo'lsa Jasmina uchun `eleven_multilingual_v2` (yig'lash belgisiz).
+3. **Bemor xulq-atvori**: javob uzunligi savolga qarab, ssenariyga sodiqlik, takrorlamaslik, tushunarsizga "Nima dedingiz?", Jasmina shikoyatlari qat'iy. Yaqinda o'zgargan, `/self_test` bilan tekshirish kerak.
+4. **Android ilovani yangilash**: ElevenLabs ovozi (ishlaydi), tanlangan STT, bola kartasi (Jasmina, qiz), chaqaloq qismi (allaqachon bor). Keyin APK qurish.
+5. (Bajarildi) Qiz bola ssenariysi yangilandi: ism Jasmina, `name_swap` olib tashlandi.
 6. Edge ovozlarini sozlash (zaxira), UI qayta dizayn (foydalanuvchi mockup beradi), ssenariylarni qisqartirish (token tejash), baholashni qaytib sozlash.
 
 ## 7. Muhim qarorlar va saboqlar
 - Gemini TTS (Vertex) qimmat va beqaror edi, uslub ko'rsatmasini ovoz chiqarib o'qib yuboradi, ba'zan 20 s kechikadi (shuning uchun qayta yuborish/Edge zaxirasi). Google Cloud TTS o'zbekchani qo'llamaydi.
-- Gemini'da haqiqiy bola ovozi yo'q. ElevenLabs'da Madinaxon uchun ovoz topildi (O72h9...). Voyaga yetmagan haqiqiy ovozni klonlash faqat vasiyning yozma roziligi bilan.
+- Gemini'da haqiqiy bola ovozi yo'q. ElevenLabs'da Jasmina uchun ovoz topildi (O72h9...). Voyaga yetmagan haqiqiy ovozni klonlash faqat vasiyning yozma roziligi bilan.
 - Matn tanish promptiga so'zlar ro'yxati qo'shish xato: model uni gapingiz deb yozib yuboradi.
 - Mikrofon: gap boshi kesilmasligi uchun doimiy oqim + 0.7 s oldingi yozuv + 0.35 s dum; to'xtatish ikki marta ishga tushmasligi uchun `stopping` bayrog'i.
 - Antigravity (boshqa agent) shu branchga yuborgan ishlar `merge -s ours` bilan bekor qilingan (tarixda saqlanadi); faqat chaqaloq/ESP32/kulgi ishlari qaytarildi. Boshqa agent bilan bir branchda ishlamang.
@@ -63,8 +65,17 @@ Android: PCM/mp3 bo'laklarini Bluetooth karnayga chaladi (AudioTrack)
 - Barcha AI ko'rsatmalari (promptlar) alohida: `PROMPTS.md`.
 
 ## Yangilanish: "Sog'lom oila" ssenariysi (eski ssenariylar o'rniga)
-- `backend/app/scenarios/{bobo,buvi,homilador,bola}.txt` to'liq almashtirildi: endi bitta oilaviy tashrif, har bir a'zo alohida gaplashadi (bobo 68 yosh qon bosimi; buvi tizza og'rig'i; homilador 28 yosh, 20 hafta; Madinaxon 5 yosh sog'lom qizcha). Diabet, gijja, 32 hafta, skrining ssenariylari olib tashlandi. `name_swap` endi ishlatilmaydi.
+- `backend/app/scenarios/{bobo,buvi,homilador,bola}.txt` to'liq almashtirildi: endi bitta oilaviy tashrif, har bir a'zo alohida gaplashadi (bobo 68 yosh qon bosimi; buvi tizza og'rig'i; homilador 28 yosh, 20 hafta; Jasmina 5 yosh sog'lom qizcha). Diabet, gijja, 32 hafta, skrining ssenariylari olib tashlandi. `name_swap` endi ishlatilmaydi.
 - Har faylda: "SENING AHVOLING", "SENING SAVOLLARING" (bemor o'zi so'raydi), "HAMSHIRA AYTADIGAN NARSALAR" (faqat ma'lumot).
 - `COMMON_RULES` yangilandi: bemor o'z savollarini bittadan so'raydi; tavsiyaga (sayr, mashq) rozi bo'ladi, "kasalman, turolmayman" demaydi; umumiy savolga faqat o'zi haqida javob beradi.
 - `/self_test` har bemor uchun yangi ssenariyli savollar bilan; "QARSHILIK" va "o'z SAVOLI" belgilari qo'shildi.
 - Tekshirilmagan: sandboxda LLM kaliti yo'q. Render'da `/self_test?token=...` bilan tekshirish kerak. Baholash (`evaluator.py`) hali eski 4 bosqichli mezonda, keyinroq yangilanadi.
+
+## 9. Oxirgi yangilanishlar (2026-10 oxiri) — shuni ham o'qing
+- **Ovoz:** standart Edge (bepul, `edge-tts>=7.3.1`: Microsoft 2026-10 da eski versiyaga 403 bergan, shuning uchun versiyani pasaytirmang). Premium = ElevenLabs `eleven_v4` (ilovada Sozlamalar tugmasi). Edge xato bersa server o'sha gapni ElevenLabs'da aytadi. Butun javob bitta ovoz (gaplar orasida pauza yo'q), `soften()` nuqtalarni vergulga almashtiradi.
+- **Oila:** hamma bemor bitta oila (`patients.py` FAMILY_COMMON): Hikmatilla ota va Salomat buvi er-xotin, ularning o'g'li Sardor (oddiy ishda ishlaydi), kelin Nilufar (32 hafta homilador), nevara Jasmina (5 yosh, qiz bola ssenariysi foydalanuvchi hujjatidan).
+- **Android:** yangi dizayn (chizilgan yuzlar `Faces.kt`), bir marta bosib boshlash/to'xtatish, **Live rejim** (qo'lsiz suhbat, sukut 1.4 s), uzluksiz AudioTrack oqimi (`Speaker.kt`: Edge mp3 PCM ga aylantiriladi, pauzada kuchsiz shovqin yoziladi: Bluetooth kalonka gap boshini yutmasin), ovoz kuchi sozlamasi, eshitishdagi "qung" tovushi o'chiriladi (`Beep`), "Eshitilmadi" xabarida kod bor.
+- **Bluetooth kalonkalar:** har bemorga alohida kalonka (manzil bo'yicha saqlanadi), tanlangan kalonka faol bo'lmasa gapirish bloklanadi. **Cheklov:** Android bir vaqtda ko'pi bilan 2 ta kalonka ulaydi (`MaxConnectedAudioDevices: 2`), faol bitta. 4-5 ta manikenga alohida kalonka uchun ESP32/Wi-Fi yo'li kerak bo'lishi mumkin. Qotirilgan kalonkalar `MainActivity.kt` dagi `DEFAULT_SPEAKERS` da (hozircha bo'sh).
+- **Sinalmagan/ishlamagan:** ichki mikrofon oqimi (`OwnMic`, Google tanish moduli `EXTRA_AUDIO_SOURCE` ni qabul qilmadi): faqat Sozlamalardagi sinov tugmasi bilan yoqiladi.
+- **Qurilmalar:** sinov telefoni Samsung A56, planshet HONOR Pad X8b (adb: simli USB ishlamadi, drayver yo'q; simsiz debugging ishlaydi). Mahalliy APK imzosi GitHub APK imzosidan farq qiladi: almashtirishdan oldin ilovani o'chirish kerak.
+- **Mahalliy qurish:** `JAVA_HOME` = Android Studio `jbr`, Gradle 8.14.3 (`~/.gradle/wrapper/dists`), `gradle assembleDebug --no-daemon`.

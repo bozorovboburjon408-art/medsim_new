@@ -23,6 +23,15 @@ Qoidalar:
 """
 
 
+FAMILY_COMMON = """OILA: sen yashayotgan xonadonda bitta katta oila istiqomat qiladi va hamshira shu oilaning hammasini (bobo, buvi, kelin va nevarani) alohida-alohida ko'rgani kelgan. Oila a'zolari bir-birini yaxshi taniydi:
+- Hikmatilla bobo (68) va Salomat buvi er-xotin.
+- Ularning o'g'li Sardor (35) oddiy ishda ishlaydi: kunduzi ishda, hozir uyda yo'q, kechqurun keladi (chet elga hech qachon ishora qilma).
+- Sardorning rafiqasi Nilufar (28): buvi va boboning kelini, 20 haftalik homilador.
+- Sardor va Nilufarning qizi Jasmina (5): buvi va boboning nevarasi.
+Hamshira oila a'zolari haqida so'rasa, shu ma'lumotlarga mos qisqa javob ber. Boshqa a'zolarning kasalligi, shikoyati yoki tahlilini o'zing aytma va o'zingnikidek gapirma; ularni odatdagidek atab gapir (quyida aytilgan).
+"""
+
+
 @dataclass(frozen=True)
 class Patient:
     id: str
@@ -32,17 +41,16 @@ class Patient:
     pitch: str     # edge-tts: "-5Hz"
     role: str
     scenario_file: str
-    name_swap: tuple[str, str] | None = None  # ssenariy matnidagi ism almashtiriladi (matn keyin yangilanadi)
     eleven_tempo: float = 1.0  # ElevenLabs gapirish tezligi (0.7-1.2): ovoz balandligiga ta'sir qilmaydi
     eleven_stability: float = 0.4
+    eleven_style: float = 0.15  # ifodalilik (0 = tekis, 1 = juda hissiy)
     eleven_speed: float = 1.0  # ElevenLabs PCM'ini shu koeffitsiyent bilan chalish (bola ovozi uchun)
     gemini_speed: float = 1.0  # Gemini ovozi PCM'ini shu koeffitsiyent bilan chalish: ovoz balandlashadi (bola uchun)
+    family: str = ""  # shu bemorning oila a'zolariga munosabati (FAMILY_COMMON ga qo'shimcha)
 
     def system_prompt(self) -> str:
         scenario = (SCENARIO_DIR / self.scenario_file).read_text(encoding="utf-8")
-        if self.name_swap:
-            scenario = scenario.replace(*self.name_swap)
-        return f"{COMMON_RULES}\nSening rolling: {self.role}\n\n=== STSENARIY ===\n{scenario}"
+        return f"{COMMON_RULES}\n{FAMILY_COMMON}{self.family}\nSening rolling: {self.role}\n\n=== STSENARIY ===\n{scenario}"
 
 
 PATIENTS = {
@@ -51,22 +59,22 @@ PATIENTS = {
         Patient("buvi", "Salomat buvi (tizza og'rig'i)", "uz-UZ-MadinaNeural", "-22%", "-18Hz",
                 "Salomat Xolmatova, keksa nafaqadagi buvi. Faqat o'zing gapirasan. "
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan.",
-                "buvi.txt"),
+                "buvi.txt", family="Sen Salomat buvisan. Hikmatilla bobo sening ERING: uni 'cholim' yoki 'Hikmatilla otasi' deb ata, 'otam' DEMA. Kelinni 'Nilufar' yoki 'kelinim', nevarangni 'Jasmina', o'g'lingni 'Sardor' deysan.\n", eleven_tempo=0.85, eleven_stability=0.5, eleven_style=0.1),
         Patient("homilador", "Nilufar (28 yosh, 20 haftalik homilador)", "uz-UZ-MadinaNeural", "-5%", "+0Hz",
                 "Nilufar Rahimova, 28 yoshli, 20 haftalik homilador ayol. Hamshirani 'hamshira opa' deb ataysan.",
-                "homilador.txt"),
-        Patient("bola", "Madinaxon (5 yosh, qizaloq)", "uz-UZ-MadinaNeural", "+14%", "+95Hz",
-                "Madinaxon, 5 yoshli kichkina SOG'LOM QIZALOQ (qizcha). Sen shu qizchaning o'zisan: juda oddiy, qisqa (1-2 gap), "
+                "homilador.txt", family="Sen Nilufarsan. Qaynonangni 'oyi' yoki 'Salomat buvi', qaynotangni 'dada' yoki 'Hikmatilla bobo', qizingni 'Jasmina', erini 'Sardor' deysan. Sardor kunduzi ishda, kechqurun keladi.\n", eleven_tempo=0.98, eleven_stability=0.5, eleven_style=0.2),
+        Patient("bola", "Jasmina (5 yosh, qizaloq)", "uz-UZ-MadinaNeural", "+14%", "+95Hz",
+                "Jasmina, 5 yoshli kichkina SOG'LOM QIZALOQ (qizcha). Sen shu qizchaning o'zisan: juda oddiy, qisqa (1-2 gap), "
                 "qiz bolalarcha erkalik va ba'zan injiqlik bilan, sodda so'zlar bilan gapir. Tushunmasang 'nima?' deb so'ra. "
                 "Murakkab tibbiy so'zlarni bilmaysan. Hech narsang og'rimaydi. Gaplarni sekin, aniq va oddiy so'zlar bilan ayt. "
                 "Yig'lash so'z bilan aytilmaydi: 'yig'layapman', 'yig'layman' deb HECH QACHON dema. Faqat haqiqatan xafa bo'lsang (hamshira jahl qilsa yoki qo'rqitsa), "
                 "gapni [crying] yoki [sobbing] belgisi bilan boshla, masalan '[crying] Qo'rqaman!' (bu belgi faqat senga ruxsat etilgan istisno). "
                 "Oddiy suhbatda bu belgini ishlatma.",
-                "bola.txt", gemini_speed=1.12, eleven_speed=1.0, eleven_tempo=0.85, eleven_stability=0.5),
+                "bola.txt", family="Sen Jasminasan, 5 yoshli qizaloq. Onang Nilufar ('oyim'), buvang Salomat buvi ('buvim'), bobong Hikmatilla bobo ('bobom'). Dadang Sardor ishda, kechqurun keladi. Oyingning qorni katta, uka yoki singil bo'lishini bilasan. Hammasini bolalarcha oddiy va qisqa ayt.\n", gemini_speed=1.12, eleven_speed=1.0, eleven_tempo=0.85, eleven_stability=0.5, eleven_style=0.3),
         Patient("bobo", "Hikmatilla bobo (68 yosh, qon bosimi)", "uz-UZ-SardorNeural", "-18%", "-8Hz",
                 "Hikmatilla bobo, 68 yoshli erkak. Faqat o'zing gapirasan. "
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan. Qon bosimi ko'tarilishi, boshing og'rishi, "
                 "tez charchash va dorini unutish haqida so'ralganda aytasan.",
-                "bobo.txt"),
+                "bobo.txt", family="Sen Hikmatilla bobosan. Rafiqangni 'kampir' yoki 'Salomat', kelinni 'Nilufar', nevarangni 'Jasmina', o'g'lingni 'Sardor' deysan.\n", eleven_tempo=0.85, eleven_stability=0.5, eleven_style=0.1),
     ]
 }

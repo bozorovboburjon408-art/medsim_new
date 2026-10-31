@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import eleven, evaluator, full_lab, live, llm, selftest, tts
+from . import chirp, eleven, evaluator, full_lab, live, llm, selftest, tts
 from .config import settings
 from .patients import PATIENTS
 
@@ -75,6 +75,11 @@ async def chat(req: ChatRequest):
                         llm_ms=int((t1 - t0) * 1000), tts_ms=int((t2 - t1) * 1000))
 
 
+def soften(t: str) -> str:
+    """Ovozga uzatiladigan matnda gap ichidagi nuqtalarni vergulga almashtiradi: butun javob bitta uzluksiz ovoz bo'ladi."""
+    return re.sub(r"(?<=\w)\.\s+(\S)", lambda m: ", " + m.group(1).lower(), t)
+
+
 @app.post("/chat_stream")
 async def chat_stream(req: ChatRequest):
     """NDJSON oqimi: har qator = bitta gap {"text","audio_b64","ms"} yoki {"error"}."""
@@ -103,6 +108,7 @@ async def chat_stream(req: ChatRequest):
             if p.id == "bola":
                 raw = eleven.crying_fix(raw)
             s = eleven.strip_tags(raw)  # ekranda va boshqa ovoz xizmatlarida belgilarsiz
+            sp = soften(s)  # ovozga uzatiladigan matn (nuqtalar vergul)
             if mode == "eleven":
                 vid = req.eleven_voice if req.eleven_voice and re.fullmatch(r"[A-Za-z0-9]{10,40}", req.eleven_voice) else eleven.DEFAULT_VOICE.get(p.id, "")
                 model = (req.tts_model if req.tts_model and re.fullmatch(r"[A-Za-z0-9._-]{3,60}", req.tts_model) and req.tts_model.startswith("eleven")
@@ -110,17 +116,63 @@ async def chat_stream(req: ChatRequest):
                 pit = pitch or p.eleven_speed
                 tempo = min(1.2, max(0.5, req.eleven_tempo)) if req.eleven_tempo else p.eleven_tempo
                 stab = min(1.0, max(0.0, req.eleven_stability)) if req.eleven_stability is not None else p.eleven_stability
-                text_v3 = eleven.prepare(raw) if model == "eleven_v3" else s
+                text_v3 = eleven.prepare(soften(raw)) if model in ("eleven_v3", "eleven_v4") else sp  # audio teglar ([crying]) v3 va v4 da
                 cq: asyncio.Queue = asyncio.Queue()
+
+                async def start():
+                    g = await eleven.tts_stream(text_v3, vid, model, req.eleven_script == "cyr", tempo / pit, stab, p.eleven_style)
+                    it_ = g.__aiter__()
+                    return it_, await it_.__anext__()
+
+                async def first_chunk():
+                    """eleven_v3 ba'zan 6-9 s kechikadi: 1.8 s da birinchi tovush kelmasa bir xil so'rov parallel yuboriladi, birinchi kelgani olinadi."""
+                    pend = {asyncio.create_task(start())}
+                    t0, hedged, err = time.perf_counter(), False, None
+                    t_all = t0
+                    try:
+                        while pend:
+                            left = (1.8 if not hedged else 8) - (time.perf_counter() - t0)
+                            done, pend = await asyncio.wait(pend, timeout=max(left, 0.05), return_when=asyncio.FIRST_COMPLETED)
+                            ok = []
+                            for d in done:
+                                if d.exception():
+                                    err = d.exception()
+                                else:
+                                    ok.append(d.result())
+                            if ok:
+                                for extra_it, _ in ok[1:]:  # ikkinchi nusxa ham tayyor bo'lib qolgan: uni yopamiz (band joy bo'shaydi)
+                                    asyncio.create_task(extra_it.aclose())
+                                return ok[0]
+                            if not done:
+                                if time.perf_counter() - t_all > 12:
+                                    raise asyncio.TimeoutError("ElevenLabs juda sekin")
+                                if hedged:
+                                    raise asyncio.TimeoutError("ElevenLabs birinchi tovush kelmadi")
+                                if not eleven.slots_free():  # chegara band: ikkinchi nusxa yuborilmaydi, birinchisini kutamiz
+                                    t0 = time.perf_counter() - 1.0
+                                    continue
+                                hedged = True
+                                log.info("eleven_v3 sekin (%s): ikkinchi so'rov yuborildi", p.id)
+                                pend.add(asyncio.create_task(start()))
+                            elif not pend and not hedged:
+                                hedged = True
+                                pend.add(asyncio.create_task(start()))  # birinchisi xato berdi: bir marta qayta urinish
+                        raise err or RuntimeError("ovoz bo'sh")
+                    finally:
+                        for x in pend:
+                            x.cancel()
 
                 async def fill():
                     n, t1 = 0, time.perf_counter()
+                    it_ref: list = []
                     try:
-                        gen_ = await eleven.tts_stream(text_v3, vid, model, req.eleven_script == "cyr", tempo / pit, stab)
-                        it = gen_.__aiter__()
+                        it, first = await first_chunk()
+                        it_ref.append(it)
+                        n += 1
+                        await cq.put(("pcm", first, int((time.perf_counter() - t1) * 1000)))
                         while True:
                             try:
-                                ch = await asyncio.wait_for(it.__anext__(), 8 if n == 0 else 20)
+                                ch = await asyncio.wait_for(it.__anext__(), 20)
                             except StopAsyncIteration:
                                 break
                             n += 1
@@ -129,12 +181,19 @@ async def chat_stream(req: ChatRequest):
                             raise RuntimeError("ovoz bo'sh")
                     except Exception as e:
                         log.warning("ElevenLabs TTS xatosi (%d bo'lakdan keyin): %s", n, e)
+                        info.setdefault("tries", []).append(f"ElevenLabs {p.id}: {str(e)[:160]}")  # ilovada "Texnik ma'lumot" da ko'rinadi
                         if n == 0:  # hech narsa chalinmagan: shu gap Edge ovozida
                             try:
-                                audio, _ = await tts.synthesize(s, p)
+                                audio, _ = await tts.synthesize(sp, p)
                                 await cq.put(("mp3", audio, int((time.perf_counter() - t1) * 1000)))
                             except Exception as e2:
                                 await cq.put(("error", str(e2)[:200], 0))
+                    finally:
+                        for x in it_ref:  # band joy (ElevenLabs bir vaqtdagi chegarasi) albatta bo'shatilsin
+                            try:
+                                await x.aclose()
+                            except Exception:
+                                pass
                     await cq.put(None)
 
                 bg.append(asyncio.create_task(fill()))
@@ -142,7 +201,7 @@ async def chat_stream(req: ChatRequest):
             if mode == "gemini":
                 voice = req.gemini_voice if req.gemini_voice in tts.GEMINI_VOICES else tts.GEMINI_DEFAULT_VOICE.get(p.id, "Kore")
                 model = req.tts_model if req.tts_model and re.fullmatch(r"[A-Za-z0-9._-]{3,80}", req.tts_model) else settings.gemini_tts_model
-                clean = tts.clean_for_tts(s)
+                clean = tts.clean_for_tts(sp)
 
                 async def one() -> bytes:
                     gen = await tts.gemini_tts_stream(clean, voice, model)
@@ -167,18 +226,30 @@ async def chat_stream(req: ChatRequest):
                     for x in pending:
                         x.cancel()
                 log.warning("Gemini TTS vaqtida javob bermadi, Edge'ga o'tildi")
-                audio, _ = await tts.synthesize(s, p)
+                audio, _ = await tts.synthesize(sp, p)
                 return s, audio, "mp3", "edge (gemini xato)", t_llm, int((time.perf_counter() - t) * 1000)
-            audio, used = await tts.synthesize(s, p)
+            try:
+                audio, used = await tts.synthesize(sp, p)
+            except Exception as e:  # Edge (Microsoft) ba'zan 403 beradi: ElevenLabs bo'lsa o'sha gap shu bilan aytiladi, bemor jim qolmasin
+                if not eleven.enabled():
+                    raise
+                log.warning("Edge TTS xatosi, ElevenLabs'ga o'tildi: %s", str(e)[:120])
+                info.setdefault("tries", []).append(f"Edge xato -> ElevenLabs: {str(e)[:80]}")
+                vid = eleven.DEFAULT_VOICE.get(p.id, "")
+                audio = await eleven.tts(sp, vid, eleven.DEFAULT_MODEL.get(p.id, ""), False, "mp3_44100_128")
+                used = "elevenlabs (edge xato)"
             return s, audio, "mp3", used, t_llm, int((time.perf_counter() - t) * 1000)
 
         async def producer():
             try:
-                async for s in llm.stream_sentences(p.system_prompt(), history, info, req.model):
-                    if not eleven.strip_tags(eleven.crying_fix(s) if p.id == "bola" else s):
-                        continue
+                parts: list[str] = []
+                async for sent in llm.stream_sentences(p.system_prompt(), history, info, req.model):
+                    if eleven.strip_tags(eleven.crying_fix(sent) if p.id == "bola" else sent):
+                        parts.append(sent.strip())
+                if parts:
                     t_llm = int((time.perf_counter() - t0) * 1000)
-                    await q.put(asyncio.create_task(synth(s, t_llm)))  # TTS parallel boshlanadi
+                    # butun javob BITTA ovoz: gaplar orasida pauza va qayta ishga tushish yo'q (Bluetooth kalonka gap boshini yutmaydi)
+                    await q.put(asyncio.create_task(synth(" ".join(parts), t_llm)))
             except Exception as e:
                 await q.put(RuntimeError(f"AI xatosi: {e}"))
             await q.put(None)
@@ -501,6 +572,18 @@ async def cloud_voices_ep(token: str = "", lang: str = "uz-UZ"):
         raise HTTPException(502, f"Cloud TTS: {e}")
 
 
+@app.get("/eleven_status")
+async def eleven_status(token: str = ""):
+    """ElevenLabs krediti qancha qolgan (diagnostika)."""
+    _check_token(token)
+    if not eleven.enabled():
+        raise HTTPException(400, "ELEVENLABS_API_KEY o'rnatilmagan")
+    try:
+        return await eleven.subscription()
+    except Exception as e:
+        raise HTTPException(502, str(e))
+
+
 @app.get("/tts_models")
 async def tts_models(token: str = ""):
     _check_token(token)
@@ -521,6 +604,8 @@ async def transcribe(request: Request, model: str = "", engine: str = "gemini"):
     try:
         if engine == "eleven":
             text, used = await eleven.stt(audio, mime), settings.eleven_stt_model
+        elif engine in ("chirp", "chirp_nohint"):
+            text, used = await chirp.stt(audio, mime, hints=engine == "chirp"), settings.chirp_model
         else:
             text, used = await llm.transcribe(audio, mime, model or None)
     except Exception as e:

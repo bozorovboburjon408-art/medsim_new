@@ -10,15 +10,15 @@ Avval `HANDOFF.md` va `AGENTS.md` ni o'qing. Foydalanuvchi bilan o'zbekcha gapla
 ## 2. Kechikish (latency)
 - [ ] Maqsad: birinchi tovush ≈3 s. Oxirgi o'lchov 6.1 s edi (STT 2.8 s + ElevenLabs v3 har gap 2–6 s).
 - [ ] Streaming + qisqa birinchi gap deploy qilingan, lekin o'lchanmagan. `/full_lab` da o'lchang.
-- [ ] Agar v3 sekin bo'lsa: Madinaxon uchun `eleven_multilingual_v2` bilan solishtiring. Boshqa bemorlar uchun ham v3 kerakmi, foydalanuvchidan so'rang (javobsiz qolgan).
+- [ ] Agar v3 sekin bo'lsa: Jasmina uchun `eleven_multilingual_v2` bilan solishtiring. Boshqa bemorlar uchun ham v3 kerakmi, foydalanuvchidan so'rang (javobsiz qolgan).
 
 ## 3. Bemor xulq-atvorini tekshirish
 - [ ] `/self_test` bilan yangi qoidalarni tekshiring: javob uzunligi savolga mos, ssenariyga sodiqlik va unga qaytish, o'ylab topilgan shikoyat yo'q, takror yo'q, tushunmasa "Nima dedingiz? Tushunmadim".
-- [ ] Madinaxon: "yig'layman" so'zi o'rniga haqiqiy yig'i tovushi (`[sobbing]`/`[crying]`), talaffuz va tezlik, ovoz tembri (`eleven_tempo`, `eleven_stability`, pitch). Foydalanuvchi 1x tezlikni xohlaydi, lekin yosh bolaga o'xshashi kerak.
+- [ ] Jasmina: "yig'layman" so'zi o'rniga haqiqiy yig'i tovushi (`[sobbing]`/`[crying]`), talaffuz va tezlik, ovoz tembri (`eleven_tempo`, `eleven_stability`, pitch). Foydalanuvchi 1x tezlikni xohlaydi, lekin yosh bolaga o'xshashi kerak.
 - [ ] Ba'zi so'zlar noto'g'ri chiqyapti (masalan "qichiyapti"), ro'yxatini yig'ib to'g'irlang.
 
-## 4. Madinaxon ssenariysi
-- [ ] Foydalanuvchi yangi matnni keyin yuklaydi. Shunda `backend/app/scenarios/bola.txt` ni almashtiring va `patients.py` dagi `name_swap` (Jasurbek→Madinaxon) ni olib tashlang.
+## 4. Jasmina ssenariysi
+- [x] Yangi matn kiritildi (`backend/app/scenarios/bola.txt`), ism Jasmina, `name_swap` olib tashlandi.
 - [ ] Ovoz qotirilgan: ElevenLabs id `O72h9AUwisM6Zj4He72B`, model V3.
 
 ## 5. Android ilova

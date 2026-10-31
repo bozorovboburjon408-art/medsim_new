@@ -1,4 +1,5 @@
 """ElevenLabs: ovozdan matn (Scribe), ovoz yaratish va ovoz kutubxonasini qidirish. Kalit faqat Render muhitida."""
+import asyncio
 import re
 
 import httpx
@@ -9,9 +10,9 @@ BASE = "https://api.elevenlabs.io"
 
 # Antigravity tanlagan o'zbek kutubxona ovozlari (maxfiy emas). Bola uchun foydalanuvchi tanlaydi.
 DEFAULT_VOICE = {"buvi": "6Fkh9WgMXOqBcOWxX91f", "bobo": "xDwfBjUEPdIoQekNOXAX", "homilador": "132QLQIkg1RJGmpicuhR", "bola": "O72h9AUwisM6Zj4He72B"}
-# Bemor bo'yicha model: Madinaxon eleven_v3 da qotirilgan, qolganlari standart (settings.eleven_tts_model)
-DEFAULT_MODEL = {"bola": "eleven_v3"}
-TTS_MODELS = ["eleven_multilingual_v2", "eleven_v3", "eleven_flash_v2_5", "eleven_turbo_v2_5"]
+# Bemor bo'yicha model: hammasi eleven_v3 (v2 o'zbekchada ruscha talaffuz berdi)
+DEFAULT_MODEL = {"buvi": "eleven_v4", "homilador": "eleven_v4", "bobo": "eleven_v4", "bola": "eleven_v4"}  # v4: tez va barqaror (v3 ba'zan 6-9 s kechikardi)
+TTS_MODELS = ["eleven_multilingual_v2", "eleven_v3", "eleven_v4", "eleven_v4_turbo", "eleven_flash_v2_5", "eleven_turbo_v2_5"]
 
 
 def enabled() -> bool:
@@ -119,28 +120,67 @@ def prepare(text: str) -> str:
     return re.sub(r"\s+", " ", t).strip()
 
 
-def _settings(speed: float, stability: float) -> dict:
-    return {"stability": stability, "similarity_boost": 0.85, "style": 0.15, "use_speaker_boost": True,
+def _settings(speed: float, stability: float, style: float = 0.15) -> dict:
+    return {"stability": stability, "similarity_boost": 0.85, "style": style, "use_speaker_boost": True,
             "speed": max(0.7, min(1.2, speed))}
 
 
+# ElevenLabs tarifida bir vaqtdagi so'rovlar soni cheklangan (429 concurrent_limit_exceeded): ortig'i navbatda kutadi
+_SLOTS = asyncio.Semaphore(1)  # parallel yo'q: gaplar ketma-ket (har biri oqim bilan tez keladi)
+
+
+def slots_free() -> bool:
+    """Bo'sh joy bormi (sekin so'rovga qarshi ikkinchi nusxa faqat shunda yuboriladi)."""
+    return _SLOTS._value > 0
+
+
+async def subscription() -> dict:
+    """Tarif va qolgan kredit (diagnostika)."""
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.get(f"{BASE}/v1/user/subscription", headers=_hdr())
+    if r.status_code >= 400:
+        raise RuntimeError(f"ElevenLabs {r.status_code}: {r.text[:200]}")
+    d = r.json()
+    return {"tarif": d.get("tier"), "ishlatilgan": d.get("character_count"), "limit": d.get("character_limit"),
+            "qolgan": (d.get("character_limit") or 0) - (d.get("character_count") or 0),
+            "yangilanadi_unix": d.get("next_character_count_reset_unix"), "holat": d.get("status")}
+
+
 async def tts_stream(text: str, voice_id: str, model: str = "", cyrillic: bool = False, speed: float = 1.0,
-                     stability: float = 0.4):
+                     stability: float = 0.4, style: float = 0.15):
     """PCM (24 kHz, 16-bit) bo'laklari keladigan zahoti qaytariladi. Status oqim boshlanmasdan tekshiriladi."""
     body = {"text": latin_to_cyrillic(text) if cyrillic else text, "model_id": model or settings.eleven_tts_model,
-            "voice_settings": _settings(speed, stability)}
-    client = httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=30, write=10, pool=5))
+            "voice_settings": _settings(speed, stability, style)}
+    await asyncio.wait_for(_SLOTS.acquire(), 10)  # band joy 10 s da ham bo'shamasa xato (gap Edge'ga o'tadi)
+    done = False
+
+    def release():
+        nonlocal done
+        if not done:
+            done = True
+            _SLOTS.release()
+
+    client = None
     try:
-        r = await client.send(client.build_request("POST", f"{BASE}/v1/text-to-speech/{voice_id}/stream",
-                                                   params={"output_format": "pcm_24000"}, json=body, headers=_hdr()),
-                              stream=True)
-    except Exception:
-        await client.aclose()
+        for attempt in range(3):  # 429 (bir vaqtdagi chegara) bo'lsa qisqa kutib qayta uriniladi
+            client = httpx.AsyncClient(timeout=httpx.Timeout(connect=5, read=30, write=10, pool=5))
+            r = await client.send(client.build_request("POST", f"{BASE}/v1/text-to-speech/{voice_id}/stream",
+                                                       params={"output_format": "pcm_24000"}, json=body, headers=_hdr()),
+                                  stream=True)
+            if r.status_code == 429 and attempt < 2:
+                await r.aclose(); await client.aclose(); client = None
+                await asyncio.sleep(0.4 * (attempt + 1))
+                continue
+            break
+        if r.status_code >= 400:
+            err = (await r.aread()).decode()[:200]
+            await r.aclose(); await client.aclose(); client = None
+            raise RuntimeError(f"ElevenLabs TTS {r.status_code}: {err}")
+    except BaseException:
+        if client is not None:
+            await client.aclose()
+        release()
         raise
-    if r.status_code >= 400:
-        err = (await r.aread()).decode()[:200]
-        await r.aclose(); await client.aclose()
-        raise RuntimeError(f"ElevenLabs TTS {r.status_code}: {err}")
 
     async def gen():
         left = b""
@@ -155,6 +195,7 @@ async def tts_stream(text: str, voice_id: str, model: str = "", cyrillic: bool =
                     yield b
         finally:
             await r.aclose(); await client.aclose()
+            release()
     return gen()
 
 

@@ -13,28 +13,66 @@ from .patients import PATIENTS
 
 router = APIRouter()
 
-NURSE = [
+NURSE_COMMON = [
     "Assalomu alaykum, yaxshimisiz?",
-    "Ahvolingiz qanday?",
-    "Sizni nima bezovta qilyapti? Hammasini aytib bering.",
-    "Bu qachondan beri bezovta qilyapti?",
-    "Kechasi uxlaysizmi?",
-    "Hozir haroratingizni o'lchab ko'raman.",
-    "Kecha futbolda kim yutdi?",
-    "asd fgh jkl nima qilsa man san",
-    "Xavotir olmang, hammasi yaxshi bo'ladi, sizga yordam beramiz.",
-    "Bugun shifokorga murojaat qilamiz, rozimisiz?",
+    "Oilangizda kimlarda surunkali kasalliklar bor?",
 ]
+NURSE = {
+    "bobo": [
+        "Bobo, qon bosimingizni oxirgi marta qachon o'lchagansiz?",
+        "Tuzli ovqatlarni ko'p iste'mol qilasizmi? Har kuni piyoda yurasizmi?",
+        "Dorilaringizni muntazam qabul qilasizmi?",
+        "Qon bosimingizni har kuni o'lchab yozib boring, tuzni kamaytiring va har kuni yarim soat piyoda yuring.",
+        "Kecha futbolda kim yutdi?",
+        "asd fgh jkl nima qilsa man san",
+        "Savollaringiz bormi?",
+        "Ko'krak og'rig'i yoki nafas qisishi bo'lsa 103 ga qo'ng'iroq qiling.",
+        "Oilada qanday ovqatlanishni maslahat berasiz deb so'rasangiz javob beraman, hozir bosimni o'lchaymiz.",
+    ],
+    "buvi": [
+        "Buvi, tizzangiz qachondan beri og'riydi?",
+        "Oyoqlaringiz shishmaydimi?",
+        "Shifokor ko'rigidan o'tishingiz kerak, yengil gimnastika va sayr qilib turing.",
+        "Uyda sirpanchiq gilamlarni olib tashlang.",
+        "Savollaringiz bormi?",
+        "Oyoq shishishi yurak yoki buyrak kasalligidan bo'lishi mumkin, shifokorga boramiz.",
+        "Oilaviy mashqlar qilsa bo'ladi, yoshingizga mos bo'lsa.",
+        "Kecha futbolda kim yutdi?",
+        "Rahmat, ertaga qaytib kelaman.",
+    ],
+    "homilador": [
+        "Homiladorligingiz muborak bo'lsin! Hozir nechanchi haftadasiz?",
+        "Antenatal nazoratga muntazam qatnayapsizmi?",
+        "Sizni nima bezovta qilyapti?",
+        "Temir va foliy kislotasini shifokor tavsiyasi bilan qabul qiling, muntazam piyoda yuring va og'ir yuk ko'tarmang.",
+        "Savollaringiz bormi?",
+        "Qindan qon kelishi, kuchli qorin og'rig'i yoki ko'rish xiralashsa darrov tibbiy yordamga murojaat qiling.",
+        "asd fgh jkl nima qilsa man san",
+        "Antenatal ko'riklar va UTT bilan bolangiz rivojlanishini shifokor baholaydi.",
+        "Qo'llarni sovunlab yuving va xonalarni shamollating.",
+    ],
+    "bola": [
+        "Salom, shirin qizaloq! Isming nima? Necha yoshdasan?",
+        "Sen nimalarni yaxshi ko'rasan? Meva va sabzavotlarni yeysanmi?",
+        "Qo'lingni ovqatdan oldin yuvasanmi?",
+        "Ovqatdan oldin qo'llaringni sovunlab yuv, kuniga ikki marta tishlaringni tozala va shirinlikni kamroq yegin, xo'pmi?",
+        "Telefonni kamroq ko'rsang yaxshi bo'ladi.",
+        "Kecha futbolda kim yutdi?",
+        "Har kuni faol o'yinlar o'ynash kerak, bilasanmi?",
+        "Savollaring bormi?",
+        "Albatta, olma juda foydali! Sen sog'lom ovqatlansang, kuchli bo'lasan.",
+    ],
+}
 
 STT_SENTENCES = [
     "Assalomu alaykum, men patronaj hamshirasiman.",
     "Qon bosimingizni o'lchab ko'raman.",
-    "Qandli diabet bo'yicha dori ichyapsizmi?",
-    "Kechasi necha marta hojatxonaga chiqasiz?",
-    "Oyoqlaringizda uvishish yoki yara bormi?",
+    "Qon bosimingiz baland bo'lsa shifokorga boring.",
+    "Tuz iste'molini kamaytiring.",
+    "Oyoqlaringiz shishmaydimi?",
     "Haroratni o'lchaymiz, qo'ltiq ostiga qo'ying.",
-    "Qornim og'riyapti deb aytdingizmi?",
-    "Gijja bo'lsa, bolani shifokorga ko'rsatish kerak.",
+    "Homiladorlik muborak bo'lsin.",
+    "Olma yesang juda foydali bo'ladi.",
     "Ertaga qaytib kelaman, o'zingizni ehtiyot qiling.",
     "Tez yordam chaqirish kerak bo'lsa, bir yuz uchga qo'ng'iroq qiling.",
 ]
@@ -55,8 +93,10 @@ def _flags(pid: str, nurse: str, reply: str, prev: str) -> list[str]:
     sents = len(re.findall(r"[.!?]+(?:\s|$)", reply)) or 1
     if re.search(r"yig['’‘ʻ`]?lay", reply, re.I) and pid == "bola":
         f.append("YIG'LAY so'zi")
-    if pid == "bola" and re.search(r"\b(oyo[qg]\w*|bosh(im|ing)\b|ko'z\w*|quloq\w*|qo'l\w*)", reply, re.I):
-        f.append("TO'QIMA a'zo (ssenariyda yo'q)")
+    if re.search(r"turolmayman|qila olmayman|kasalman|bo'lmaydi", reply, re.I):
+        f.append("QARSHILIK (tavsiyaga rozi bo'lishi kerak)")
+    if "?" in reply:
+        f.append("o'z SAVOLI bor (yaxshi)")
     if prev and difflib.SequenceMatcher(None, _norm(prev), _norm(reply)).ratio() > 0.8:
         f.append("TAKROR")
     if sents > 5:
@@ -79,7 +119,7 @@ async def _convo(pid: str) -> list[str]:
     lines = [f"=== {PATIENTS[pid].title} ({pid}) ==="]
     hist: list[dict] = []
     prev = ""
-    for q in NURSE:
+    for q in NURSE_COMMON[:1] + NURSE[pid]:
         hist.append({"role": "user", "content": q})
         try:
             reply, ms = await _reply(pid, hist)

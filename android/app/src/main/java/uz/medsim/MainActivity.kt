@@ -56,10 +56,10 @@ data class PatientInfo(
 )
 
 val PATIENTS = listOf(
-    PatientInfo("buvi", "Salomat buvi", "75 yosh · 2-tip qandli diabet", "👵"),
-    PatientInfo("homilador", "Nilufar opa", "33 yosh · 32 haftalik homiladorlik", "🤰"),
-    PatientInfo("bola", "Madinaxon", "5 yosh · qizaloq, gijja kasalligi", "👧"),
-    PatientInfo("bobo", "Hikmatilla ota", "78 yosh · yoshga doir skrining", "👴"),
+    PatientInfo("buvi", "Salomat buvi", "Tizza bo'g'imlari og'rig'i", "👵"),
+    PatientInfo("homilador", "Nilufar opa", "28 yosh · 20 haftalik homiladorlik", "🤰"),
+    PatientInfo("bola", "Madinaxon", "5 yosh · qizaloq, sog'lom", "👧"),
+    PatientInfo("bobo", "Hikmatilla bobo", "68 yosh · qon bosimi", "👴"),
     PatientInfo("chaqaloq", "Chaqaloq", "Yig'laydi, tebratilsa tinchiydi", "👶", isBaby = true),
 )
 

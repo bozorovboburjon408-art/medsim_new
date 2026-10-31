@@ -61,3 +61,10 @@ Android: PCM/mp3 bo'laklarini Bluetooth karnayga chaladi (AudioTrack)
 ## 8. Qanday davom etiladi
 - Kodni o'zgartirish: Claude Code (yangi, qisqa sessiya shu hujjat bilan) yoki GitHub'da qo'lda. Oddiy chat kodni ko'rmaydi va o'zgartirmaydi: undan maslahat/kod parchasi olib, qo'lda qo'yish kerak.
 - Barcha AI ko'rsatmalari (promptlar) alohida: `PROMPTS.md`.
+
+## Yangilanish: "Sog'lom oila" ssenariysi (eski ssenariylar o'rniga)
+- `backend/app/scenarios/{bobo,buvi,homilador,bola}.txt` to'liq almashtirildi: endi bitta oilaviy tashrif, har bir a'zo alohida gaplashadi (bobo 68 yosh qon bosimi; buvi tizza og'rig'i; homilador 28 yosh, 20 hafta; Madinaxon 5 yosh sog'lom qizcha). Diabet, gijja, 32 hafta, skrining ssenariylari olib tashlandi. `name_swap` endi ishlatilmaydi.
+- Har faylda: "SENING AHVOLING", "SENING SAVOLLARING" (bemor o'zi so'raydi), "HAMSHIRA AYTADIGAN NARSALAR" (faqat ma'lumot).
+- `COMMON_RULES` yangilandi: bemor o'z savollarini bittadan so'raydi; tavsiyaga (sayr, mashq) rozi bo'ladi, "kasalman, turolmayman" demaydi; umumiy savolga faqat o'zi haqida javob beradi.
+- `/self_test` har bemor uchun yangi ssenariyli savollar bilan; "QARSHILIK" va "o'z SAVOLI" belgilari qo'shildi.
+- Tekshirilmagan: sandboxda LLM kaliti yo'q. Render'da `/self_test?token=...` bilan tekshirish kerak. Baholash (`evaluator.py`) hali eski 4 bosqichli mezonda, keyinroq yangilanadi.

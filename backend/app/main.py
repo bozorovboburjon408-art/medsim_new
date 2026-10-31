@@ -255,10 +255,10 @@ async def evaluate(req: EvalRequest):
 
 VOICES = ("uz-UZ-MadinaNeural", "uz-UZ-SardorNeural")
 SAMPLES = {
-    "buvi": "Og'zim tinmay qurib, suv ichganim-ichgan. Kechasi bilan hojatxonaga qatnayman, uyqu yo'q. Oyoqlarim ham uvishib, muzlaydi.",
-    "homilador": "Belim simillab og'riyapti, boshim aylanib, tez charchab qolayapman. Siydigimning rangi ham to'qroq bo'lib qoldi.",
-    "bola": "Qornim og'riyapti, kechasi orqamni qashlayman. Uxlay olmayman, ovqat yegim kelmayapti.",
-    "bobo": "Vaalaykum assalom, qizim. Oxirgi paytlarda holsizlik, kechalari uxlashim qiyin, tez-tez hojatxonaga qatnayman.",
+    "buvi": "Tizzalarim og'riydi, ko'p yursam yoki zinadan chiqsam qiynalaman. Ertalab turganimda qotib qoladi.",
+    "homilador": "Men homiladorman. Ba'zan ko'nglim ayniydi, belim og'riydi va tez charchayman.",
+    "bola": "Salom! Men Madinaxonman, 5 yoshdaman. Men konfet va shokoladni yaxshi ko'raman.",
+    "bobo": "Vaalaykum assalom, qizim. Menda qon bosimi ko'tarilishi bor, ba'zan boshim og'riydi, tez charchayman.",
 }
 
 
@@ -328,10 +328,10 @@ async def voice_demo(token: str = "", patient: str = "buvi", voice: str = "", ra
 
 
 GEMINI_STYLES = {
-    "buvi": "slowly, in a weak, warm, slightly tired voice of a 75-year-old Uzbek grandmother",
-    "homilador": "naturally and conversationally, like a real 32-year-old pregnant woman talking to her nurse, slightly tired, soft, with natural pauses, small breaths and varied intonation, not like a reader",
+    "buvi": "slowly, in a weak, warm, slightly tired voice of a elderly Uzbek grandmother",
+    "homilador": "naturally and conversationally, like a real 28-year-old pregnant woman talking to her nurse, slightly tired, soft, with natural pauses, small breaths and varied intonation, not like a reader",
     "bola": "in the high, small, playful voice of a 5-year-old Uzbek child, slightly whiny, with childlike intonation and short breaths",
-    "bobo": "slowly, in a calm, warm, slightly hoarse voice of a 78-year-old Uzbek grandfather",
+    "bobo": "slowly, in a calm, warm, slightly hoarse voice of a 68-year-old Uzbek grandfather",
 }
 
 _LAB = r"""<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

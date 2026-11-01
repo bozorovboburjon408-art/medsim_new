@@ -79,3 +79,8 @@ Android: PCM/mp3 bo'laklarini Bluetooth karnayga chaladi (AudioTrack)
 - **Sinalmagan/ishlamagan:** ichki mikrofon oqimi (`OwnMic`, Google tanish moduli `EXTRA_AUDIO_SOURCE` ni qabul qilmadi): faqat Sozlamalardagi sinov tugmasi bilan yoqiladi.
 - **Qurilmalar:** sinov telefoni Samsung A56, planshet HONOR Pad X8b (adb: simli USB ishlamadi, drayver yo'q; simsiz debugging ishlaydi). Mahalliy APK imzosi GitHub APK imzosidan farq qiladi: almashtirishdan oldin ilovani o'chirish kerak.
 - **Mahalliy qurish:** `JAVA_HOME` = Android Studio `jbr`, Gradle 8.14.3 (`~/.gradle/wrapper/dists`), `gradle assembleDebug --no-daemon`.
+
+## Dialog tartibi (2026-11-01)
+- Ssenariy fayllarida endi faqat BEMOR gaplari, mavzu bandlari bo'yicha ([Qon bosimini o'lchash] ... ). Hamshira tavsiyalari promptdan olib tashlandi (bemor ularni ham aytib yuborardi).
+- Bemorning o'z savollarini berish vaqtini `backend/app/dialog.py` hal qiladi: har so'rovda tarixga qarab promptning oxiriga "HOZIRGI VAZIYAT" qo'shiladi (savol ber / savol berma / yakuniy gap). Savol hamshira kerakli mavzuni aytgandan keyingina ochiladi, tartib `after` bilan, hamshira savol bersa bemor javob beradi, ketma-ket ikki savol yo'q. Triggerlar `dialog.QUESTIONS` da.
+- `/self_test` hujjat dialogi tartibida; belgilar: "VAQTSIZ SAVOL", "SAVOL BERMADI".

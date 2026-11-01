@@ -13,54 +13,52 @@ from .patients import PATIENTS
 
 router = APIRouter()
 
-NURSE_COMMON = [
-    "Assalomu alaykum, yaxshimisiz?",
-    "Oilangizda kimlarda surunkali kasalliklar bor?",
-]
-NURSE = {
+NURSE = {  # hujjatdagi dialog tartibida (hamshira gaplari)
     "bobo": [
+        "Assalomu alaykum, bobo! Yaxshimisiz?",
+        "Oilangizda kimlarda surunkali kasalliklar bor? Kimdir doimiy dori qabul qiladimi?",
         "Bobo, qon bosimingizni oxirgi marta qachon o'lchagansiz?",
-        "Tuzli ovqatlarni ko'p iste'mol qilasizmi? Har kuni piyoda yurasizmi?",
-        "Dorilaringizni muntazam qabul qilasizmi?",
-        "Qon bosimingizni har kuni o'lchab yozib boring, tuzni kamaytiring va har kuni yarim soat piyoda yuring.",
+        "Qon bosimining 160/100 bo'lishi e'tibor talab qiladi. Tuzli ovqatlarni ko'p iste'mol qilasizmi?",
+        "Har kuni piyoda yurasizmi? Dorilaringizni muntazam qabul qilasizmi?",
+        "Qon bosimingizni har kuni o'lchab, kundalikka yozib boring. Tuzni kuniga 5 grammdan oshirmang. Sog'lig'ingiz imkon bersa, har kuni 20-30 daqiqa piyoda yuring. Dorini belgilangan vaqtda ichib turing.",
         "Kecha futbolda kim yutdi?",
-        "asd fgh jkl nima qilsa man san",
-        "Savollaringiz bormi?",
-        "Ko'krak og'rig'i yoki nafas qisishi bo'lsa 103 ga qo'ng'iroq qiling.",
-        "Oilada qanday ovqatlanishni maslahat berasiz deb so'rasangiz javob beraman, hozir bosimni o'lchaymiz.",
+        "Agar qon bosimi juda yuqori bo'lsa shifokor bilan bog'laning. Ko'krak og'rig'i, nafas qisishi yoki nutq buzilishi bo'lsa darhol 103 ga qo'ng'iroq qiling.",
+        "Oilada sog'lom ovqatlanish uchun sabzavot va meva ko'proq bo'lsin, tuz va shakarni me'yorida iste'mol qiling, fast-fud va gazlangan ichimliklarni cheklang.",
+        "Sog' bo'ling, tashrif uchun rahmat, xayr.",
     ],
     "buvi": [
-        "Buvi, tizzangiz qachondan beri og'riydi?",
-        "Oyoqlaringiz shishmaydimi?",
-        "Shifokor ko'rigidan o'tishingiz kerak, yengil gimnastika va sayr qilib turing.",
-        "Uyda sirpanchiq gilamlarni olib tashlang.",
-        "Savollaringiz bormi?",
-        "Oyoq shishishi yurak yoki buyrak kasalligidan bo'lishi mumkin, shifokorga boramiz.",
-        "Oilaviy mashqlar qilsa bo'ladi, yoshingizga mos bo'lsa.",
-        "Kecha futbolda kim yutdi?",
-        "Rahmat, ertaga qaytib kelaman.",
+        "Assalomu alaykum, buvi! Yaxshimisiz?",
+        "Oilangizda kimlarda surunkali kasalliklar bor?",
+        "Buvi, tizza og'rig'i qachondan beri davom etmoqda?",
+        "Sizda bo'g'im kasalligi bo'yicha shifokor tashxisi bormi?",
+        "Tizza og'rig'ining sababini aniqlash uchun shifokor ko'rigidan o'ting, yengil gimnastika va sayr qilib turing, ortiqcha vazn bo'lsa kamaytiring.",
+        "Uyda sirpanchiq gilamlarni olib tashlang, kalsiy va D vitaminiga boy ovqat yeng.",
+        "asd fgh jkl nima qilsa man san",
+        "Yoshingizda qon bosimi, qand, xolesterin, ko'rish va eshitishni tekshirtirib turish, grippga qarshi emlanish muhim.",
+        "Oyoq shishishi yurak, buyrak yoki qon tomir kasalligidan bo'lishi mumkin, shifokorga yo'naltiramiz. Bir oyoq to'satdan shishib og'risa tez yordam chaqiring.",
+        "Albatta, oilangiz bilan mashq qilsangiz bo'ladi, faqat yoshiga va salomatligiga mos bo'lsin. Xayr.",
     ],
     "homilador": [
-        "Homiladorligingiz muborak bo'lsin! Hozir nechanchi haftadasiz?",
-        "Antenatal nazoratga muntazam qatnayapsizmi?",
-        "Sizni nima bezovta qilyapti?",
-        "Temir va foliy kislotasini shifokor tavsiyasi bilan qabul qiling, muntazam piyoda yuring va og'ir yuk ko'tarmang.",
-        "Savollaringiz bormi?",
-        "Qindan qon kelishi, kuchli qorin og'rig'i yoki ko'rish xiralashsa darrov tibbiy yordamga murojaat qiling.",
+        "Assalomu alaykum! Homiladorligingiz muborak bo'lsin!",
+        "Oilangizda kimlarda surunkali kasalliklar bor? Sizni nima bezovta qilyapti?",
+        "Hozir homiladorlikning nechanchi haftasidasiz? Antenatal nazoratga muntazam qatnayapsizmi?",
+        "Temir va foliy kislotasini shifokor tavsiyasi bilan qabul qiling, yetarli suv iching, go'sht, baliq, tuxum, sabzavot va mevani me'yorida yeng, kofeinni kamaytiring.",
+        "Muntazam piyoda yuring, yengil gimnastika qiling, og'ir yuk ko'tarmang va yetarli dam oling.",
         "asd fgh jkl nima qilsa man san",
-        "Antenatal ko'riklar va UTT bilan bolangiz rivojlanishini shifokor baholaydi.",
-        "Qo'llarni sovunlab yuving va xonalarni shamollating.",
+        "Qindan qon kelishi, kuchli qorin og'rig'i, ko'rish xiralashishi, yuz va qo'llarning to'satdan shishishi yoki homila harakati kamayishi bo'lsa zudlik bilan tibbiy yordamga murojaat qiling.",
+        "Antenatal ko'riklarni o'z vaqtida o'tkazing, UTT va laborator tekshiruvlarni shifokor belgilagan muddatda qiling.",
+        "Qo'llarni sovunlab yuving, xonalarni shamollating, emlash taqvimiga amal qiling, gigiyenaga rioya qiling.",
+        "Sog' bo'ling, xayr!",
     ],
     "bola": [
         "Salom, shirin qizaloq! Isming nima? Necha yoshdasan?",
         "Sen nimalarni yaxshi ko'rasan? Meva va sabzavotlarni yeysanmi?",
         "Qo'lingni ovqatdan oldin yuvasanmi?",
-        "Ovqatdan oldin qo'llaringni sovunlab yuv, kuniga ikki marta tishlaringni tozala va shirinlikni kamroq yegin, xo'pmi?",
-        "Telefonni kamroq ko'rsang yaxshi bo'ladi.",
+        "Nonushta qilasanmi? Tishlaringni yuvasanmi?",
+        "Ovqatdan oldin qo'llaringni sovunlab yuv, ertalab va kechqurun tishingni tozala, shirinlikni kamroq yegin, telefonni cheklagin.",
         "Kecha futbolda kim yutdi?",
-        "Har kuni faol o'yinlar o'ynash kerak, bilasanmi?",
-        "Savollaring bormi?",
-        "Albatta, olma juda foydali! Sen sog'lom ovqatlansang, kuchli bo'lasan.",
+        "Sen uchun kun davomida kamida 180 daqiqa faol o'yinlar foydali, yugurish va sakrash ham kerak.",
+        "Albatta! Olma, banan va nok juda foydali.",
     ],
 }
 
@@ -88,15 +86,19 @@ def _norm(t: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^\w' ]", " ", t)).strip()
 
 
-def _flags(pid: str, nurse: str, reply: str, prev: str) -> list[str]:
+def _flags(pid: str, nurse: str, reply: str, prev: str, hint: str = "") -> list[str]:
     f = []
+    if hint:
+        asks = "?" in reply and "Tushunmadim" not in reply and not re.search(r"^\W*nima[?]?\W*$", reply, re.I)
+        if "BERMA" in hint and asks:
+            f.append("VAQTSIZ SAVOL (hozir savol berish kerak emas edi)")
+        if "mana shu savolni ber" in hint and "?" not in reply:
+            f.append("SAVOL BERMADI (hozir berishi kerak edi)")
     sents = len(re.findall(r"[.!?]+(?:\s|$)", reply)) or 1
     if re.search(r"yig['’‘ʻ`]?lay", reply, re.I) and pid == "bola":
         f.append("YIG'LAY so'zi")
     if re.search(r"turolmayman|qila olmayman|kasalman|bo'lmaydi", reply, re.I):
         f.append("QARSHILIK (tavsiyaga rozi bo'lishi kerak)")
-    if "?" in reply:
-        f.append("o'z SAVOLI bor (yaxshi)")
     if prev and difflib.SequenceMatcher(None, _norm(prev), _norm(reply)).ratio() > 0.8:
         f.append("TAKROR")
     if sents > 5:
@@ -111,7 +113,7 @@ def _flags(pid: str, nurse: str, reply: str, prev: str) -> list[str]:
 async def _reply(pid: str, history: list[dict]) -> tuple[str, int]:
     p = PATIENTS[pid]
     t0 = time.perf_counter()
-    out = [s async for s in llm.stream_sentences(p.system_prompt(), history, {}, None)]
+    out = [s async for s in llm.stream_sentences(p.system_prompt(history), history, {}, None)]
     return " ".join(out), int((time.perf_counter() - t0) * 1000)
 
 
@@ -119,15 +121,16 @@ async def _convo(pid: str) -> list[str]:
     lines = [f"=== {PATIENTS[pid].title} ({pid}) ==="]
     hist: list[dict] = []
     prev = ""
-    for q in NURSE_COMMON[:1] + NURSE[pid]:
+    for q in NURSE[pid]:
         hist.append({"role": "user", "content": q})
+        hint_before = dialog.hint(pid, hist)
         try:
             reply, ms = await _reply(pid, hist)
         except Exception as e:
             lines.append(f"Siz: {q}\n  XATO: {str(e)[:200]}")
             break
         hist.append({"role": "assistant", "content": reply})
-        fl = _flags(pid, q, reply, prev)
+        fl = _flags(pid, q, reply, prev, hint_before)
         lines.append(f"Siz: {q}\nBemor ({ms} ms): {eleven.strip_tags(reply)}" + (f"\n  !!! {', '.join(fl)}" if fl else ""))
         prev = reply
     return lines

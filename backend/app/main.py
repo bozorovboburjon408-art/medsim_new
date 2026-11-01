@@ -60,7 +60,7 @@ async def chat(req: ChatRequest):
         raise HTTPException(400, "Oxirgi xabar hamshiradan bo'lishi kerak")
     t0 = time.perf_counter()
     try:
-        text = await llm.generate(p.system_prompt(), [t.model_dump() for t in req.history])
+        text = await llm.generate(p.system_prompt([t.model_dump() for t in req.history]), [t.model_dump() for t in req.history])
     except Exception as e:
         raise HTTPException(502, f"AI xatosi: {e}"[:400])
     t1 = time.perf_counter()
@@ -243,7 +243,7 @@ async def chat_stream(req: ChatRequest):
         async def producer():
             try:
                 parts: list[str] = []
-                async for sent in llm.stream_sentences(p.system_prompt(), history, info, req.model):
+                async for sent in llm.stream_sentences(p.system_prompt(history), history, info, req.model):
                     if eleven.strip_tags(eleven.crying_fix(sent) if p.id == "bola" else sent):
                         parts.append(sent.strip())
                 if parts:

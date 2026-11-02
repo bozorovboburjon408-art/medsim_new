@@ -16,6 +16,10 @@ router = APIRouter()
 NURSE = {  # hujjatdagi dialog tartibida (hamshira gaplari)
     "bobo": [
         "Assalomu alaykum, bobo! Yaxshimisiz?",
+        "Oila a’zolariz haqida tanishtirasizmi?",
+        "Bobo, nechta farzandingiz bor? Ismingiz nima?",
+        "Bugun ob-havo qanday ekan?",
+        "Hozir qon bosimingizni o'lchab ko'raymi?",
         "Oilangizda kimlarda surunkali kasalliklar bor? Kimdir doimiy dori qabul qiladimi?",
         "Bobo, qon bosimingizni oxirgi marta qachon o'lchagansiz?",
         "Qon bosimining 160/100 bo'lishi e'tibor talab qiladi. Tuzli ovqatlarni ko'p iste'mol qilasizmi?",
@@ -28,6 +32,10 @@ NURSE = {  # hujjatdagi dialog tartibida (hamshira gaplari)
     ],
     "buvi": [
         "Assalomu alaykum, buvi! Yaxshimisiz?",
+        "oila a’zolarizda tanishtira olasizmi",
+        "Buvi, ismingiz nima? Necha yoshdasiz?",
+        "Bugun nima ovqat pishirdingiz?",
+        "Qand kasalligingiz bormi?",
         "Oilangizda kimlarda surunkali kasalliklar bor?",
         "Buvi, tizza og'rig'i qachondan beri davom etmoqda?",
         "Sizda bo'g'im kasalligi bo'yicha shifokor tashxisi bormi?",
@@ -40,6 +48,10 @@ NURSE = {  # hujjatdagi dialog tartibida (hamshira gaplari)
     ],
     "homilador": [
         "Assalomu alaykum! Homiladorligingiz muborak bo'lsin!",
+        "oila a’zolariz haqida tanishtirasizmi",
+        "Ismingiz nima? Eringiz nima ish qiladi?",
+        "Bolangiz o'g'il bo'ladimi, qiz?",
+        "Qon bosimingizni o'lchaymizmi?",
         "Oilangizda kimlarda surunkali kasalliklar bor? Sizni nima bezovta qilyapti?",
         "Hozir homiladorlikning nechanchi haftasidasiz? Antenatal nazoratga muntazam qatnayapsizmi?",
         "Temir va foliy kislotasini shifokor tavsiyasi bilan qabul qiling, yetarli suv iching, go'sht, baliq, tuxum, sabzavot va mevani me'yorida yeng, kofeinni kamaytiring.",
@@ -52,6 +64,10 @@ NURSE = {  # hujjatdagi dialog tartibida (hamshira gaplari)
     ],
     "bola": [
         "Salom, shirin qizaloq! Isming nima? Necha yoshdasan?",
+        "Oila a’zolaringni tanishtira olasanmi?",
+        "Tug'ilgan kuning qachon?",
+        "Qorning og'riyaptimi?",
+        "Bugun nima ovqat yeding?",
         "Sen nimalarni yaxshi ko'rasan? Meva va sabzavotlarni yeysanmi?",
         "Qo'lingni ovqatdan oldin yuvasanmi?",
         "Nonushta qilasanmi? Tishlaringni yuvasanmi?",

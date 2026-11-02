@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import chirp, eleven, full_lab, live, llm, selftest, tts
+from . import chirp, eleven, full_lab, live, llm, selftest, stt_fix, tts
 from .config import settings
 from .patients import PATIENTS
 
@@ -88,7 +88,7 @@ async def chat_stream(req: ChatRequest):
         raise HTTPException(404, "Bemor topilmadi")
     if not req.history or req.history[-1].role != "user":
         raise HTTPException(400, "Oxirgi xabar hamshiradan bo'lishi kerak")
-    history = [t.model_dump() for t in req.history]
+    history = [{**t.model_dump(), **({"content": stt_fix.fix(t.content)} if t.role == "user" else {})} for t in req.history]
 
     async def gen():
         t0 = time.perf_counter()

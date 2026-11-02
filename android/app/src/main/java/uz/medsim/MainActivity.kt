@@ -928,6 +928,11 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "uz-UZ")
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            if (android.os.Build.VERSION.SDK_INT >= 33) putStringArrayListExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, arrayListOf(
+                "Salomat buvi", "Hikmatilla bobo", "Nilufar", "Jasmina", "Sardor", "assalomu alaykum", "oila a'zolaringiz", "tanishtiring",
+                "qon bosimi", "qon bosimingiz", "o'lchaymiz", "tizza og'rig'i", "homiladorlik", "homiladorligingiz", "antenatal", "foliy kislotasi",
+                "shifokor", "tez yordam", "sog'lom ovqatlanish", "jismoniy mashq", "piyoda yuring", "gigiyena", "qo'llaringizni yuving",
+            ))
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, if (liveFlag[0]) 1400L else 10000L)
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, if (liveFlag[0]) 1100L else 10000L)
         })

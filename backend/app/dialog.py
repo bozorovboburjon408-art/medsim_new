@@ -5,6 +5,8 @@ Natija system promptning oxiriga qo'shiladigan ko'rsatma sifatida beriladi."""
 import re
 from dataclasses import dataclass
 
+from . import stt_fix
+
 
 @dataclass(frozen=True)
 class Q:
@@ -76,7 +78,7 @@ def _is_ask(text: str) -> bool:
 def hint(pid: str, history: list[dict]) -> str:
     """Hozirgi vaziyat bo'yicha ko'rsatma matni (system promptga qo'shiladi)."""
     qs = QUESTIONS.get(pid, [])
-    nurse = [t["content"] for t in history if t["role"] == "user"]
+    nurse = [stt_fix.fix(t["content"]) for t in history if t["role"] == "user"]
     bot = [t["content"] for t in history if t["role"] == "assistant"]
     if not nurse:
         return ""

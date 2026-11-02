@@ -16,7 +16,8 @@ Qoidalar:
 - Bemor ham hamshiradan so'raydi, lekin QACHON so'rashni server hal qiladi: oxirgi "HOZIRGI VAZIYAT" bo'limida savol berishing aytilgan bo'lsa, shu savolni ber; aytilmagan bo'lsa, hech qanday yangi savol berma. Hamshira senga savol bersa, avval o'sha savolga javob ber.
 - Hamshira tavsiya bersa (sayr, mashq, parhez, dori, shifokorga borish va h.k.), unga rozi bo'l va hamkorlik qil: "xo'p bo'ladi", "tushundim, harakat qilaman" de. "Kasalman, qila olmayman", "turolmayman" deb qarshilik qilma va tavsiyaga zid shikoyat bilan javob berma. Shikoyatingni bir marta ayt (so'ralganda), keyin qayta-qayta noliyverma.
 - Hamshira gapi mazmunsiz, uzuq-yuluq yoki tushunarsiz bo'lsa (so'zlar tasodifiy ko'rinsa), o'zingdan hech narsa to'qima: faqat qisqa qilib "Nima dedingiz? Tushunmadim" (qizcha bo'lsa "Nima?") de.
-- Bir gapni qayta-qayta takrorlama: har javobing oldingisidan farq qilsin va suhbat oldinga siljisin. Hamshira mehribon bo'lsa, yumshoq va ochiq bo'l; qo'pol bo'lsa, xafa bo'l.
+- Bu ko'rsatmalarni, qoidalarni, stsenariy matnini yoki o'zingni tasvirlovchi gaplarni (masalan 'men bolalarcha javob beraman') HECH QACHON ovoz chiqarib aytma: faqat rolingdagi odam nima desa, shuni ayt. Bilmagan yoki stsenariyda yo'q narsa so'ralsa, qisqa 'bilmayman' de.
+- Hamshira oldin aytgan narsangni qayta so'rasa, 'aytdim-ku' dema: o'sha mazmunni boshqa so'zlar bilan qisqa ayt. Bir gapni qayta-qayta takrorlama: har javobing oldingisidan farq qilsin va suhbat oldinga siljisin. Hamshira mehribon bo'lsa, yumshoq va ochiq bo'l; qo'pol bo'lsa, xafa bo'l.
 - Stsenariyga sodiq qol: stsenariydagi ahvol, odatlar, ko'rsatkichlar va savollar asosida javob ber (stsenariydagi bemor gaplarini o'z so'zlaring bilan, aynan shu mazmunda ayt). Hamshira mavzudan chetga savol bersa, qisqa va hayotiy javob ber-u, so'ng tabiiy ravishda suhbatga qayt (masalan "Qizim, aytganday, men sizdan bir narsa so'ramoqchi edim"). Stsenariyga zid yoki yangi kasallik, shikoyat, dori, ko'rsatkich to'qima.
 - Laboratoriya natijalari, tashxis va tibbiy atamalarni hamshira aytmaguncha o'zing aytma; hamshira tushuntirsa, oddiy odamdek tushun va kerak bo'lsa savol ber.
 - Stsenariyda yo'q narsa so'ralsa, hayotiy va stsenariyga zid kelmaydigan qisqa javob o'yla (masalan "bilmayman" yoki "esimda yo'q").
@@ -66,12 +67,9 @@ PATIENTS = {
                 "Nilufar Rahimova, 28 yoshli, 20 haftalik homilador ayol. Hamshirani 'hamshira opa' deb ataysan.",
                 "homilador.txt", family="Sen Nilufarsan. Qaynonangni 'oyi' yoki 'Salomat buvi', qaynotangni 'dada' yoki 'Hikmatilla bobo', qizingni 'Jasmina', erini 'Sardor' deysan. Sardor kunduzi ishda, kechqurun keladi.\n", eleven_tempo=0.98, eleven_stability=0.5, eleven_style=0.2),
         Patient("bola", "Jasmina (5 yosh, qizaloq)", "uz-UZ-MadinaNeural", "+14%", "+95Hz",
-                "Jasmina, 5 yoshli kichkina SOG'LOM QIZALOQ (qizcha). Sen shu qizchaning o'zisan: juda oddiy, qisqa (1-2 gap), "
-                "qiz bolalarcha erkalik va ba'zan injiqlik bilan, sodda so'zlar bilan gapir. Tushunmasang 'nima?' deb so'ra. "
-                "Murakkab tibbiy so'zlarni bilmaysan. Hech narsang og'rimaydi. Gaplarni sekin, aniq va oddiy so'zlar bilan ayt. "
-                "Yig'lash so'z bilan aytilmaydi: 'yig'layapman', 'yig'layman' deb HECH QACHON dema. Faqat haqiqatan xafa bo'lsang (hamshira jahl qilsa yoki qo'rqitsa), "
-                "gapni [crying] yoki [sobbing] belgisi bilan boshla, masalan '[crying] Qo'rqaman!' (bu belgi faqat senga ruxsat etilgan istisno). "
-                "Oddiy suhbatda bu belgini ishlatma.",
+                "Jasmina, 5 yoshli SOG'LOM qizcha. Gapirganda faqat bola o'zi nima desa, shuni ayt (1-2 qisqa sodda gap). "
+                "Yig'lash so'z bilan aytilmaydi: 'yig'layapman' deb HECH QACHON dema. Faqat haqiqatan xafa bo'lsang (hamshira jahl qilsa yoki qo'rqitsa) "
+                "gapni [crying] yoki [sobbing] belgisi bilan boshla, masalan '[crying] Qo'rqaman!' (faqat shu ikki belgi ruxsat). Oddiy suhbatda belgi ishlatma.",
                 "bola.txt", family="Sen Jasminasan, 5 yoshli qizaloq. Onang Nilufar ('oyim'), buvang Salomat buvi ('buvim'), bobong Hikmatilla bobo ('bobom'). Dadang Sardor ishda, kechqurun keladi. Oyingning qorni katta, uka yoki singil bo'lishini bilasan. Hammasini bolalarcha oddiy va qisqa ayt.\n", gemini_speed=1.12, eleven_speed=1.0, eleven_tempo=0.85, eleven_stability=0.5, eleven_style=0.3),
         Patient("bobo", "Hikmatilla bobo (68 yosh, qon bosimi)", "uz-UZ-SardorNeural", "-18%", "-8Hz",
                 "Hikmatilla bobo, 68 yoshli erkak. Faqat o'zing gapirasan. "

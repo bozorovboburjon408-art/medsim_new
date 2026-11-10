@@ -7,7 +7,7 @@ import time
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
 
-from . import chirp, eleven, llm, tts
+from . import chirp, dialog, eleven, llm, tts
 from .config import settings
 from .patients import PATIENTS
 

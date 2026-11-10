@@ -16,6 +16,7 @@ router = APIRouter()
 NURSE = {  # hujjatdagi dialog tartibida (hamshira gaplari)
     "bobo": [
         "Assalomu alaykum, bobo! Yaxshimisiz?",
+        "Oilada 1 yoshli kichkina bola ham bormi? Ismi nima, kimning o'g'li?",
         "Oila a’zolariz haqida tanishtirasizmi?",
         "Bobo, nechta farzandingiz bor? Ismingiz nima?",
         "Bugun ob-havo qanday ekan?",
@@ -32,6 +33,7 @@ NURSE = {  # hujjatdagi dialog tartibida (hamshira gaplari)
     ],
     "buvi": [
         "Assalomu alaykum, buvi! Yaxshimisiz?",
+        "Oilada 1 yoshli kichkina bola ham bormi? Ismi nima, kimning o'g'li?",
         "oila a’zolarizda tanishtira olasizmi",
         "Buvi, ismingiz nima? Necha yoshdasiz?",
         "Bugun nima ovqat pishirdingiz?",
@@ -48,6 +50,7 @@ NURSE = {  # hujjatdagi dialog tartibida (hamshira gaplari)
     ],
     "homilador": [
         "Assalomu alaykum! Homiladorligingiz muborak bo'lsin!",
+        "Oilada 1 yoshli kichkina bola ham bormi? Ismi nima, kimning o'g'li?",
         "oila a’zolariz haqida tanishtirasizmi",
         "Ismingiz nima? Eringiz nima ish qiladi?",
         "Bolangiz o'g'il bo'ladimi, qiz?",
@@ -64,6 +67,7 @@ NURSE = {  # hujjatdagi dialog tartibida (hamshira gaplari)
     ],
     "bola": [
         "Salom, shirin qizaloq! Isming nima? Necha yoshdasan?",
+        "Oilada 1 yoshli kichkina bola ham bormi? Ismi nima, kimning o'g'li?",
         "Oila a’zolaringni tanishtira olasanmi?",
         "Tug'ilgan kuning qachon?",
         "Qorning og'riyaptimi?",

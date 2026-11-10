@@ -79,7 +79,7 @@ data class PatientInfo(
 )
 
 val PATIENTS = listOf(
-    PatientInfo("buvi", "Salomat buvi", "Hikmatilla otaning rafiqasi", "👵", tag = "Tizza og'rig'i", c1 = Color(0xFFF59E0B), c2 = Color(0xFFEA580C)),
+    PatientInfo("buvi", "Salomat buvi", "Hikmatilla boboning rafiqasi · 65 yosh", "👵", tag = "Tizza og'rig'i", c1 = Color(0xFFF59E0B), c2 = Color(0xFFEA580C)),
     PatientInfo("bobo", "Hikmatilla bobo", "Salomat buvining eri · 68 yosh", "👴", tag = "Qon bosimi", c1 = Color(0xFF2DD4BF), c2 = Color(0xFF0F766E)),
     PatientInfo("homilador", "Nilufar opa", "Ularning kelini · 28 yosh · 20 hafta", "🤰", tag = "Homiladorlik", c1 = Color(0xFFF472B6), c2 = Color(0xFFBE185D)),
     PatientInfo("bola", "Jasmina", "Nilufarning qizi · 5 yosh", "👧", tag = "Sog'lom qizcha", c1 = Color(0xFF38BDF8), c2 = Color(0xFF4F46E5)),

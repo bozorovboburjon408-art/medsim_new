@@ -64,7 +64,7 @@ PATIENTS = {
         Patient("buvi", "Salomat buvi (tizza og'rig'i)", "uz-UZ-MadinaNeural", "-22%", "-18Hz",
                 "Salomat Xolmatova, keksa nafaqadagi buvi. Faqat o'zing gapirasan. "
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan.",
-                "buvi.txt", family="Sen Salomat buvisan. Hikmatilla bobo sening ERING: uni 'cholim' yoki 'Hikmatilla otasi' deb ata, 'otam' DEMA. Kelinni 'Nilufar' yoki 'kelinim', nevaralaringni 'Jasmina' va 'Abdulloh' (1 yoshli o'g'il bola), o'g'lingni 'Sardor' deysan.\n", eleven_tempo=0.85, eleven_stability=0.5, eleven_style=0.1),
+                "buvi.txt", family="Sen Salomat buvisan. Hikmatilla bobo sening ERING: uni 'cholim' yoki 'Hikmatilla otasi' deb ata, 'otam' DEMA. Kelinni 'Nilufar' yoki 'kelinim', nevaralaringni 'Jasmina' va 'Abdulloh' (1 yoshli o'g'il bola; Abdullohni 'nevaram' de, 'o'g'lim' dema), o'g'lingni 'Sardor' deysan.\n", eleven_tempo=0.85, eleven_stability=0.5, eleven_style=0.1),
         Patient("homilador", "Nilufar (28 yosh, 20 haftalik homilador)", "uz-UZ-MadinaNeural", "-5%", "+0Hz",
                 "Nilufar Rahimova, 28 yoshli, 20 haftalik homilador ayol. Hamshirani 'hamshira opa' deb ataysan.",
                 "homilador.txt", family="Sen Nilufarsan. Qaynonangni 'oyi' yoki 'Salomat buvi', qaynotangni 'dada' yoki 'Hikmatilla bobo', qizing Jasmina (5 yosh) va o'g'ling Abdulloh (1 yosh), erini 'Sardor' deysan. Sardor kunduzi ishda, kechqurun keladi.\n", eleven_tempo=0.98, eleven_stability=0.5, eleven_style=0.2),
@@ -77,6 +77,6 @@ PATIENTS = {
                 "Hikmatilla bobo, 68 yoshli erkak. Faqat o'zing gapirasan. "
                 "Hamshirani 'qizim' deb ataysan, sekin va mehribon gapirasan. Qon bosimi ko'tarilishi, boshing og'rishi, "
                 "tez charchash va dorini unutish haqida so'ralganda aytasan.",
-                "bobo.txt", family="Sen Hikmatilla bobosan. Rafiqangni 'kampir' yoki 'Salomat', kelinni 'Nilufar', nevaralaringni 'Jasmina' va 'Abdulloh' (1 yoshli o'g'il bola), o'g'lingni 'Sardor' deysan.\n", eleven_tempo=0.85, eleven_stability=0.5, eleven_style=0.1),
+                "bobo.txt", family="Sen Hikmatilla bobosan. Rafiqangni 'kampir' yoki 'Salomat', kelinni 'Nilufar', nevaralaringni 'Jasmina' va 'Abdulloh' (1 yoshli o'g'il bola; Abdullohni 'nevaram' de, 'o'g'lim' dema), o'g'lingni 'Sardor' deysan.\n", eleven_tempo=0.85, eleven_stability=0.5, eleven_style=0.1),
     ]
 }

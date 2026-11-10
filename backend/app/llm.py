@@ -60,12 +60,19 @@ async def generate(system: str, history: list[dict]) -> str:
 
 
 async def _gemini(system: str, history: list[dict]) -> str:
+    # "HOZIRGI VAZIYAT" ko'rsatmasi system promptning oxirida e'tibordan chetda qolmasligi uchun oxirgi hamshira gapiga ham qo'shiladi
+    marker = "=== HOZIRGI VAZIYAT"
+    note = system[system.index(marker):] if marker in system else ""
+    contents = [
+        {"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]}
+        for m in history
+    ]
+    if note and contents and contents[-1]["role"] == "user":
+        contents[-1] = {"role": "user", "parts": [{"text": contents[-1]["parts"][0]["text"]
+                                                    + "\n\n[Yashirin ko'rsatma, uni ovoz chiqarib aytma, faqat bajar]\n" + note}]}
     body = {
         "systemInstruction": {"parts": [{"text": system}]},
-        "contents": [
-            {"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]}
-            for m in history
-        ],
+        "contents": contents,
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1024},
     }
     models = chat_models()
@@ -135,12 +142,19 @@ async def stream_sentences(system: str, history: list[dict], info: dict | None =
         for s in sents + ([rest.strip()] if rest.strip() else []):
             yield s
         return
+    # "HOZIRGI VAZIYAT" ko'rsatmasi system promptning oxirida e'tibordan chetda qolmasligi uchun oxirgi hamshira gapiga ham qo'shiladi
+    marker = "=== HOZIRGI VAZIYAT"
+    note = system[system.index(marker):] if marker in system else ""
+    contents = [
+        {"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]}
+        for m in history
+    ]
+    if note and contents and contents[-1]["role"] == "user":
+        contents[-1] = {"role": "user", "parts": [{"text": contents[-1]["parts"][0]["text"]
+                                                    + "\n\n[Yashirin ko'rsatma, uni ovoz chiqarib aytma, faqat bajar]\n" + note}]}
     body = {
         "systemInstruction": {"parts": [{"text": system}]},
-        "contents": [
-            {"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]}
-            for m in history
-        ],
+        "contents": contents,
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1024},
     }
     models = chat_models()

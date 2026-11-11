@@ -15,6 +15,7 @@ router = APIRouter()
 
 NURSE = {  # hujjatdagi dialog tartibida (hamshira gaplari)
     "bobo": [
+        "Bobo, siz kundalik ko'proq piyoda yurishingiz va dorini vaqtida ichishingiz kerak.",
         "Assalomu alaykum, bobo! Yaxshimisiz?",
         "Oilada 1 yoshli kichkina bola ham bormi? Ismi nima, kimning o'g'li?",
         "Oila a’zolariz haqida tanishtirasizmi?",
@@ -32,6 +33,7 @@ NURSE = {  # hujjatdagi dialog tartibida (hamshira gaplari)
         "Sog' bo'ling, tashrif uchun rahmat, xayr.",
     ],
     "buvi": [
+        "Buvi, siz ko'proq yengil mashq qilishingiz va shifokorga borishingiz kerak.",
         "Assalomu alaykum, buvi! Yaxshimisiz?",
         "Oilada 1 yoshli kichkina bola ham bormi? Ismi nima, kimning o'g'li?",
         "oila a’zolarizda tanishtira olasizmi",
@@ -49,6 +51,7 @@ NURSE = {  # hujjatdagi dialog tartibida (hamshira gaplari)
         "Albatta, oilangiz bilan mashq qilsangiz bo'ladi, faqat yoshiga va salomatligiga mos bo'lsin. Xayr.",
     ],
     "homilador": [
+        "Nilufar, siz ko'proq suv ichishingiz va dam olishingiz kerak.",
         "Assalomu alaykum! Homiladorligingiz muborak bo'lsin!",
         "Oilada 1 yoshli kichkina bola ham bormi? Ismi nima, kimning o'g'li?",
         "oila a’zolariz haqida tanishtirasizmi",
@@ -66,6 +69,7 @@ NURSE = {  # hujjatdagi dialog tartibida (hamshira gaplari)
         "Sog' bo'ling, xayr!",
     ],
     "bola": [
+        "Jasmina, sen ko'proq meva yeyishing va qo'lingni yuvishing kerak.",
         "Salom, shirin qizaloq! Isming nima? Necha yoshdasan?",
         "Oilada 1 yoshli kichkina bola ham bormi? Ismi nima, kimning o'g'li?",
         "Oila a’zolaringni tanishtira olasanmi?",
@@ -117,6 +121,8 @@ def _flags(pid: str, nurse: str, reply: str, prev: str, hint: str = "") -> list[
     sents = len(re.findall(r"[.!?]+(?:\s|$)", reply)) or 1
     if re.search(r"yig['’‘ʻ`]?lay", reply, re.I) and pid == "bola":
         f.append("YIG'LAY so'zi")
+    if re.search(r"(bobo|buvi|u|bola)\s+(qiladi|yuradi|ichadi|bajaradi|yeydi)|ho'p,?\s+(qiladi|ichadi|yuradi|yeydi)", reply, re.I):
+        f.append("3-SHAXSDA gapirdi")
     if re.search(r"turolmayman|qila olmayman|kasalman|bo'lmaydi", reply, re.I):
         f.append("QARSHILIK (tavsiyaga rozi bo'lishi kerak)")
     if prev and difflib.SequenceMatcher(None, _norm(prev), _norm(reply)).ratio() > 0.8:

@@ -658,28 +658,26 @@ fun MicButton(phase: Phase, level: Float, boxSize: Dp, onTap: () -> Unit) {
 @Composable
 fun LevelMeter(level: Float, active: Boolean, width: Dp, modifier: Modifier = Modifier) {
     val lv by animateFloatAsState(if (active) level.coerceIn(0f, 1f) else 0f, tween(90), label = "meter")
-    val segs = 14
+    val segs = 8
     val lit = (lv * segs + 0.5f).toInt()
-    val zoneColor = { i: Int -> if (i < 3) Warn else if (i < 11) Ok else Danger }
+    val zoneColor = { i: Int -> if (i < 2) Warn else if (i < 6) Ok else Danger }
     val (text, textColor) = when {
-        !active -> "Mikrofon ovozi darajasi" to MaterialTheme.colorScheme.onSurfaceVariant
-        lv < 0.12f -> "Juda past: balandroq gapiring" to Warn
-        lv < 0.30f -> "Past: sal balandroq gapiring" to Warn
+        !active -> "" to MaterialTheme.colorScheme.onSurfaceVariant
+        lv < 0.30f -> "Past" to Warn
         lv < 0.85f -> "Yaxshi" to Ok
-        else -> "Juda baland: sal sekinroq gapiring" to Danger
+        else -> "Baland" to Danger
     }
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(Modifier.width(width), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(Modifier.width(width), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             for (i in 0 until segs) {
                 val on = active && i < lit
                 Box(
-                    Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(3.dp))
+                    Modifier.weight(1f).height(5.dp).clip(RoundedCornerShape(2.dp))
                         .background(if (on) zoneColor(i) else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
                 )
             }
         }
-        Spacer(Modifier.height(3.dp))
-        Text(text, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = textColor, textAlign = TextAlign.Center, maxLines = 1)
+        Text(text.ifEmpty { " " }, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = textColor, textAlign = TextAlign.Center, maxLines = 1)
     }
 }
 
@@ -1124,7 +1122,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
                         FaceHero(p, phase, 74.dp)
                         StatusChip(phase, live, recReady)
                         MicButton(phase, level, 112.dp) { if (liveFlag[0]) setLive(false) else toggle() }
-                        LevelMeter(level, phase == Phase.LISTENING, 200.dp)
+                        LevelMeter(level, phase == Phase.LISTENING, 80.dp)
                     }
                     messages(Modifier.weight(1f).fillMaxHeight())
                 }
@@ -1140,13 +1138,15 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
                         Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surface, shadowElevation = 14.dp,
                         shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
                     ) {
+                        Box(Modifier.fillMaxWidth()) {
+                        LevelMeter(level, phase == Phase.LISTENING, 64.dp, Modifier.align(Alignment.TopEnd).padding(top = 12.dp, end = 16.dp))
                         Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             MicButton(phase, level, 150.dp) { if (liveFlag[0]) setLive(false) else toggle() }
-                            LevelMeter(level, phase == Phase.LISTENING, 240.dp)
                             Text(
                                 phase.label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
                                 color = if (phase == Phase.LISTENING) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                        }
                         }
                     }
                 }

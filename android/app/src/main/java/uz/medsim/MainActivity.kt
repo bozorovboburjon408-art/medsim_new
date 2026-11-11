@@ -654,6 +654,35 @@ fun MicButton(phase: Phase, level: Float, boxSize: Dp, onTap: () -> Unit) {
     }
 }
 
+/** Hamshira mikrofoni ovozi darajasi: segmentli shkala va matn (past / yaxshi / juda baland). Yozish bo'lmasa xira turadi. */
+@Composable
+fun LevelMeter(level: Float, active: Boolean, width: Dp, modifier: Modifier = Modifier) {
+    val lv by animateFloatAsState(if (active) level.coerceIn(0f, 1f) else 0f, tween(90), label = "meter")
+    val segs = 14
+    val lit = (lv * segs + 0.5f).toInt()
+    val zoneColor = { i: Int -> if (i < 3) Warn else if (i < 11) Ok else Danger }
+    val (text, textColor) = when {
+        !active -> "Mikrofon ovozi darajasi" to MaterialTheme.colorScheme.onSurfaceVariant
+        lv < 0.12f -> "Juda past: balandroq gapiring" to Warn
+        lv < 0.30f -> "Past: sal balandroq gapiring" to Warn
+        lv < 0.85f -> "Yaxshi" to Ok
+        else -> "Juda baland: sal sekinroq gapiring" to Danger
+    }
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(Modifier.width(width), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            for (i in 0 until segs) {
+                val on = active && i < lit
+                Box(
+                    Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(3.dp))
+                        .background(if (on) zoneColor(i) else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+                )
+            }
+        }
+        Spacer(Modifier.height(3.dp))
+        Text(text, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = textColor, textAlign = TextAlign.Center, maxLines = 1)
+    }
+}
+
 /** Bemorning katta yuzi: gapirganda og'zi harakatlanadi va atrofida nur yonadi. */
 @Composable
 fun FaceHero(p: PatientInfo, phase: Phase, faceSize: Dp) {
@@ -1095,6 +1124,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
                         FaceHero(p, phase, 74.dp)
                         StatusChip(phase, live, recReady)
                         MicButton(phase, level, 112.dp) { if (liveFlag[0]) setLive(false) else toggle() }
+                        LevelMeter(level, phase == Phase.LISTENING, 200.dp)
                     }
                     messages(Modifier.weight(1f).fillMaxHeight())
                 }
@@ -1112,6 +1142,7 @@ fun ChatScreen(p: PatientInfo, server: String, model: String, tts: String, speak
                     ) {
                         Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             MicButton(phase, level, 150.dp) { if (liveFlag[0]) setLive(false) else toggle() }
+                            LevelMeter(level, phase == Phase.LISTENING, 240.dp)
                             Text(
                                 phase.label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
                                 color = if (phase == Phase.LISTENING) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
